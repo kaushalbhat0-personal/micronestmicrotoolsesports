@@ -3,6 +3,9 @@ import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import type { Route } from "next";
 
 // Stub — demonstrates canonical org context + entitlement pattern, no business logic.
 export default async function SponsorSentinelPage({ params }: { params: Promise<{ orgSlug: string }> }) {
@@ -26,10 +29,22 @@ export default async function SponsorSentinelPage({ params }: { params: Promise<
             <code>requireOrganizationContext</code> → <code>requireEntitlement</code> → service → repository.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Canonical flow verified: URL slug <code>{orgSlug}</code> → membership <code>{ctx.membership.role}</code> → entitlement for <code>sponsor-sentinel</code> → render.
           </p>
+          <div className="flex gap-2">
+            <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route}>
+              <Button size="sm" aria-label="View campaigns">
+                View campaigns
+              </Button>
+            </Link>
+            <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route}>
+              <Button variant="outline" size="sm" aria-label="View scan history">
+                View scan history
+              </Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,17 @@
-// Public barrel for sponsor-sentinel — export only what other domains should use.
-// Currently empty — foundation establishes the pattern, not the implementation.
-
-// export * from "./types";
-// export * from "./schemas";
+export * from "./types/platform";
+export * from "./types/category";
+export * from "./types/tag";
+export * from "./types/observations";
+export * from "./types/evaluation";
+export * from "./types/evidence";
+export * from "./types/provider";
+export * from "./types/budget";
+export * from "./types/events";
+export * from "./services/capabilities";
+export * from "./services/normalization";
+export * from "./services/budget";
+export * from "./services/evaluator";
+export * from "./services/connected-channel-service";
+export * from "./services/campaign-service";
+export * from "./services/deliverable-service";
+export * from "./schemas/rules";
