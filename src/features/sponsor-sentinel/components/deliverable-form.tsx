@@ -8,15 +8,16 @@ import { Label } from "@/components/ui/label";
 import { getCapabilities } from "@/features/sponsor-sentinel/services/capabilities";
 
 const RULE_OPTIONS = [
-  { value: "required_title_contains", label: "Title contains" },
-  { value: "required_hashtag", label: "Hashtag in title" },
+  { value: "required_title_contains", label: "Title includes" },
+  { value: "required_hashtag", label: "Hashtag included" },
   { value: "required_category", label: "Category" },
-  { value: "required_twitch_tag", label: "Twitch tag (twitch only)" },
-  { value: "required_youtube_tags", label: "YouTube tags (youtube only)" },
-  { value: "required_kick_tags", label: "Kick tags (kick only)" },
-  { value: "minimum_duration", label: "Minimum duration (minutes)" },
-  { value: "required_vod_exists", label: "VOD must exist" },
-  { value: "required_description_contains", label: "Description contains" },
+  { value: "required_twitch_tag", label: "Twitch tag included" },
+  { value: "required_youtube_tags", label: "YouTube tags include" },
+  { value: "required_kick_tags", label: "Kick tags include" },
+  { value: "minimum_duration", label: "Minimum stream duration" },
+  { value: "required_vod_exists", label: "VOD available" },
+  { value: "required_description_contains", label: "Description includes" },
+  { value: "required_streaming_window", label: "Streaming window" },
 ] as const;
 
 export function DeliverableForm({ orgSlug, campaignId }: { orgSlug: string; campaignId: string }) {
@@ -41,8 +42,9 @@ export function DeliverableForm({ orgSlug, campaignId }: { orgSlug: string; camp
       <input type="hidden" name="orgSlug" value={orgSlug} />
       <input type="hidden" name="campaignId" value={campaignId} />
       <div className="space-y-2">
-        <Label htmlFor="deliverable-name">Deliverable name</Label>
+        <Label htmlFor="deliverable-name">Requirement name</Label>
         <Input id="deliverable-name" name="name" required minLength={2} maxLength={120} placeholder="Title must contain #OurBrand" />
+        <p className="text-xs text-muted-foreground">What should the creator deliver?</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="deliverable-desc">Description (optional)</Label>
@@ -50,22 +52,23 @@ export function DeliverableForm({ orgSlug, campaignId }: { orgSlug: string; camp
           id="deliverable-desc"
           name="description"
           maxLength={2000}
-          placeholder="Optional description"
+          placeholder="Optional context for this requirement"
           rows={2}
           className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="platformHint">Platform hint</Label>
+          <Label htmlFor="platformHint">Where should we check it?</Label>
           <select id="platformHint" name="platformHint" value={platform} onChange={(e) => setPlatform(e.target.value as never)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
             <option value="twitch">Twitch</option>
             <option value="youtube">YouTube</option>
             <option value="kick">Kick</option>
           </select>
+          <p className="text-xs text-muted-foreground">Platform</p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="ruleType">Rule type</Label>
+          <Label htmlFor="ruleType">What should we check?</Label>
           <select id="ruleType" name="ruleType" value={ruleType} onChange={(e) => setRuleType(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
             {filtered.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -73,25 +76,26 @@ export function DeliverableForm({ orgSlug, campaignId }: { orgSlug: string; camp
               </option>
             ))}
           </select>
+          <p className="text-xs text-muted-foreground">Check type</p>
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="ruleValue">Rule value</Label>
-        <Input id="ruleValue" name="ruleValue" placeholder={ruleType === "minimum_duration" ? "30" : "#OurBrand"} required={ruleType !== "required_vod_exists"} />
+        <Label htmlFor="ruleValue">What should the creator include?</Label>
+        <Input id="ruleValue" name="ruleValue" placeholder={ruleType === "minimum_duration" ? "30" : "#OurBrand"} required={ruleType !== "required_vod_exists" && ruleType !== "required_streaming_window"} />
         <p className="text-xs text-muted-foreground">
           For category, enter category ID; for tags, comma-separated; for duration, minutes.
         </p>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="categoryId">Category ID (if category rule)</Label>
+        <Label htmlFor="categoryId">Category ID (if category check)</Label>
         <Input id="categoryId" name="categoryId" placeholder="509658" />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="tagIds">Tag IDs (comma-separated, for tag rules)</Label>
+        <Label htmlFor="tagIds">Tags (comma-separated, for tag checks)</Label>
         <Input id="tagIds" name="tagIds" placeholder="tag1, tag2" />
       </div>
-      <Button type="submit" aria-label="Add deliverable">
-        Add deliverable
+      <Button type="submit" aria-label="Add requirement">
+        Add requirement
       </Button>
     </form>
   );

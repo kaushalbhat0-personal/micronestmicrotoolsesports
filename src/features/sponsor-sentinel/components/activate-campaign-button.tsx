@@ -46,10 +46,10 @@ export function ActivateCampaignButton({
           type="submit"
           size="sm"
           disabled={disabled || pending}
-          aria-label="Activate campaign"
+          aria-label="Start tracking"
           title={disabled ? disabledReason : undefined}
         >
-          {pending ? "Activating…" : "Activate"}
+          {pending ? "Starting…" : "Start tracking"}
         </Button>
       </form>
       {disabled && disabledReason ? (

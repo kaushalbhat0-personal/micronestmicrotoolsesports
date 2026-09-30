@@ -8,24 +8,36 @@ import { listEvidenceByScan } from "@/server/repositories/evidence";
 import { listEvaluationsByScan } from "@/server/repositories/evaluations";
 import { listScansByOrg } from "@/server/repositories/scans";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { SectionHeader } from "@/components/ui/section-header";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { ReadinessCard } from "@/components/ui/readiness-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { DeliverableForm } from "@/features/sponsor-sentinel/components/deliverable-form";
 import { deleteDeliverableAction } from "@/features/sponsor-sentinel/actions/deliverable-actions";
 import { requestScanAction } from "@/features/sponsor-sentinel/actions/campaign-actions";
 import { ActivateCampaignButton } from "@/features/sponsor-sentinel/components/activate-campaign-button";
+import { formatRequirementDescription } from "@/features/sponsor-sentinel/components/requirement-description";
 import Link from "next/link";
 import type { Route } from "next";
 
-function StatusBadge({ status }: { status: string }) {
-  const variant = status === "active" ? "success" : status === "draft" ? "secondary" : "outline";
-  return <Badge variant={variant as never}>{status}</Badge>;
+function formatPeriod(startsAt: string, endsAt: string): string {
+  try {
+    const s = new Date(startsAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    const e = new Date(endsAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    return `${s} – ${e}`;
+  } catch {
+    return `${startsAt} – ${endsAt}`;
+  }
 }
 
-function EvaluationBadge({ result }: { result: string }) {
-  const variant = result === "PASS" ? "success" : result === "FAIL" ? "destructive" : result === "NOT_SUPPORTED" ? "outline" : "secondary";
-  return <Badge variant={variant as never}>{result}</Badge>;
+function platformLabel(platform: string): string {
+  if (platform === "youtube") return "YouTube";
+  if (platform === "twitch") return "Twitch";
+  if (platform === "kick") return "Kick";
+  return platform;
 }
 
 export default async function CampaignDetailPage({ params }: { params: Promise<{ orgSlug: string; campaignId: string }> }) {
@@ -39,12 +51,10 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const channels = await listConnectedChannelsByOrg(supabase, ctx.organization.id);
   const usableChannels = channels.filter((c) => c.connection_status === "connected");
 
-  // Latest scans for this campaign
   const allScans = await listScansByOrg(supabase, ctx.organization.id);
   const campaignScans = allScans.filter((s) => s.campaign_id === campaignId).slice(0, 5);
   const latestScan = campaignScans[0] ?? null;
 
-  // Fetch evidence/evaluations for latest scan if exists
   let evidence: Awaited<ReturnType<typeof listEvidenceByScan>> = [];
   let evaluations: Awaited<ReturnType<typeof listEvaluationsByScan>> = [];
   if (latestScan) {
@@ -52,41 +62,58 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     evaluations = await listEvaluationsByScan(supabase, latestScan.id);
   }
 
-  const canActivate = campaign.status === "draft";
-  const canScan = campaign.status === "active";
-  const activationBlockedReason =
-    usableChannels.length === 0
-      ? "Connect a channel before activating this campaign."
-      : deliverables.length === 0
-        ? "Add at least one deliverable before activation."
-        : null;
+  const hasConnectedChannel = usableChannels.length > 0;
+  const hasRequirement = deliverables.length > 0;
+  const period = formatPeriod(campaign.starts_at, campaign.ends_at);
+  const isDraft = campaign.status === "draft";
+  const isActive = campaign.status === "active";
+  const isCompleted = campaign.status === "completed";
+  const isArchived = campaign.status === "archived";
+
+  const activationBlockedReason = !hasConnectedChannel
+    ? "Connect a creator channel before starting tracking."
+    : !hasRequirement
+      ? "Add at least one requirement before starting tracking."
+      : null;
+
+  // Readiness items for draft setup
+  const readinessItems = [
+    { label: "Campaign details", status: "complete" as const, description: `${campaign.name} • ${period}` },
+    {
+      label: hasConnectedChannel ? "Creator channel connected" : "Creator channel not connected",
+      status: hasConnectedChannel ? ("complete" as const) : ("blocked" as const),
+      description: hasConnectedChannel ? `${usableChannels.length} channel${usableChannels.length > 1 ? "s" : ""} available` : "Connect a creator channel to start tracking this campaign.",
+    },
+    {
+      label: hasRequirement ? "Requirement added" : "No requirement yet",
+      status: hasRequirement ? ("complete" as const) : ("blocked" as const),
+      description: hasRequirement ? `${deliverables.length} requirement${deliverables.length > 1 ? "s" : ""} configured` : "Add at least one requirement before starting tracking.",
+    },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* 1 — Campaign header */}
       <PageHeader
         title={campaign.name}
-        description={campaign.description ?? "No description"}
+        description={campaign.description ? `${period} • ${campaign.description}` : period}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={campaign.status} />
             <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route}>
               <Button variant="outline" size="sm" aria-label="Back to campaigns">
-                Back
+                Back to campaigns
               </Button>
             </Link>
-            {canActivate ? (
-              <ActivateCampaignButton
-                orgSlug={orgSlug}
-                campaignId={campaignId}
-                disabled={!!activationBlockedReason}
-                disabledReason={activationBlockedReason ?? undefined}
-              />
+            {isDraft ? (
+              <ActivateCampaignButton orgSlug={orgSlug} campaignId={campaignId} disabled={!!activationBlockedReason} disabledReason={activationBlockedReason ?? undefined} />
             ) : null}
-            {canScan ? (
+            {isActive ? (
               <form action={requestScanAction}>
                 <input type="hidden" name="orgSlug" value={orgSlug} />
                 <input type="hidden" name="campaignId" value={campaignId} />
-                <Button type="submit" variant="outline" size="sm" aria-label="Run manual scan">
-                  Run scan
+                <Button type="submit" size="sm" aria-label="Check now">
+                  Check now
                 </Button>
               </form>
             ) : null}
@@ -94,165 +121,274 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center justify-between">
-            <span>Campaign</span>
-            <StatusBadge status={campaign.status} />
-          </CardTitle>
-          <CardDescription>
-            {new Date(campaign.starts_at).toLocaleDateString()} → {new Date(campaign.ends_at).toLocaleDateString()}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p>
-            <span className="font-medium">Status:</span> <StatusBadge status={campaign.status} />
-          </p>
-          <p className="text-muted-foreground">Draft campaigns are editable and do not trigger scanning. Only active campaigns participate in scheduled/webhook scanning.</p>
-          {campaign.status === "draft" && deliverables.length === 0 ? <p role="alert" className="text-destructive">Add at least one deliverable before activation.</p> : null}
-          {campaign.status === "draft" && usableChannels.length === 0 ? <p role="alert" className="text-destructive">Connect a channel before activation.</p> : null}
-        </CardContent>
-      </Card>
+      {/* 2 — Campaign readiness / tracking state */}
+      {isDraft ? (
+        <ReadinessCard
+          title="Campaign setup"
+          description="Check what the campaign needs before tracking can start."
+          items={readinessItems}
+          action={
+            !hasConnectedChannel ? (
+              <Link href={`/dashboard/${orgSlug}/settings/integrations` as Route}>
+                <Button size="sm" variant="outline">
+                  Connect a creator channel
+                </Button>
+              </Link>
+            ) : !hasRequirement ? (
+              <span className="text-xs text-muted-foreground">Add a requirement below to continue.</span>
+            ) : null
+          }
+        />
+      ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Connected channels</CardTitle>
-          <CardDescription>Channels for this organization. Campaigns use all connected channels for scanning.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {channels.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No connected channels. Connect a channel to enable scanning.</p>
-          ) : (
+      {isActive ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900 dark:bg-emerald-950/20 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <StatusBadge status="active" />
+              <span className="text-sm font-medium">Tracking</span>
+            </div>
+            <p className="text-sm text-muted-foreground">Checks run automatically when campaign activity is detected and on the scheduled check.</p>
+          </div>
+        </div>
+      ) : null}
+
+      {isCompleted ? (
+        <div className="flex items-center gap-2 rounded-xl border bg-card p-4">
+          <StatusBadge status="completed" />
+          <span className="text-sm font-medium">Completed</span>
+          <span className="text-sm text-muted-foreground">This campaign has finished tracking.</span>
+        </div>
+      ) : null}
+
+      {isArchived ? (
+        <div className="flex items-center gap-2 rounded-xl border bg-card p-4">
+          <StatusBadge status="archived" />
+          <span className="text-sm font-medium">Archived</span>
+          <span className="text-sm text-muted-foreground">This campaign is archived and no longer tracking.</span>
+        </div>
+      ) : null}
+
+      {/* 3 — Creator channels */}
+      <section className="space-y-3" aria-labelledby="creator-channels-heading">
+        <SectionHeader
+          title="Creator channels"
+          description="These are the channels this campaign checks for sponsorship proof. The campaign uses all connected creator channels available to this organization."
+        />
+        {channels.length === 0 ? (
+          <EmptyState
+            title="No creator channel connected"
+            description="Connect a creator channel before starting tracking. This campaign will use connected channels to check for sponsorship proof."
+            action={
+              <Link href={`/dashboard/${orgSlug}/settings/integrations` as Route}>
+                <Button size="sm">Connect a creator channel</Button>
+              </Link>
+            }
+          />
+        ) : (
+          <div>
+            <p className="mb-2 text-xs text-muted-foreground">Connected creator channels available to this campaign</p>
             <ul className="space-y-2">
               {channels.map((ch) => (
-                <li key={ch.id} className="flex items-center justify-between rounded-md border p-3">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {ch.display_name ?? ch.external_handle} <Badge variant="outline">{ch.platform}</Badge>
+                <li key={ch.id} className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                      <Badge variant="outline" className="capitalize">
+                        {platformLabel(ch.platform)}
+                      </Badge>
+                      <span className="truncate">{ch.display_name ?? ch.external_handle}</span>
+                      {ch.connection_status === "connected" ? <Badge variant="success">Connected ✓</Badge> : <Badge variant="secondary">{ch.connection_status}</Badge>}
                     </p>
-                    <p className="text-xs text-muted-foreground">{ch.canonical_url}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ch.external_handle} • {platformLabel(ch.platform)}
+                    </p>
+                    {ch.canonical_url ? (
+                      <a href={ch.canonical_url} target="_blank" rel="noreferrer" className="inline-block text-xs text-primary underline">
+                        Open channel
+                      </a>
+                    ) : null}
                   </div>
-                  <Badge variant={ch.connection_status === "connected" ? "success" : "secondary"}>{ch.connection_status}</Badge>
                 </li>
               ))}
             </ul>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Deliverables ({deliverables.length})</CardTitle>
-          <CardDescription>Each deliverable has a rule evaluated against provider evidence.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {deliverables.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No deliverables. Add one to define sponsor proof.</p>
-          ) : (
-            <ul className="space-y-3">
-              {deliverables.map((d) => {
-                const rule = d.rule as Record<string, unknown>;
-                return (
-                  <li key={d.id} className="rounded-md border p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-medium">{d.name}</p>
-                        <p className="text-xs text-muted-foreground">{d.description ?? "No description"}</p>
-                        <p className="mt-1 text-xs">
-                          <span className="font-medium">Rule:</span> <code className="rounded bg-muted px-1 py-0.5">{JSON.stringify(rule)}</code>
-                        </p>
-                        <p className="text-xs">
-                          <span className="font-medium">Status:</span> <Badge variant="outline">{d.status}</Badge>
-                        </p>
+      {/* 4 — Requirements */}
+      <section className="space-y-3" aria-labelledby="requirements-heading">
+        <SectionHeader title="What the creator needs to deliver" description="Set the requirements we will check for this sponsorship." />
+        {deliverables.length === 0 ? (
+          <EmptyState
+            title="No requirements yet"
+            description="Add what the creator needs to deliver so we can check it automatically."
+            action={isDraft ? <span className="text-xs text-muted-foreground">Use the form below to add a requirement.</span> : undefined}
+          />
+        ) : (
+          <ul className="space-y-3">
+            {deliverables.map((d) => {
+              const rule = d.rule as unknown;
+              const human = formatRequirementDescription(rule);
+              return (
+                <li key={d.id} className="rounded-lg border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <h3 className="text-sm font-semibold leading-none">{d.name}</h3>
+                      {d.description ? <p className="text-xs text-muted-foreground">{d.description}</p> : <p className="text-xs text-muted-foreground">{human}</p>}
+                      {/* Always show human requirement text */}
+                      <p className="text-sm">{human}</p>
+                      <div className="pt-1">
+                        <Badge variant="outline">Active</Badge>
                       </div>
-                      <form action={deleteDeliverableAction}>
-                        <input type="hidden" name="orgSlug" value={orgSlug} />
-                        <input type="hidden" name="campaignId" value={campaignId} />
-                        <input type="hidden" name="deliverableId" value={d.id} />
-                        <Button type="submit" variant="ghost" size="sm" aria-label={`Delete deliverable ${d.name}`}>
-                          Delete
-                        </Button>
-                      </form>
                     </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {campaign.status === "draft" ? (
-            <div className="border-t pt-4">
-              <h4 className="mb-2 text-sm font-medium">Add deliverable</h4>
+                    <form action={deleteDeliverableAction}>
+                      <input type="hidden" name="orgSlug" value={orgSlug} />
+                      <input type="hidden" name="campaignId" value={campaignId} />
+                      <input type="hidden" name="deliverableId" value={d.id} />
+                      <Button type="submit" variant="ghost" size="sm" aria-label={`Remove requirement ${d.name}`}>
+                        Remove
+                      </Button>
+                    </form>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {isDraft ? (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="text-base">Add requirement</CardTitle>
+            </CardHeader>
+            <CardContent>
               <DeliverableForm orgSlug={orgSlug} campaignId={campaignId} />
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">Deliverables can only be added to draft campaigns.</p>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        ) : (
+          <p className="text-xs text-muted-foreground">Requirements can only be added while the campaign is being set up. This campaign is tracking and requirements are locked.</p>
+        )}
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Latest scan</CardTitle>
-          <CardDescription>Most recent scan for this campaign. Webhook and scheduled scans appear here.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {latestScan ? (
-            <div className="space-y-2 text-sm">
-              <p>
-                <span className="font-medium">Status:</span> <Badge>{latestScan.status}</Badge> • <span className="text-muted-foreground">{new Date(latestScan.started_at).toLocaleString()}</span>
+      {/* Tracking hint for draft */}
+      {isDraft ? (
+        <p className="text-sm text-muted-foreground">This campaign is still being set up. Tracking starts when you start the campaign.</p>
+      ) : null}
+
+      {/* 5 — Latest proof */}
+      <section className="space-y-3" aria-labelledby="proof-heading">
+        <SectionHeader title="Latest proof" description="The latest activity found on the connected creator channel." />
+        {isActive && evidence.length === 0 && !latestScan ? (
+          <EmptyState
+            title="No proof checked yet"
+            description="Check the creator channel to look for the latest sponsorship activity."
+            action={
+              <form action={requestScanAction}>
+                <input type="hidden" name="orgSlug" value={orgSlug} />
+                <input type="hidden" name="campaignId" value={campaignId} />
+                <Button type="submit" size="sm">
+                  Check now
+                </Button>
+              </form>
+            }
+          />
+        ) : !latestScan ? (
+          <EmptyState
+            title="No sponsorship proof checked yet"
+            description={isDraft ? "Start tracking to begin checking creator activity for this campaign." : "No proof has been checked for this campaign yet."}
+            action={
+              isDraft ? (
+                <ActivateCampaignButton orgSlug={orgSlug} campaignId={campaignId} disabled={!!activationBlockedReason} disabledReason={activationBlockedReason ?? undefined} />
+              ) : isActive ? (
+                <form action={requestScanAction}>
+                  <input type="hidden" name="orgSlug" value={orgSlug} />
+                  <input type="hidden" name="campaignId" value={campaignId} />
+                  <Button type="submit" size="sm">
+                    Check now
+                  </Button>
+                </form>
+              ) : undefined
+            }
+          />
+        ) : evidence.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm font-medium">No proof found yet</p>
+              <p className="mt-1 text-sm text-muted-foreground">Check the creator channel to look for the latest sponsorship activity.</p>
+              {isActive ? (
+                <div className="mt-3">
+                  <form action={requestScanAction}>
+                    <input type="hidden" name="orgSlug" value={orgSlug} />
+                    <input type="hidden" name="campaignId" value={campaignId} />
+                    <Button type="submit" size="sm">
+                      Check now
+                    </Button>
+                  </form>
+                </div>
+              ) : null}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Last check: {latestScan ? new Date(latestScan.started_at).toLocaleString() : "—"} • {latestScan.platform ? platformLabel(latestScan.platform) : "—"}
               </p>
-              <p>
-                <span className="font-medium">Platform:</span> {latestScan.platform} • <span className="font-medium">Evidence:</span> {evidence.length} • <span className="font-medium">Evaluations:</span> {evaluations.length}
+            </CardContent>
+          </Card>
+        ) : (
+          <ul className="space-y-3">
+            {evidence.map((ev) => {
+              const evalForEvidence = evaluations.find((e) => e.evidence_id === ev.id);
+              const resultStatus = evalForEvidence?.result ?? "PENDING";
+              return (
+                <li key={ev.id} className="rounded-lg border bg-card p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={resultStatus} />
+                      </div>
+                      <p className="text-sm font-medium truncate">{ev.observed_value}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Checked {new Date(ev.observed_at).toLocaleString()} • {platformLabel(ev.platform ?? ev.source)}
+                      </p>
+                      {ev.source_url ? (
+                        <a href={ev.source_url} target="_blank" rel="noreferrer" className="inline-block text-xs text-primary underline">
+                          View source
+                        </a>
+                      ) : null}
+                      {evalForEvidence?.reason ? <p className="text-xs text-muted-foreground">Why: {evalForEvidence.reason}</p> : null}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* 6 — Check history */}
+      <section className="space-y-2" aria-labelledby="history-heading">
+        <SectionHeader
+          title="Check history"
+          description="See past checks for this campaign."
+          action={
+            campaignScans.length > 0 ? (
+              <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route} className="text-sm text-primary underline">
+                View check history
+              </Link>
+            ) : undefined
+          }
+        />
+        {latestScan ? (
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm">
+                Last check: <span className="font-medium">{new Date(latestScan.started_at).toLocaleString()}</span> • {platformLabel(latestScan.platform)}
               </p>
               {campaignScans.length > 1 ? (
-                <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route} className="text-xs text-primary underline">
-                  View all scans ({campaignScans.length})
+                <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route} className="mt-2 inline-block text-xs text-primary underline">
+                  View check history ({campaignScans.length} checks)
                 </Link>
               ) : null}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No scans yet. Activate the campaign and run a scan.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Evidence & evaluation</CardTitle>
-          <CardDescription>Immutable evidence from provider APIs and derived evaluations.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {evidence.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No evidence yet. Run a scan to fetch provider state.</p>
-          ) : (
-            <ul className="space-y-3">
-              {evidence.map((ev) => {
-                const evalForEvidence = evaluations.find((e) => e.evidence_id === ev.id);
-                return (
-                  <li key={ev.id} className="rounded-md border p-3 text-sm">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">{ev.observed_value}</p>
-                      {evalForEvidence ? <EvaluationBadge result={evalForEvidence.result} /> : <Badge variant="outline">PENDING</Badge>}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {ev.source} • {ev.external_channel_id} • {new Date(ev.observed_at).toLocaleString()}
-                    </p>
-                    <p className="text-xs">
-                      Normalized: <code className="rounded bg-muted px-1">{ev.normalized_value}</code>
-                    </p>
-                    {ev.source_url ? (
-                      <a href={ev.source_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
-                        Source
-                      </a>
-                    ) : null}
-                    {evalForEvidence ? <p className="text-xs">Reason: {evalForEvidence.reason}</p> : null}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        ) : null}
+      </section>
     </div>
   );
 }
