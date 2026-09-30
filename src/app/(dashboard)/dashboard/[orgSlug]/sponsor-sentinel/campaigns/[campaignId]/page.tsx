@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeliverableForm } from "@/features/sponsor-sentinel/components/deliverable-form";
 import { deleteDeliverableAction } from "@/features/sponsor-sentinel/actions/deliverable-actions";
-import { activateCampaignAction, requestScanAction } from "@/features/sponsor-sentinel/actions/campaign-actions";
+import { requestScanAction } from "@/features/sponsor-sentinel/actions/campaign-actions";
+import { ActivateCampaignButton } from "@/features/sponsor-sentinel/components/activate-campaign-button";
 import Link from "next/link";
 import type { Route } from "next";
 
@@ -53,6 +54,12 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
 
   const canActivate = campaign.status === "draft";
   const canScan = campaign.status === "active";
+  const activationBlockedReason =
+    usableChannels.length === 0
+      ? "Connect a channel before activating this campaign."
+      : deliverables.length === 0
+        ? "Add at least one deliverable before activation."
+        : null;
 
   return (
     <div className="space-y-6">
@@ -67,13 +74,12 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
               </Button>
             </Link>
             {canActivate ? (
-              <form action={activateCampaignAction}>
-                <input type="hidden" name="orgSlug" value={orgSlug} />
-                <input type="hidden" name="campaignId" value={campaignId} />
-                <Button type="submit" size="sm" aria-label="Activate campaign">
-                  Activate
-                </Button>
-              </form>
+              <ActivateCampaignButton
+                orgSlug={orgSlug}
+                campaignId={campaignId}
+                disabled={!!activationBlockedReason}
+                disabledReason={activationBlockedReason ?? undefined}
+              />
             ) : null}
             {canScan ? (
               <form action={requestScanAction}>

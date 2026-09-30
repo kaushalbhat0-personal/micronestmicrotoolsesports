@@ -63,14 +63,32 @@ export async function createCampaignAction(formData: FormData): Promise<ActionRe
   return { error: "Failed to create campaign" };
 }
 
-export async function activateCampaignAction(formData: FormData) {
+export async function activateCampaignAction(formData: FormData): Promise<ActionResult> {
   const orgSlug = String(formData.get("orgSlug") ?? "");
   const campaignId = String(formData.get("campaignId") ?? "");
-  const ctx = await requireOrganizationContext(orgSlug);
-  await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
-  const supabase = await createClient();
-  await activateCampaign(supabase, ctx.organization.id, campaignId);
-  revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${campaignId}`);
+  if (!orgSlug || !campaignId) return { error: "Missing parameters" };
+  try {
+    const ctx = await requireOrganizationContext(orgSlug);
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+    const supabase = await createClient();
+    await activateCampaign(supabase, ctx.organization.id, campaignId);
+    revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${campaignId}`);
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+    if (e instanceof AppError) {
+      // Expected domain validation errors → return user-visible message, not 500
+      const isValidation = e.code === "VALIDATION_ERROR" || e.code === "ENTITLEMENT_REQUIRED" || e.code === "FORBIDDEN" || e.code === "NOT_FOUND";
+      if (isValidation) {
+        // Keep existing domain message (e.g., "At least one connected channel required")
+        console.warn(`[AppError ${e.code}]`, e.safeMessage);
+        return { error: e.safeMessage };
+      }
+      console.warn(`[AppError ${e.code}]`, e.safeMessage);
+      return { error: e.safeMessage };
+    }
+    console.error("[activateCampaignAction] unexpected", e);
+    return { error: "Something went wrong. Please try again." };
+  }
   redirect(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${campaignId}` as never);
 }
 
