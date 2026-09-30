@@ -1,4 +1,5 @@
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
+import { getAccessibleToolSlugs } from "@/lib/auth/require-entitlement";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { TOOLS } from "@/config/app/tools";
 export default async function OrgDashboardPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requireOrganizationContext(orgSlug);
+  const accessibleSlugs = await getAccessibleToolSlugs(ctx.organization.id).catch(() => [] as string[]);
 
   return (
     <div className="space-y-8">
@@ -43,12 +45,20 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {TOOLS.map((t) => {
             const href = `/dashboard/${orgSlug}/${t.slug}` as Route;
+            const hasAccess = accessibleSlugs.includes(t.slug);
+            const badge = t.comingSoon ? (
+              <Badge variant="secondary">Soon</Badge>
+            ) : hasAccess ? (
+              <Badge variant="success">Available</Badge>
+            ) : (
+              <Badge variant="secondary">Requires access</Badge>
+            );
             return (
               <Card key={t.slug}>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center justify-between">
                     {t.name}
-                    {t.comingSoon ? <Badge variant="secondary">Soon</Badge> : <Badge variant="success">Available</Badge>}
+                    {badge}
                   </CardTitle>
                   <CardDescription>{t.description}</CardDescription>
                 </CardHeader>
@@ -57,10 +67,14 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
                     <Button size="sm" variant="secondary" disabled>
                       Coming soon
                     </Button>
-                  ) : (
+                  ) : hasAccess ? (
                     <Link href={href} className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">
                       Open
                     </Link>
+                  ) : (
+                    <Button size="sm" variant="secondary" disabled>
+                      Requires access
+                    </Button>
                   )}
                 </CardContent>
               </Card>
