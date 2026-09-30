@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import { useState, useTransition } from "react";
-import { connectYouTubeChannelAction } from "@/features/sponsor-sentinel/actions/channel-actions";
+import { connectTwitchChannelAction } from "@/features/sponsor-sentinel/actions/channel-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: string; hasCredentials: boolean }) {
+export function ConnectTwitchForm({ orgSlug, hasCredentials }: { orgSlug: string; hasCredentials: boolean }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
@@ -17,13 +17,13 @@ export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: strin
     e.preventDefault();
     setMessage(null);
     if (!hasCredentials) {
-      setMessage("Configure your YouTube API key first.");
+      setMessage("Connect your Twitch API access first.");
       setIsError(true);
       return;
     }
     const trimmed = handle.trim();
     if (!trimmed) {
-      setMessage("Enter a valid YouTube channel handle.");
+      setMessage("Enter a valid Twitch channel handle.");
       setIsError(true);
       return;
     }
@@ -31,15 +31,14 @@ export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: strin
     fd.set("orgSlug", orgSlug);
     fd.set("handle", trimmed);
     startTransition(async () => {
-      const result = await connectYouTubeChannelAction(fd);
+      const result = await connectTwitchChannelAction(fd);
       if (result && "error" in result && result.error) {
         setMessage(result.error);
         setIsError(true);
       } else if (result && "success" in result) {
-        setMessage("YouTube channel connected ✓");
+        setMessage("Twitch channel connected ✓");
         setIsError(false);
         setHandle("");
-        // Revalidation will happen server-side; reload to show updated list
         window.location.reload();
       }
     });
@@ -48,31 +47,23 @@ export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: strin
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="space-y-1">
-        <Label htmlFor="youtube-handle">YouTube handle</Label>
+        <Label htmlFor="twitch-handle">Twitch channel</Label>
         <Input
-          id="youtube-handle"
+          id="twitch-handle"
           value={handle}
           onChange={(e) => setHandle(e.target.value)}
-          placeholder="@GoogleDevelopers or GoogleDevelopers"
+          placeholder="creator handle"
           autoComplete="off"
           disabled={pending}
         />
-        <p className="text-xs text-muted-foreground">Enter handle with or without @. Do not enter a URL.</p>
+        <p className="text-xs text-muted-foreground">Enter the Twitch login, e.g., creator handle. Do not enter a URL.</p>
       </div>
-      <Button type="submit" disabled={pending} aria-label="Connect YouTube">
-        {pending ? "Connecting…" : "Connect YouTube"}
+      <Button type="submit" disabled={pending} aria-label="Connect Twitch">
+        {pending ? "Connecting…" : "Connect Twitch"}
       </Button>
       {message ? (
         <p role={isError ? "alert" : "status"} className={`text-sm ${isError ? "text-destructive" : "text-green-600"}`}>
           {message}
-          {isError && message.includes("Configure your YouTube API key first") ? (
-            <span>
-              {" "}
-              <a href={`/dashboard/${orgSlug}/settings/integrations`} className="underline">
-                Go to integrations
-              </a>
-            </span>
-          ) : null}
         </p>
       ) : null}
     </form>

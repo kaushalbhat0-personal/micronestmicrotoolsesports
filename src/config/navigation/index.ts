@@ -21,17 +21,30 @@ export const dashboardNav: NavItem[] = [
 
 /**
  * Get dashboard nav scoped to an organization slug.
- * Tools are org-scoped (/dashboard/[orgSlug]/<tool>), global items remain /dashboard/...
+ * Operations-first: Campaigns + Check History are primary workflow,
+ * Creator Channels + Integrations are workspace management,
+ * future tools are subordinate.
  */
 export function getDashboardNav(orgSlug: string): NavItem[] {
-  return [
-    { label: "Overview", href: `/dashboard/${orgSlug}` as Route, icon: "LayoutDashboard" },
-    ...TOOLS.map((t): NavItem => ({
+  const comingSoonTools = TOOLS.filter((t) => t.comingSoon).map(
+    (t): NavItem => ({
       label: t.name,
       href: `/dashboard/${orgSlug}/${t.slug}` as Route,
       icon: t.icon,
-      ...(t.comingSoon !== undefined ? { comingSoon: t.comingSoon } : {}),
-    })),
+      comingSoon: true,
+    })
+  );
+
+  return [
+    { label: "Overview", href: `/dashboard/${orgSlug}` as Route, icon: "LayoutDashboard" },
+    // Operations — primary
+    { label: "Campaigns", href: `/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route, icon: "ShieldCheck" },
+    { label: "Check History", href: `/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route, icon: "History" },
+    // Workspace — channels & credentials (same route for now, distinct labels for job clarity)
+    { label: "Creator Channels", href: `/dashboard/${orgSlug}/settings/integrations` as Route, icon: "Tv" },
+    { label: "Integrations", href: `/dashboard/${orgSlug}/settings/integrations` as Route, icon: "Plug" },
+    // Future tools — subordinate
+    ...comingSoonTools,
     { label: "Organizations", href: "/dashboard/organizations" as Route, icon: "Building2" },
   ];
 }

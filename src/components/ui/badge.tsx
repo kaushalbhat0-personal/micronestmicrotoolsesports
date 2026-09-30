@@ -16,11 +16,11 @@ export function Badge({
   className,
   variant = "default",
   ...props
-}: React.HTMLAttributes<HTMLDivElement> & { variant?: BadgeVariant }) {
+}: React.HTMLAttributes<HTMLSpanElement> & { variant?: BadgeVariant }) {
   return (
-    <div
+    <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors",
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors",
         variantClasses[variant],
         className
       )}

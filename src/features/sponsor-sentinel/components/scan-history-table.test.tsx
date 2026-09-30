@@ -39,7 +39,7 @@ describe("ScanHistoryTable", () => {
 
   it("status not color-only: has accessible aria-label", () => {
     const html = renderToString(<ScanHistoryTable items={[makeItem()]} />);
-    expect(html).toContain('aria-label="Status success"');
+    expect(html).toContain('aria-label="Confirmed: success"');
   });
 
   it("empty evaluation summary shows —", () => {

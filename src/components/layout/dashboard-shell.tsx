@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { dashboardNav, getDashboardNav } from "@/config/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children, organizations = [] }: DashboardShellProps) {
   const params = useParams() as { orgSlug?: string } | null;
+  const pathname = usePathname();
   const orgSlug = params?.orgSlug;
   const navItems = orgSlug ? getDashboardNav(orgSlug) : dashboardNav;
   const activeOrg = orgSlug ? organizations.find((o) => o.slug === orgSlug) : undefined;
@@ -31,24 +32,35 @@ export function DashboardShell({ children, organizations = [] }: DashboardShellP
               </div>
             )}
           </div>
-          <nav className="space-y-1 p-3 pt-0">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium hover:bg-muted",
-                  item.comingSoon && "opacity-60"
-                )}
-              >
-                <span>{item.label}</span>
-                {item.comingSoon && (
-                  <Badge variant="secondary" className="ml-2 text-[10px]">
-                    Soon
-                  </Badge>
-                )}
-              </Link>
-            ))}
+          <nav className="space-y-1 p-3 pt-0" aria-label="Organization navigation">
+            {navItems.map((item, idx) => {
+              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+              const prevIsComingSoon = idx > 0 ? navItems[idx - 1]?.comingSoon : false;
+              const showSoonDivider = item.comingSoon && !prevIsComingSoon;
+              return (
+                <React.Fragment key={item.href + item.label}>
+                  {showSoonDivider ? (
+                    <p className="px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Coming soon</p>
+                  ) : null}
+                  <Link
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      isActive && "bg-muted font-semibold",
+                      item.comingSoon && "opacity-60"
+                    )}
+                  >
+                    <span>{item.label}</span>
+                    {item.comingSoon && (
+                      <Badge variant="secondary" className="ml-2 text-[10px]">
+                        Soon
+                      </Badge>
+                    )}
+                  </Link>
+                </React.Fragment>
+              );
+            })}
           </nav>
         </div>
       </aside>

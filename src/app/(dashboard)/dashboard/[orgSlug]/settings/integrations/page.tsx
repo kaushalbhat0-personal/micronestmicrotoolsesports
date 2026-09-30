@@ -5,8 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getProviderCredentialRow, toMaskedView } from "@/server/credentials/repository";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { SectionHeader } from "@/components/ui/section-header";
 import { IntegrationsForm } from "@/features/sponsor-sentinel/components/integrations-form";
 import { ConnectYouTubeForm } from "@/features/sponsor-sentinel/components/connect-youtube-form";
+import { ConnectTwitchForm } from "@/features/sponsor-sentinel/components/connect-twitch-form";
 import { ConnectedChannelsList } from "@/features/sponsor-sentinel/components/connected-channels-list";
 
 export default async function IntegrationsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
@@ -35,29 +37,78 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ o
     .eq("organization_id", ctx.organization.id)
     .order("created_at", { ascending: true });
 
-  return (
-    <div className="space-y-6">
-      <PageHeader title="Integrations" description={`Provider credentials for ${ctx.organization.name} — organization-scoped, encrypted at rest, env fallback if not configured.`} />
-      <IntegrationsForm orgSlug={orgSlug} twitch={twitch} youtube={youtube} kick={kick} />
-      <p className="text-xs text-muted-foreground">Precedence: Organization credential → Platform environment credential. Secrets never returned to browser, never logged.</p>
+  const hasYouTube = youtube.configured;
+  const hasTwitch = twitch.configured;
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Connected Channels</CardTitle>
-          <CardDescription>Organization-level channels. Campaigns use your connected channels for Sponsor Sentinel scanning.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <ConnectedChannelsList orgSlug={orgSlug} channels={(channels ?? []) as never} />
-          <div className="border-t pt-6">
-            <h4 className="mb-3 text-sm font-medium">Connect YouTube Channel</h4>
-            {!youtube.configured ? (
-              <p className="mb-3 text-sm text-destructive">Configure your YouTube API key above first.</p>
-            ) : null}
-            <ConnectYouTubeForm orgSlug={orgSlug} hasCredentials={youtube.configured} />
-            <p className="mt-2 text-xs text-muted-foreground">Enter handle with or without @, e.g., @GoogleDevelopers. Channel is resolved via YouTube Data API channels.list forHandle.</p>
-          </div>
-        </CardContent>
-      </Card>
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        title="Connections"
+        description={`Connect the platforms where your creators publish for ${ctx.organization.name}. We use these to verify sponsorship activity — not to post or manage your accounts.`}
+      />
+
+      <div className="rounded-lg border bg-muted/20 p-4 text-sm">
+        <p className="font-medium">How it works</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
+          <li>Connect YouTube or Twitch — your API access lets us read public channel activity.</li>
+          <li>Connect a creator channel — we’ll verify it exists and save it to this workspace.</li>
+          <li>Create a campaign and start tracking — campaigns check all connected channels for proof.</li>
+        </ol>
+      </div>
+
+      <section className="space-y-4">
+        <SectionHeader
+          title="Platform connections"
+          description="Connect YouTube or Twitch so we can access public channel activity. Your credentials are encrypted and never shown again."
+        />
+        <IntegrationsForm orgSlug={orgSlug} twitch={twitch} youtube={youtube} kick={kick} />
+        <p className="text-xs text-muted-foreground">Your workspace uses its own credentials first, then falls back to platform defaults. Secrets are never returned to the browser or logged.</p>
+      </section>
+
+      <section className="space-y-4">
+        <SectionHeader
+          title="Creator channels"
+          description="Connect the channels where your creators publish. Sponsorship campaigns use these channels to check for proof."
+          action={<span className="text-xs text-muted-foreground">{channels?.length ?? 0} connected</span>}
+        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Connected creator channels</CardTitle>
+            <CardDescription>Organization-level. All campaigns in this workspace check these channels.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <ConnectedChannelsList orgSlug={orgSlug} channels={(channels ?? []) as never} />
+            <div className="grid gap-6 border-t pt-6 sm:grid-cols-2">
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden /> Connect YouTube
+                </h4>
+                {!hasYouTube ? (
+                  <p className="text-sm text-destructive">Add your YouTube API key above to enable YouTube channel verification.</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">YouTube is ready. Enter a handle to connect the creator’s channel.</p>
+                )}
+                <ConnectYouTubeForm orgSlug={orgSlug} hasCredentials={hasYouTube} />
+              </div>
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-purple-500" aria-hidden /> Connect Twitch
+                </h4>
+                {!hasTwitch ? (
+                  <p className="text-sm">
+                    <span className="text-destructive">Connect your Twitch API access first.</span>{" "}
+                    <span className="text-muted-foreground">Add Client ID &amp; Secret above.</span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Twitch is ready. Enter the creator’s login to connect.</p>
+                )}
+                <ConnectTwitchForm orgSlug={orgSlug} hasCredentials={hasTwitch} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Channels are resolved via the platform’s public API (YouTube channels.list forHandle, Twitch Helix /users). We never store your API key or secret in the browser.</p>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
