@@ -8,16 +8,24 @@ import { Label } from "@/components/ui/label";
 
 export function CampaignCreateForm({ orgSlug }: { orgSlug: string }) {
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]> | null>(null);
   const [pending, setPending] = useState(false);
 
   async function handle(formData: FormData) {
     setPending(true);
     setError(null);
+    setFieldErrors(null);
     try {
-      await createCampaignAction(formData);
+      const result = await createCampaignAction(formData);
+      if (result?.error) {
+        setError(result.error);
+        if (result.fieldErrors) setFieldErrors(result.fieldErrors);
+        setPending(false);
+        return;
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to create campaign";
-      // Redirect throws NEXT_REDIRECT, ignore
+      // Redirect throws NEXT_REDIRECT, must propagate
       if (msg.includes("NEXT_REDIRECT")) throw e;
       setError(msg);
       setPending(false);
@@ -50,11 +58,37 @@ export function CampaignCreateForm({ orgSlug }: { orgSlug: string }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="starts_at">Starts at</Label>
-          <Input id="starts_at" name="starts_at" type="datetime-local" required defaultValue={starts} />
+          <Input
+            id="starts_at"
+            name="starts_at"
+            type="datetime-local"
+            required
+            defaultValue={starts}
+            aria-invalid={Boolean(fieldErrors?.starts_at)}
+            aria-describedby={fieldErrors?.starts_at ? "starts_at-error" : undefined}
+          />
+          {fieldErrors?.starts_at ? (
+            <p id="starts_at-error" role="alert" className="text-xs text-destructive">
+              {fieldErrors.starts_at.join("; ").replace(/Invalid datetime/g, "Please enter a valid date and time")}
+            </p>
+          ) : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="ends_at">Ends at</Label>
-          <Input id="ends_at" name="ends_at" type="datetime-local" required defaultValue={ends} />
+          <Input
+            id="ends_at"
+            name="ends_at"
+            type="datetime-local"
+            required
+            defaultValue={ends}
+            aria-invalid={Boolean(fieldErrors?.ends_at)}
+            aria-describedby={fieldErrors?.ends_at ? "ends_at-error" : undefined}
+          />
+          {fieldErrors?.ends_at ? (
+            <p id="ends_at-error" role="alert" className="text-xs text-destructive">
+              {fieldErrors.ends_at.join("; ").replace(/Invalid datetime/g, "Please enter a valid date and time").replace(/must be after starts_at/i, "End time must be after the start time")}
+            </p>
+          ) : null}
         </div>
       </div>
       {error ? (

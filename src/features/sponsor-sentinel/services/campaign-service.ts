@@ -4,12 +4,39 @@ import { parseOrThrow } from "@/lib/validation";
 import { z } from "zod";
 import * as repo from "@/server/repositories/sponsor-campaigns";
 
+/**
+ * Normalizes datetime-local (YYYY-MM-DDTHH:mm) and other common browser
+ * submissions to ISO 8601 UTC (YYYY-MM-DDTHH:mm:ss.sssZ) expected by
+ * Zod .datetime() and Postgres timestamptz. Deterministic: datetime-local
+ * without offset is treated as UTC wall time (matches defaultValue using
+ * toISOString().slice(0,16) which is UTC). Existing ISO with Z/offset
+ * is parsed and re-serialized to canonical ISO.
+ */
+export function normalizeDateTimeInput(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const v = value.trim();
+  if (!v) return v;
+  // If already has offset/Z, let Date parse and return canonical ISO
+  const hasOffset = /Z$|[+-]\d{2}:?\d{2}$/.test(v);
+  if (hasOffset) {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return v;
+    return d.toISOString();
+  }
+  // datetime-local without offset: "YYYY-MM-DDTHH:mm" or "YYYY-MM-DDTHH:mm:ss"
+  // Add seconds if missing
+  const withSeconds = v.length === 16 ? `${v}:00` : v;
+  const d = new Date(withSeconds);
+  if (isNaN(d.getTime())) return v;
+  return d.toISOString();
+}
+
 const createCampaignSchema = z.object({
   name: z.string().min(2).max(120),
   description: z.string().max(2000).nullable().optional(),
   status: z.enum(["draft", "active", "completed", "archived"]).optional(),
-  starts_at: z.string().datetime(),
-  ends_at: z.string().datetime(),
+  starts_at: z.preprocess(normalizeDateTimeInput, z.string().datetime()),
+  ends_at: z.preprocess(normalizeDateTimeInput, z.string().datetime()),
 }).refine((v) => new Date(v.ends_at) > new Date(v.starts_at), {
   message: "ends_at must be after starts_at",
   path: ["ends_at"],
@@ -19,8 +46,8 @@ const updateCampaignSchema = z.object({
   name: z.string().min(2).max(120).optional(),
   description: z.string().max(2000).nullable().optional(),
   status: z.enum(["draft", "active", "completed", "archived"]).optional(),
-  starts_at: z.string().datetime().optional(),
-  ends_at: z.string().datetime().optional(),
+  starts_at: z.preprocess(normalizeDateTimeInput, z.string().datetime().optional()),
+  ends_at: z.preprocess(normalizeDateTimeInput, z.string().datetime().optional()),
 });
 
 export async function createCampaign(
