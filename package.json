@@ -1,0 +1,46 @@
+{
+  "name": "micronest-esports",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MicroNest — Multi-tenant esports micro-SaaS platform",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > src/types/database.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.48.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.511.0",
+    "next": "^15.4.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^3.25.74"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.6",
+    "eslint": "^9.28.0",
+    "eslint-config-next": "^15.4.2",
+    "prettier": "^3.5.3",
+    "prettier-plugin-tailwindcss": "^0.6.12",
+    "tailwindcss": "^4.1.11",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}

@@ -1,0 +1,11 @@
+-- Local seed for development — run via `supabase db reset`
+-- This file is for local development only; production uses migrations.
+
+-- Ensure tools exist (duplicate of migration for local)
+insert into public.tools (slug, name, description, is_active) values
+  ('sponsor-sentinel', 'Sponsor Proof-of-Performance Sentinel', 'Automated Twitch VOD proof and sponsor exposure tracking', true),
+  ('scrim-matchmaker', 'Cross-Timezone Scrim Matchmaker & Pinger', 'Find scrims across timezones with smart pinging', true),
+  ('prize-splitter', 'Prize Pool Splitter & Escrow', 'Split prize pools and manage escrow transparently', true),
+  ('vod-clipper', 'VOD Timestamp & Voice-Note Clipper', 'Clip VODs with timestamps and voice notes', true),
+  ('roster-sentinel', 'Roster Visa & Contract Sentinel', 'Track visas and contracts for rosters', true)
+on conflict (slug) do nothing;

@@ -1,0 +1,35 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+.pnpm-store
+
+# next.js
+.next/
+out/
+build
+dist
+
+# env
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# supabase
+.supabase
+
+# vercel
+.vercel
+
+# testing
+coverage
+
+# misc
+.DS_Store
+*.pem
+.npmrc.local
+
+# build cache
+tsconfig.tsbuildinfo
