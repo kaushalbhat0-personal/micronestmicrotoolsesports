@@ -133,23 +133,47 @@ export class YouTubeProvider
     channel: ConnectedChannelRef,
     window: { readonly from: string; readonly to: string },
   ): Promise<readonly CanonicalVideo[]> {
-    // Use search.list to discover videos in window (completed)
-    this.checkBudget(this.searchBudget ?? this.budget, 1, "search.list");
-    let searchRes;
-    try {
-      searchRes = await this.client.searchList({ channelId: channel.externalChannelId, eventType: "completed", maxResults: "10" });
-      this.consumeBudget(this.searchBudget ?? this.budget, 1);
-    } catch (e) {
-      if (e instanceof YouTubeApiError) throw e;
-      return [];
-    }
-    const ids = (searchRes.items ?? []).map((i) => i.id.videoId).filter((v): v is string => Boolean(v));
-    if (ids.length === 0) return [];
+    // Bounded pagination: up to 3 search pages (10 each) => max 25 candidates, respects searchBudget
+    const maxPages = 3;
+    const maxCandidates = 25;
+    const pageSize = "10";
+    let pageToken: string | undefined = undefined;
+    const allIds: string[] = [];
 
-    // Bound pagination: only one search page for MVP (max 10). If more needed, nextPageToken loop capped.
-    // Fetch details via videos.list
+    for (let page = 0; page < maxPages; page++) {
+      if (allIds.length >= maxCandidates) break;
+      this.checkBudget(this.searchBudget ?? this.budget, 1, "search.list");
+      let searchRes;
+      try {
+        const params: { channelId: string; eventType: string; maxResults: string; pageToken?: string } = {
+          channelId: channel.externalChannelId,
+          eventType: "completed",
+          maxResults: pageSize,
+        };
+        if (pageToken) params.pageToken = pageToken;
+        searchRes = await this.client.searchList(params);
+        this.consumeBudget(this.searchBudget ?? this.budget, 1);
+      } catch (e) {
+        if (e instanceof YouTubeApiError) throw e;
+        break;
+      }
+      const ids = (searchRes.items ?? []).map((i) => i.id.videoId).filter((v): v is string => Boolean(v));
+      for (const id of ids) {
+        if (allIds.length >= maxCandidates) break;
+        if (!allIds.includes(id)) allIds.push(id);
+      }
+      const next = (searchRes as { nextPageToken?: string }).nextPageToken;
+      if (!next) break;
+      pageToken = next;
+      // Early stop: if we already have enough candidates, break
+      if (allIds.length >= maxCandidates) break;
+    }
+
+    if (allIds.length === 0) return [];
+
+    // Batch videos.list (YouTube allows up to 50 ids per call; we have ≤25)
     this.checkBudget(this.budget, 1, "videos.list");
-    const vidsRes = await this.client.videosList({ id: ids.join(",") });
+    const vidsRes = await this.client.videosList({ id: allIds.join(",") });
     this.consumeBudget(this.budget, 1);
 
     const from = Date.parse(window.from);
@@ -160,7 +184,11 @@ export class YouTubeProvider
       return pub >= from && pub <= to;
     });
 
-    return filtered.map((v) =>
+    // Preserve original search order (most recent first) as returned by search.list
+    const orderMap = new Map(allIds.map((id, idx) => [id, idx]));
+    filtered.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+
+    return filtered.slice(0, maxCandidates).map((v) =>
       mapYouTubeVideoToCanonical(
         {
           id: v.id,

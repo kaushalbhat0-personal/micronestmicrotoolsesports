@@ -161,11 +161,11 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
       const rule = deliverable.rule as import("@/features/sponsor-sentinel/schemas/rules").DeliverableRule;
       // Discovery: determine required observation type
       const needsVideo = rule.type === "minimum_duration" || rule.type === "required_vod_exists";
-      let observation: { kind: "live"; data: CanonicalLiveStream | null } | { kind: "video"; data: CanonicalVideo | null } | { kind: "none" };
-      let source: string;
-      let sourceId: string;
-      let observedAt: string;
-      let titleForEvidence: string;
+      let observation: { kind: "live"; data: CanonicalLiveStream | null } | { kind: "video"; data: CanonicalVideo | null } | { kind: "none" } = { kind: "none" };
+      let source: string = "get_streams";
+      let sourceId: string = "none";
+      let observedAt: string = new Date().toISOString();
+      let titleForEvidence: string = "";
 
       if (needsVideo) {
         const vid = fetchedVideos[0] ?? null;
@@ -175,28 +175,84 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
         observedAt = vid?.observedAt ?? new Date().toISOString();
         titleForEvidence = vid?.title ?? "";
       } else {
-        // live or either: prefer live, fallback to video if live null
-        const live = fetchedLive;
-        const fallbackVideo = fetchedVideos[0] ?? null;
-        const chosenLive = live ?? null;
-        if (chosenLive) {
-          observation = { kind: "live", data: chosenLive };
-          source = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
-          sourceId = chosenLive.externalStreamId;
-          observedAt = chosenLive.observedAt;
-          titleForEvidence = chosenLive.title;
-        } else if (fallbackVideo) {
-          observation = { kind: "video", data: fallbackVideo };
-          source = platform === "youtube" ? "youtube_videos_list" : "get_videos";
-          sourceId = fallbackVideo.externalVideoId;
-          observedAt = fallbackVideo.observedAt;
-          titleForEvidence = fallbackVideo.title;
+        // Content rules: evaluate candidate videos (up to 25) until PASS, prefer live PASS first
+        // 1. Check live if present
+        let candidateFound = false;
+        if (fetchedLive) {
+          const liveObs = { kind: "live" as const, data: fetchedLive };
+          let liveOutcome: ReturnType<typeof evaluateRule> | null = null;
+          try {
+            liveOutcome = evaluateRule(rule, platform, liveObs as never);
+          } catch {
+            liveOutcome = null;
+          }
+          if (liveOutcome?.result === "PASS") {
+            observation = liveObs;
+            source = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
+            sourceId = fetchedLive.externalStreamId;
+            observedAt = fetchedLive.observedAt;
+            titleForEvidence = fetchedLive.title;
+            candidateFound = true;
+            // Early persist will use this observation; outcome already PASS
+            // Set outcome directly to avoid re-evaluating
+            // We will handle persistence below via observation/outcome
+            // To avoid double evaluate, store outcome for later
+            // Use a temporary variable via closure: we will set outcome after branch
+            // For simplicity, fall through to evaluation block with precomputed outcome
+            // So we need to handle outcome assignment outside
+            // Instead, we will directly set observation and let later evaluate re-evaluate (cheap) — or store
+            // Keep observation, let normal EVALUATE path run (will re-evaluate same live and PASS again)
+          }
+        }
+        if (!candidateFound) {
+          // Scan video candidates for PASS
+          let passVideo: (typeof fetchedVideos)[number] | null = null;
+          const fallbackVideo: (typeof fetchedVideos)[number] | null = fetchedVideos[0] ?? null;
+          // Determine if any video PASSes
+          for (const v of fetchedVideos) {
+            const obs = { kind: "video" as const, data: v };
+            let out: ReturnType<typeof evaluateRule> | null = null;
+            try {
+              out = evaluateRule(rule, platform, obs as never);
+            } catch {
+              continue;
+            }
+            if (out.result === "PASS") {
+              passVideo = v;
+              break;
+            }
+          }
+          if (passVideo) {
+            observation = { kind: "video", data: passVideo };
+            source = platform === "youtube" ? "youtube_videos_list" : "get_videos";
+            sourceId = passVideo.externalVideoId;
+            observedAt = passVideo.observedAt;
+            titleForEvidence = passVideo.title;
+          } else if (fetchedLive) {
+            // No PASS video, fallback to live (already checked, but live was not PASS)
+            observation = { kind: "live", data: fetchedLive };
+            source = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
+            sourceId = fetchedLive.externalStreamId;
+            observedAt = fetchedLive.observedAt;
+            titleForEvidence = fetchedLive.title;
+          } else if (fallbackVideo) {
+            observation = { kind: "video", data: fallbackVideo };
+            source = platform === "youtube" ? "youtube_videos_list" : "get_videos";
+            sourceId = fallbackVideo.externalVideoId;
+            observedAt = fallbackVideo.observedAt;
+            titleForEvidence = fallbackVideo.title;
+          } else {
+            observation = { kind: "none" };
+            source = "get_streams";
+            sourceId = "none";
+            observedAt = new Date().toISOString();
+            titleForEvidence = "";
+          }
         } else {
-          observation = { kind: "none" };
-          source = "get_streams";
-          sourceId = "none";
-          observedAt = new Date().toISOString();
-          titleForEvidence = "";
+          // candidateFound via live PASS already set observation above
+          // observation already set to live
+          // Ensure source fields already set
+          // they were set in the live PASS branch
         }
       }
 

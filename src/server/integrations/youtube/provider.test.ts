@@ -218,12 +218,12 @@ describe("YouTube provider", () => {
     await expect(provider.getLiveState({ platform: "youtube", externalChannelId: "UC123", externalHandle: "h", displayName: null, canonicalUrl: "https://youtube.com/channel/UC123" })).rejects.toSatisfy((e: unknown) => (e as YouTubeApiError).kind === "quota_exceeded");
   });
 
-  it("pagination bounded (search does one page)", async () => {
+  it("pagination bounded (max 3 pages, max 25)", async () => {
     let searchCalls = 0;
     const fetchMock = vi.fn(async (url: string) => {
       if (url.includes("/search")) {
         searchCalls++;
-        return new Response(JSON.stringify({ items: [{ id: { videoId: `vid${searchCalls}` }, snippet: { title: "t", publishedAt: "2026-03-10T16:00:00Z", channelId: "UC123" } }], nextPageToken: "next" }), { status: 200 });
+        return new Response(JSON.stringify({ items: [{ id: { videoId: `vid${searchCalls}` }, snippet: { title: "t", publishedAt: "2026-03-10T16:00:00Z", channelId: "UC123" } }], nextPageToken: searchCalls < 5 ? "next" : undefined }), { status: 200 });
       }
       if (url.includes("/videos")) {
         return new Response(JSON.stringify({ items: [{ id: "vid1", snippet: { title: "t", description: "", tags: [], categoryId: "20", publishedAt: "2026-03-10T16:00:00Z", channelId: "UC123", liveBroadcastContent: "none" }, contentDetails: { duration: "PT0S" } }] }), { status: 200 });
@@ -232,7 +232,7 @@ describe("YouTube provider", () => {
     }) as unknown as typeof fetch;
     const provider = new YouTubeProvider(new YouTubeClient({ apiKey: "k" }, fetchMock));
     await provider.listVideos({ platform: "youtube", externalChannelId: "UC123", externalHandle: "h", displayName: null, canonicalUrl: "https://youtube.com/channel/UC123" }, { from: "2026-03-01T00:00:00Z", to: "2026-03-31T00:00:00Z" });
-    expect(searchCalls).toBe(1); // not unbounded
+    expect(searchCalls).toBe(3); // bounded to 3, not unbounded
   });
 });
 

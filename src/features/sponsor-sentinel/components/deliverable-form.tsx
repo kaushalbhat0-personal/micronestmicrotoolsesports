@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import * as React from "react";
+import { useState, useTransition } from "react";
 import { createDeliverableAction } from "@/features/sponsor-sentinel/actions/deliverable-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,8 @@ const RULE_OPTIONS = [
 export function DeliverableForm({ orgSlug, campaignId }: { orgSlug: string; campaignId: string }) {
   const [platform, setPlatform] = useState<"twitch" | "youtube" | "kick">("twitch");
   const [ruleType, setRuleType] = useState<string>("required_title_contains");
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const caps = getCapabilities(platform);
 
   // Filter rule options by capability
@@ -37,8 +40,30 @@ export function DeliverableForm({ orgSlug, campaignId }: { orgSlug: string; camp
     return true;
   });
 
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    // Ensure orgSlug/campaignId are present even if hidden inputs missing
+    formData.set("orgSlug", orgSlug);
+    formData.set("campaignId", campaignId);
+    startTransition(async () => {
+      try {
+        const result = (await createDeliverableAction(formData)) as unknown as { error?: string } | void;
+        if (result && typeof result === "object" && "error" in result && result.error) {
+          setError(result.error);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        if (msg.includes("NEXT_REDIRECT")) throw err;
+        setError(msg);
+      }
+    });
+  }
+
   return (
-    <form action={createDeliverableAction} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <input type="hidden" name="orgSlug" value={orgSlug} />
       <input type="hidden" name="campaignId" value={campaignId} />
       <div className="space-y-2">
@@ -94,9 +119,20 @@ export function DeliverableForm({ orgSlug, campaignId }: { orgSlug: string; camp
         <Label htmlFor="tagIds">Tags (comma-separated, for tag checks)</Label>
         <Input id="tagIds" name="tagIds" placeholder="tag1, tag2" />
       </div>
-      <Button type="submit" aria-label="Add requirement">
-        Add requirement
+      <Button
+        type="submit"
+        aria-label={pending ? "Adding requirement" : "Add requirement"}
+        aria-busy={pending}
+        disabled={pending}
+        loading={pending}
+      >
+        {pending ? "Adding requirement…" : "Add requirement"}
       </Button>
+      {error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }
