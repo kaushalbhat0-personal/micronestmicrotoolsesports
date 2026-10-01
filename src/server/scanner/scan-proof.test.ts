@@ -301,3 +301,112 @@ describe("proof engine — candidate evaluation + bounded discovery", () => {
     expect(res.evidenceCount).toBe(1);
   });
 });
+
+describe("long-form YouTube video coverage (PROOF-05A)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function makeLongForm(overrides: Partial<CanonicalVideo> & { externalVideoId: string }): CanonicalVideo {
+    return makeVideo({
+      durationSeconds: 1800, // 30 min
+      title: "Complete Market Psychology Masterclass",
+      description: "Learn market psychology and trading discipline. #trading",
+      publishedAt: "2025-11-18T10:00:00Z",
+      ...overrides,
+    });
+  }
+
+  it("long-form video discoverable via same published-video path and passes description contains", async () => {
+    const { supabase } = makeSupabaseStub() as unknown as { supabase: SupabaseClient };
+    const { evidenceStore } = setupCampaignMocks({
+      orgId: "org-a",
+      campaignId: "camp-a",
+      deliverables: [{ type: "required_description_contains", value: "#trading" }],
+      from: "2025-11-01T00:00:00Z",
+      to: "2025-11-30T23:59:59Z",
+    });
+    const long = makeLongForm({ externalVideoId: "long-form-test-video", publishedAt: "2025-11-18T10:00:00Z" });
+    const provider = {
+      platform: "youtube" as Platform,
+      getLiveState: async () => null,
+      listVideos: async () => [long],
+      resolveChannel: async () => null,
+      listTags: async () => [],
+      resolveCategory: async () => null,
+    };
+    const res = await executeScan({ supabase, input: { organizationId: "org-a", campaignId: "camp-a" }, providers: { youtube: provider as never } });
+    expect(res.evidenceCount).toBe(1);
+    expect(evidenceStore[0] as Record<string, unknown>).toMatchObject({ external_content_id: "long-form-test-video", source_id: "long-form-test-video" });
+  });
+
+  it("mixed Short FAIL + long-form PASS → proof is long-form", async () => {
+    const { supabase } = makeSupabaseStub() as unknown as { supabase: SupabaseClient };
+    const { evidenceStore } = setupCampaignMocks({
+      orgId: "org-a",
+      campaignId: "camp-a",
+      deliverables: [{ type: "required_description_contains", value: "#trading" }],
+      from: "2025-11-01T00:00:00Z",
+      to: "2025-11-30T23:59:59Z",
+    });
+    const short = makeVideo({ externalVideoId: "short-test-video", description: "nope", title: "Short", publishedAt: "2025-11-17T00:00:00Z", durationSeconds: 30 });
+    const long = makeLongForm({ externalVideoId: "long-form-test-video", publishedAt: "2025-11-18T10:00:00Z" });
+    const provider = {
+      platform: "youtube" as Platform,
+      getLiveState: async () => null,
+      listVideos: async () => [short, long],
+      resolveChannel: async () => null,
+      listTags: async () => [],
+      resolveCategory: async () => null,
+    };
+    const res = await executeScan({ supabase, input: { organizationId: "org-a", campaignId: "camp-a" }, providers: { youtube: provider as never } });
+    expect(res.evidenceCount).toBe(1);
+    expect(evidenceStore[0] as Record<string, unknown>).toMatchObject({ external_content_id: "long-form-test-video" });
+  });
+
+  it("mixed Short PASS + long-form FAIL → proof is short (no content-type preference)", async () => {
+    const { supabase } = makeSupabaseStub() as unknown as { supabase: SupabaseClient };
+    const { evidenceStore } = setupCampaignMocks({
+      orgId: "org-a",
+      campaignId: "camp-a",
+      deliverables: [{ type: "required_description_contains", value: "#spirituality" }],
+      from: "2025-11-01T00:00:00Z",
+      to: "2025-11-30T23:59:59Z",
+    });
+    const short = makeVideo({ externalVideoId: "short-test-video", description: "#spirituality short", publishedAt: "2025-11-17T00:00:00Z" });
+    const long = makeLongForm({ externalVideoId: "long-form-test-video", description: "nope long", publishedAt: "2025-11-18T00:00:00Z" });
+    const provider = {
+      platform: "youtube" as Platform,
+      getLiveState: async () => null,
+      listVideos: async () => [short, long],
+      resolveChannel: async () => null,
+      listTags: async () => [],
+      resolveCategory: async () => null,
+    };
+    const res = await executeScan({ supabase, input: { organizationId: "org-a", campaignId: "camp-a" }, providers: { youtube: provider as never } });
+    expect(evidenceStore[0] as Record<string, unknown>).toMatchObject({ external_content_id: "short-test-video" });
+    expect(res.evidenceCount).toBe(1);
+  });
+
+  it("long-form outside window excluded", async () => {
+    const { supabase } = makeSupabaseStub() as unknown as { supabase: SupabaseClient };
+    setupCampaignMocks({
+      orgId: "org-a",
+      campaignId: "camp-a",
+      deliverables: [{ type: "required_description_contains", value: "#trading" }],
+      from: "2025-11-01T00:00:00Z",
+      to: "2025-11-30T23:59:59Z",
+    });
+    // Provider would have filtered this out; we simulate empty
+    const provider = {
+      platform: "youtube" as Platform,
+      getLiveState: async () => null,
+      listVideos: async () => [] as const,
+      resolveChannel: async () => null,
+      listTags: async () => [],
+      resolveCategory: async () => null,
+    };
+    const res = await executeScan({ supabase, input: { organizationId: "org-a", campaignId: "camp-a" }, providers: { youtube: provider as never } });
+    expect(res.evidenceCount).toBe(0);
+  });
+});

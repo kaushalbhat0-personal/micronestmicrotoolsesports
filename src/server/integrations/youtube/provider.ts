@@ -145,13 +145,12 @@ export class YouTubeProvider
       this.checkBudget(this.searchBudget ?? this.budget, 1, "search.list");
       let searchRes;
       try {
-        const params: { channelId: string; eventType: string; maxResults: string; pageToken?: string } = {
+        const params: { channelId: string; maxResults: string; pageToken?: string } = {
           channelId: channel.externalChannelId,
-          eventType: "completed",
           maxResults: pageSize,
         };
         if (pageToken) params.pageToken = pageToken;
-        searchRes = await this.client.searchList(params);
+        searchRes = await this.client.searchList(params as { channelId: string; eventType?: string; maxResults?: string; pageToken?: string });
         this.consumeBudget(this.searchBudget ?? this.budget, 1);
       } catch (e) {
         if (e instanceof YouTubeApiError) throw e;
