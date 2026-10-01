@@ -30,14 +30,19 @@ export async function getScanDetail(
     campaignName = (campaignData as { name: string }).name;
   }
 
-  // Per-scan evidence (exact attribution via scan_id)
+  // Per-scan evidence (exact attribution via scan_id) — projection now includes organization_id/scan_id (P1 fix 07B)
   const evidence = await listEvidenceByScan(supabase, scanId);
-  // Ensure tenant isolation even if scan_id somehow cross-tenant (already checked scan org, but filter)
-  const filteredEvidence = evidence.filter((e) => e.organization_id === organizationId);
+  // Defense-in-depth tenant filter: DB RLS already scopes to org, but filter here catches cross-tenant misuse.
+  // Now correct because listEvidenceByScan projects organization_id/scan_id.
+  const filteredEvidence = evidence.filter(
+    (e) => e.organization_id === organizationId && e.scan_id === scanId,
+  );
 
-  // Per-scan evaluations via scan_id
+  // Per-scan evaluations via scan_id — projection now includes organization_id/scan_id
   const evaluations = await listEvaluationsByScan(supabase, scanId);
-  const filteredEvals = evaluations.filter((ev) => ev.organization_id === organizationId);
+  const filteredEvals = evaluations.filter(
+    (ev) => ev.organization_id === organizationId && ev.scan_id === scanId,
+  );
 
   const evaluationSummary: Record<string, number> = {};
   for (const ev of filteredEvals) {

@@ -50,57 +50,46 @@ export async function getScanHistory(
     campaignMap.set(c.id, c.name);
   }
 
-  // 3. Evidence counts batched by campaign_id (per-scan counts derived from campaign/platform if needed;
-  //    for MVP we show per-campaign evidence total, not per-scan time window, to avoid expensive time-range joins)
+  // 3. Evidence counts — per-scan via scan_id (07B fix, replaces campaign aggregation)
+  // Avoids N+1: single batched query for all scanIds in this page.
+  // Explicit tenant filter defense-in-depth (matches evaluations query).
+  const scanIds = scanRows.map((s) => s.id);
   const { data: evidenceRows } = await supabase
     .from("evidence")
-    .select("campaign_id, platform")
-    .in("campaign_id", campaignIds);
+    .select("scan_id")
+    .eq("organization_id", organizationId)
+    .in("scan_id", scanIds);
 
-  const evidenceCountByCampaign = new Map<string, number>();
-  for (const e of (evidenceRows ?? []) as Array<{ campaign_id: string }>) {
-    evidenceCountByCampaign.set(e.campaign_id, (evidenceCountByCampaign.get(e.campaign_id) ?? 0) + 1);
+  const evidenceCountByScan = new Map<string, number>();
+  for (const e of (evidenceRows ?? []) as Array<{ scan_id: string | null }>) {
+    if (!e.scan_id) continue; // historical NULL scan_id not attributed to any scan
+    if (!scanIds.includes(e.scan_id)) continue;
+    evidenceCountByScan.set(e.scan_id, (evidenceCountByScan.get(e.scan_id) ?? 0) + 1);
   }
 
-  // 4. Evaluation summary batched via deliverables (evaluations has no campaign_id, only deliverable_id)
-  // Fetch deliverables for these campaigns
-  const { data: deliverableRows } = await supabase
-    .from("deliverables")
-    .select("id, campaign_id")
-    .in("campaign_id", campaignIds);
+  // 4. Evaluation summary — per-scan via scan_id (denormalized, direct)
+  // Uses evaluations.scan_id added in 20251003000001; no deliverable→campaign join needed.
+  const evalSummaryByScan = new Map<string, Record<string, number>>();
+  // Guard: Supabase .in() with empty array would error; scanIds is non-empty here.
+  const { data: evalRows } = await supabase
+    .from("evaluations")
+    .select("scan_id, result")
+    .eq("organization_id", organizationId)
+    .in("scan_id", scanIds);
 
-  const deliverableIdToCampaign = new Map<string, string>();
-  const deliverableIds: string[] = [];
-  for (const d of (deliverableRows ?? []) as Array<{ id: string; campaign_id: string }>) {
-    deliverableIdToCampaign.set(d.id, d.campaign_id);
-    deliverableIds.push(d.id);
+  for (const ev of (evalRows ?? []) as Array<{ scan_id: string | null; result: string }>) {
+    if (!ev.scan_id) continue; // historical NULL
+    if (!scanIds.includes(ev.scan_id)) continue;
+    const map = evalSummaryByScan.get(ev.scan_id) ?? {};
+    map[ev.result] = (map[ev.result] ?? 0) + 1;
+    evalSummaryByScan.set(ev.scan_id, map);
   }
-
-  const evalSummaryByCampaign = new Map<string, Record<string, number>>();
-  if (deliverableIds.length > 0) {
-    const { data: evalRows } = await supabase
-      .from("evaluations")
-      .select("deliverable_id, result")
-      .eq("organization_id", organizationId)
-      .in("deliverable_id", deliverableIds);
-
-    for (const ev of (evalRows ?? []) as Array<{ deliverable_id: string; result: string }>) {
-      const campId = deliverableIdToCampaign.get(ev.deliverable_id);
-      if (!campId) continue;
-      const map = evalSummaryByCampaign.get(campId) ?? {};
-      map[ev.result] = (map[ev.result] ?? 0) + 1;
-      evalSummaryByCampaign.set(campId, map);
-    }
-  }
-
-  // Fallback: if evaluation rows had no campaign_id (schema without it), we can fetch via deliverable → campaign join not needed for MVP;
-  // show empty summaries instead of failing.
 
   const items: ScanHistoryItem[] = scanRows.map((scan) => ({
     scan,
     campaignName: campaignMap.get(scan.campaign_id) ?? null,
-    evidenceCount: evidenceCountByCampaign.get(scan.campaign_id) ?? 0,
-    evaluationSummary: evalSummaryByCampaign.get(scan.campaign_id) ?? {},
+    evidenceCount: evidenceCountByScan.get(scan.id) ?? 0,
+    evaluationSummary: evalSummaryByScan.get(scan.id) ?? {},
   }));
 
   return { scans: items, total: scanRows.length };

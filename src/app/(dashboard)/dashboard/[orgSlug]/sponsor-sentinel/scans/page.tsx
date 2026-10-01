@@ -41,7 +41,7 @@ export default async function ScanHistoryPage({ params }: { params: Promise<{ or
           <CardContent>
             <ScanHistoryTable items={scans} orgSlug={orgSlug} />
             <p className="mt-4 text-xs text-muted-foreground">
-              Checks are read-only. Proof counts are aggregated per campaign. Select a check to view its proof and results.
+              Checks are read-only. Proof counts are per check. Select a check to view its proof and results.
               <Link href={`/dashboard/${orgSlug}/sponsor-sentinel`} className="ml-2 underline">
                 Back to sponsorship tracking
               </Link>
