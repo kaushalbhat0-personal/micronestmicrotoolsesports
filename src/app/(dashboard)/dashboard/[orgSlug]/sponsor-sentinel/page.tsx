@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type { Route } from "next";
 
-// Stub — demonstrates canonical org context + entitlement pattern, no business logic.
 export default async function SponsorSentinelPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requireOrganizationContext(orgSlug);
@@ -16,22 +15,19 @@ export default async function SponsorSentinelPage({ params }: { params: Promise<
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Sponsor Sentinel"
-        description={`Proof-of-performance for sponsors — organization: ${ctx.organization.name} (${ctx.membership.role})`}
+        title="Sponsorship Tracking"
+        description={`Proof-of-performance for sponsors — ${ctx.organization.name}`}
       />
-      <Card>
-        <CardHeader>
+      <Card className="border-l-2 border-l-primary">
+        <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            Sponsor Sentinel <Badge variant="success">Authorized</Badge>
+            Sponsorship Proof Tracking <Badge variant="success">Available</Badge>
           </CardTitle>
-          <CardDescription>
-            This is a routing/authorization stub. Future feature code will live in <code>src/features/sponsor-sentinel/</code> and be invoked here via{" "}
-            <code>requireOrganizationContext</code> → <code>requireEntitlement</code> → service → repository.
-          </CardDescription>
+          <CardDescription>Track what creators need to deliver and review proof when checks are completed.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Canonical flow verified: URL slug <code>{orgSlug}</code> → membership <code>{ctx.membership.role}</code> → entitlement for <code>sponsor-sentinel</code> → render.
+            Create campaigns, connect creator channels, and review proof of delivery for your sponsors.
           </p>
           <div className="flex gap-2">
             <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route}>
@@ -40,8 +36,8 @@ export default async function SponsorSentinelPage({ params }: { params: Promise<
               </Button>
             </Link>
             <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route}>
-              <Button variant="outline" size="sm" aria-label="View scan history">
-                View scan history
+              <Button variant="outline" size="sm" aria-label="View check history">
+                View check history
               </Button>
             </Link>
           </div>

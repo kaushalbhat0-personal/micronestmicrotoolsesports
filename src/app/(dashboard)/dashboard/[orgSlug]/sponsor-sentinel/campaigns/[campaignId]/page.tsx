@@ -6,7 +6,7 @@ import { listDeliverablesByCampaign } from "@/server/repositories/deliverables";
 import { listConnectedChannelsByOrg } from "@/server/repositories/connected-channels";
 import { listEvidenceByScan } from "@/server/repositories/evidence";
 import { listEvaluationsByScan } from "@/server/repositories/evaluations";
-import { listScansByOrg } from "@/server/repositories/scans";
+import { listScansByCampaign } from "@/server/repositories/scans";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -46,20 +46,26 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
   const supabase = await createClient();
 
-  const campaign = await getCampaign(supabase, ctx.organization.id, campaignId);
-  const deliverables = await listDeliverablesByCampaign(supabase, campaignId);
-  const channels = await listConnectedChannelsByOrg(supabase, ctx.organization.id);
+  // P0-A: parallel independent reads after trusted context
+  const [campaign, deliverables, channels] = await Promise.all([
+    getCampaign(supabase, ctx.organization.id, campaignId),
+    listDeliverablesByCampaign(supabase, campaignId),
+    listConnectedChannelsByOrg(supabase, ctx.organization.id),
+  ]);
   const usableChannels = channels.filter((c) => c.connection_status === "connected");
 
-  const allScans = await listScansByOrg(supabase, ctx.organization.id);
-  const campaignScans = allScans.filter((s) => s.campaign_id === campaignId).slice(0, 5);
+  // P0-C: campaign-specific DB query with limit, preserves tenant safety via organization_id
+  const campaignScans = await listScansByCampaign(supabase, ctx.organization.id, campaignId, 5);
   const latestScan = campaignScans[0] ?? null;
 
+  // P0-B: parallel evidence + evaluation reads
   let evidence: Awaited<ReturnType<typeof listEvidenceByScan>> = [];
   let evaluations: Awaited<ReturnType<typeof listEvaluationsByScan>> = [];
   if (latestScan) {
-    evidence = await listEvidenceByScan(supabase, latestScan.id);
-    evaluations = await listEvaluationsByScan(supabase, latestScan.id);
+    [evidence, evaluations] = await Promise.all([
+      listEvidenceByScan(supabase, latestScan.id),
+      listEvaluationsByScan(supabase, latestScan.id),
+    ]);
   }
 
   const hasConnectedChannel = usableChannels.length > 0;
@@ -69,6 +75,8 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const isActive = campaign.status === "active";
   const isCompleted = campaign.status === "completed";
   const isArchived = campaign.status === "archived";
+  const activeRequirementCount = deliverables.filter((d) => d.status === "active").length;
+  const isRecoverableTracking = isActive && activeRequirementCount === 0;
 
   const activationBlockedReason = !hasConnectedChannel
     ? "Connect a creator channel before starting tracking."
@@ -134,7 +142,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       ) : null}
 
       {isActive ? (
-        <div className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900 dark:bg-emerald-950/20 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900 dark:bg-emerald-950/20 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <StatusBadge status="active" />
@@ -146,7 +154,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       ) : null}
 
       {isCompleted ? (
-        <div className="flex items-center gap-2 rounded-xl border bg-card p-4">
+        <div className="flex items-center gap-2 rounded-lg border bg-card p-4">
           <StatusBadge status="completed" />
           <span className="text-sm font-medium">Completed</span>
           <span className="text-sm text-muted-foreground">This campaign has finished tracking.</span>
@@ -154,7 +162,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       ) : null}
 
       {isArchived ? (
-        <div className="flex items-center gap-2 rounded-xl border bg-card p-4">
+        <div className="flex items-center gap-2 rounded-lg border bg-card p-4">
           <StatusBadge status="archived" />
           <span className="text-sm font-medium">Archived</span>
           <span className="text-sm text-muted-foreground">This campaign is archived and no longer tracking.</span>
@@ -165,7 +173,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       <section className="space-y-3" aria-labelledby="creator-channels-heading">
         <SectionHeader
           title="Creator channels"
-          description="These are the channels this campaign checks for sponsorship proof. The campaign uses all connected creator channels available to this organization."
+          description="These are the channels this campaign checks for sponsorship proof. The campaign uses all connected creator channels available to this workspace."
         />
         {channels.length === 0 ? (
           <EmptyState
@@ -213,14 +221,19 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         {deliverables.length === 0 ? (
           <EmptyState
             title="No requirements yet"
-            description="Add what the creator needs to deliver so we can check it automatically."
-            action={isDraft ? <span className="text-xs text-muted-foreground">Use the form below to add a requirement.</span> : undefined}
+            description={
+              isRecoverableTracking
+                ? "This campaign is tracking but has no requirements yet. Add a requirement to continue checking sponsorship activity."
+                : "Add what the creator needs to deliver so we can check it automatically."
+            }
+            action={isDraft || isRecoverableTracking ? <span className="text-xs text-muted-foreground">Use the form below to add a requirement.</span> : undefined}
           />
         ) : (
           <ul className="space-y-3">
             {deliverables.map((d) => {
               const rule = d.rule as unknown;
               const human = formatRequirementDescription(rule);
+              const isLastActive = isActive && activeRequirementCount === 1 && d.status === "active";
               return (
                 <li key={d.id} className="rounded-lg border bg-card p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -233,21 +246,27 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                         <Badge variant="outline">Active</Badge>
                       </div>
                     </div>
-                    <form action={deleteDeliverableAction}>
-                      <input type="hidden" name="orgSlug" value={orgSlug} />
-                      <input type="hidden" name="campaignId" value={campaignId} />
-                      <input type="hidden" name="deliverableId" value={d.id} />
-                      <Button type="submit" variant="ghost" size="sm" aria-label={`Remove requirement ${d.name}`}>
-                        Remove
-                      </Button>
-                    </form>
+                    {isLastActive ? (
+                      <span className="text-xs text-muted-foreground px-3 py-1" title="Cannot remove the last requirement while tracking">
+                        Locked
+                      </span>
+                    ) : (
+                      <form action={deleteDeliverableAction}>
+                        <input type="hidden" name="orgSlug" value={orgSlug} />
+                        <input type="hidden" name="campaignId" value={campaignId} />
+                        <input type="hidden" name="deliverableId" value={d.id} />
+                        <Button type="submit" variant="ghost" size="sm" aria-label={`Remove requirement ${d.name}`}>
+                          Remove
+                        </Button>
+                      </form>
+                    )}
                   </div>
                 </li>
               );
             })}
           </ul>
         )}
-        {isDraft ? (
+        {isDraft || isRecoverableTracking ? (
           <Card className="mt-4">
             <CardHeader>
               <CardTitle className="text-base">Add requirement</CardTitle>
@@ -256,9 +275,11 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
               <DeliverableForm orgSlug={orgSlug} campaignId={campaignId} />
             </CardContent>
           </Card>
-        ) : (
+        ) : isActive ? (
           <p className="text-xs text-muted-foreground">Requirements can only be added while the campaign is being set up. This campaign is tracking and requirements are locked.</p>
-        )}
+        ) : isCompleted || isArchived ? (
+          <p className="text-xs text-muted-foreground">Requirements are locked for completed campaigns.</p>
+        ) : null}
       </section>
 
       {/* Tracking hint for draft */}

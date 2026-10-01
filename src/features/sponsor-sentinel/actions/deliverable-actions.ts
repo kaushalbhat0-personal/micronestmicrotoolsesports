@@ -7,6 +7,8 @@ import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createClient } from "@/lib/supabase/server";
 import { createDeliverable } from "../services/deliverable-service";
 import * as deliverableRepo from "@/server/repositories/deliverables";
+import * as campaignRepo from "@/server/repositories/sponsor-campaigns";
+import * as evidenceRepo from "@/server/repositories/evidence";
 import { deliverableRuleSchema } from "../schemas/rules";
 
 export async function createDeliverableAction(formData: FormData) {
@@ -82,6 +84,24 @@ export async function deleteDeliverableAction(formData: FormData) {
   const supabase = await createClient();
   const existing = await deliverableRepo.findDeliverableById(supabase, deliverableId);
   if (!existing || existing.organization_id !== ctx.organization.id) throw new Error("Not found");
+  // Ensure deliverable belongs to the claimed campaign (campaignId from form is trusted but we verify)
+  if (existing.campaign_id !== campaignId) throw new Error("Not found");
+  // Load campaign to check status; status must come from trusted DB row
+  const campaign = await campaignRepo.findSponsorCampaignById(supabase, campaignId);
+  if (!campaign || campaign.organization_id !== ctx.organization.id) throw new Error("Not found");
+  // Rule 2: requirement with historical proof cannot be hard-deleted
+  const evidence = await evidenceRepo.listEvidenceByDeliverable(supabase, deliverableId);
+  if (evidence.length > 0) {
+    throw new Error("This requirement has existing proof and can't be removed.");
+  }
+  // Rule 1: tracking + last active requirement cannot be removed
+  if (campaign.status === "active" && existing.status === "active") {
+    const allDeliverables = await deliverableRepo.listDeliverablesByCampaign(supabase, campaignId);
+    const activeCount = allDeliverables.filter((d) => d.status === "active").length;
+    if (activeCount === 1) {
+      throw new Error("You can't remove the last requirement while tracking. Add a replacement requirement first, or complete the campaign before changing its requirements.");
+    }
+  }
   await deliverableRepo.deleteDeliverable(supabase, deliverableId);
   revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${campaignId}`);
   redirect(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${campaignId}` as never);

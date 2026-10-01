@@ -21,29 +21,29 @@ export default async function ScanHistoryPage({ params }: { params: Promise<{ or
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Scan History"
-        description={`Read-only history of Sponsor Sentinel scans for ${ctx.organization.name} — newest first`}
+        title="Check History"
+        description={`History of checks for ${ctx.organization.name} — newest first`}
       />
 
       {scans.length === 0 ? (
         <EmptyState
-          title="No scans yet"
-          description="No Sponsor Sentinel scans have been recorded for this organization. Scans run automatically via the scheduled Cron job for active campaigns with connected channels."
+          title="No checks yet"
+          description="No checks have been recorded for this workspace. Checks run automatically for active campaigns with connected creator channels."
         />
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Recent scans</CardTitle>
+            <CardTitle className="text-base">Recent checks</CardTitle>
             <CardDescription>
-              Showing {String(scans.length)} of {String(total)} scans (limit 50, newest first). Times shown in Asia/Kolkata.
+              Showing {String(scans.length)} of {String(total)} checks. Times shown in Asia/Kolkata.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ScanHistoryTable items={scans} orgSlug={orgSlug} />
             <p className="mt-4 text-xs text-muted-foreground">
-              Scan data is organization-scoped and read-only. Evidence counts are aggregated per campaign. Click a scan ID for per-scan evidence and evaluations.
+              Checks are read-only. Proof counts are aggregated per campaign. Select a check to view its proof and results.
               <Link href={`/dashboard/${orgSlug}/sponsor-sentinel`} className="ml-2 underline">
-                Back to Sponsor Sentinel
+                Back to sponsorship tracking
               </Link>
             </p>
           </CardContent>

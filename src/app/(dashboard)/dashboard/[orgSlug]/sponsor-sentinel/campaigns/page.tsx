@@ -4,15 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { listCampaigns } from "@/features/sponsor-sentinel/services/campaign-service";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import Link from "next/link";
 import type { Route } from "next";
-
-function StatusBadge({ status }: { status: string }) {
-  const variant = status === "active" ? "success" : status === "draft" ? "secondary" : status === "completed" ? "outline" : "secondary";
-  return <Badge variant={variant as never}>{status}</Badge>;
-}
 
 export default async function CampaignsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
@@ -39,7 +34,7 @@ export default async function CampaignsPage({ params }: { params: Promise<{ orgS
         <Card>
           <CardHeader>
             <CardTitle>No campaigns</CardTitle>
-            <CardDescription>Create your first sponsor campaign to start tracking deliverables.</CardDescription>
+            <CardDescription>Create your first sponsor campaign to start tracking requirements.</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/new` as Route}>
@@ -48,18 +43,18 @@ export default async function CampaignsPage({ params }: { params: Promise<{ orgS
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           {campaigns.map((c) => (
-            <Card key={c.id}>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center justify-between">
+            <Card key={c.id} className={c.status === "active" ? "border-l-2 border-l-emerald-500" : undefined}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center justify-between gap-2">
                   <span className="truncate">{c.name}</span>
                   <StatusBadge status={c.status} />
                 </CardTitle>
                 <CardDescription className="line-clamp-2">{c.description ?? "No description"}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-xs text-muted-foreground">
+              <CardContent className="space-y-2 pt-0">
+                <p className="text-xs tabular-nums text-muted-foreground">
                   {new Date(c.starts_at).toLocaleDateString()} → {new Date(c.ends_at).toLocaleDateString()}
                 </p>
                 <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${c.id}` as Route}>

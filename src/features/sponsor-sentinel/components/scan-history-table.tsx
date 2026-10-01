@@ -34,29 +34,29 @@ export function ScanHistoryTable({ items, orgSlug }: { items: readonly ScanHisto
   if (items.length === 0) return null;
 
   return (
-    <Table aria-label="Scan history">
+    <Table aria-label="Check history">
       <TableHeader>
         <TableRow>
-          <TableHead scope="col">Scan</TableHead>
+          <TableHead scope="col">Check</TableHead>
           <TableHead scope="col">Campaign</TableHead>
           <TableHead scope="col">Platform</TableHead>
           <TableHead scope="col">Status</TableHead>
           <TableHead scope="col">Started</TableHead>
           <TableHead scope="col">Completed</TableHead>
-          <TableHead scope="col" className="text-right">Evidence</TableHead>
-          <TableHead scope="col">Evaluations</TableHead>
+          <TableHead scope="col" className="text-right">Proof</TableHead>
+          <TableHead scope="col">Result</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {items.map(({ scan, campaignName, evidenceCount, evaluationSummary }) => (
           <TableRow key={scan.id}>
-            <TableCell className="font-mono text-xs" title={scan.id}>
+            <TableCell className="text-xs">
               {orgSlug ? (
-                <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans/${scan.id}` as Route} className="underline">
-                  {shortId(scan.id)}
+                <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans/${scan.id}` as Route} className="underline" aria-label={`View check for ${campaignName ?? "campaign"}`}>
+                  View check
                 </Link>
               ) : (
-                shortId(scan.id)
+                "Check"
               )}
             </TableCell>
             <TableCell className="max-w-[14rem] truncate" title={campaignName ?? scan.campaign_id}>
@@ -76,11 +76,14 @@ export function ScanHistoryTable({ items, orgSlug }: { items: readonly ScanHisto
                 <span className="text-muted-foreground">—</span>
               ) : (
                 <span className="flex flex-wrap gap-1">
-                  {Object.entries(evaluationSummary).map(([result, count]) => (
-                    <Badge key={result} variant="secondary" className="text-[10px]">
-                      {result}:{count}
-                    </Badge>
-                  ))}
+                  {Object.entries(evaluationSummary).map(([result, count]) => {
+                    const label = result === "PASS" ? "Confirmed" : result === "FAIL" ? "Not found" : result === "NOT_VERIFIABLE" ? "Needs review" : result === "PENDING" ? "Checking" : result === "NOT_SUPPORTED" ? "Not applicable" : result;
+                    return (
+                      <Badge key={result} variant="secondary" className="text-[10px]">
+                        {label}:{count}
+                      </Badge>
+                    );
+                  })}
                 </span>
               )}
             </TableCell>

@@ -30,11 +30,9 @@ describe("ScanHistoryTable", () => {
   it("renders populated scan list with status and evidence", () => {
     const items = [makeItem(), makeItem({ scan: { id: "scan-2", status: "failed" } as never, evidenceCount: 0, evaluationSummary: {} })];
     const html = renderToString(<ScanHistoryTable items={items} />);
-    expect(html).toContain("scan-12");
-    expect(html).toContain("success");
-    expect(html).toContain("failed");
-    expect(html).toContain("PASS");
-    expect(html).toContain("FAIL");
+    expect(html).toContain("Campaign A");
+    expect(html).toContain("Confirmed");
+    expect(html).toContain("Not found");
   });
 
   it("status not color-only: has accessible aria-label", () => {

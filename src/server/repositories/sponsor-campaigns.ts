@@ -42,7 +42,11 @@ export async function findSponsorCampaignById(
   supabase: SupabaseClient,
   id: string,
 ): Promise<SponsorCampaign | null> {
-  const { data, error } = await supabase.from("sponsor_campaigns").select("*").eq("id", id).single();
+  const { data, error } = await supabase
+    .from("sponsor_campaigns")
+    .select("id, organization_id, name, description, status, starts_at, ends_at")
+    .eq("id", id)
+    .single();
   if (error) return null;
   return data as SponsorCampaign;
 }

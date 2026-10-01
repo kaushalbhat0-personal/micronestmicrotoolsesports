@@ -76,7 +76,11 @@ export async function listEvidenceByScan(
   supabase: SupabaseClient,
   scanId: string,
 ): Promise<Evidence[]> {
-  const { data, error } = await supabase.from("evidence").select("*").eq("scan_id", scanId).order("observed_at", { ascending: true });
+  const { data, error } = await supabase
+    .from("evidence")
+    .select("id, deliverable_id, platform, source, source_url, observed_value, observed_at")
+    .eq("scan_id", scanId)
+    .order("observed_at", { ascending: true });
   if (error) throw error;
   return (data ?? []) as Evidence[];
 }

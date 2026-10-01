@@ -62,7 +62,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ o
           description="Connect YouTube or Twitch so we can access public channel activity. Your credentials are encrypted and never shown again."
         />
         <IntegrationsForm orgSlug={orgSlug} twitch={twitch} youtube={youtube} kick={kick} />
-        <p className="text-xs text-muted-foreground">Your workspace uses its own credentials first, then falls back to platform defaults. Secrets are never returned to the browser or logged.</p>
+        <p className="text-xs text-muted-foreground">Your workspace credentials are used first, then platform defaults if needed.</p>
       </section>
 
       <section className="space-y-4">
@@ -74,7 +74,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ o
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Connected creator channels</CardTitle>
-            <CardDescription>Organization-level. All campaigns in this workspace check these channels.</CardDescription>
+            <CardDescription>All campaigns in this workspace check these channels.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <ConnectedChannelsList orgSlug={orgSlug} channels={(channels ?? []) as never} />
@@ -105,7 +105,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ o
                 <ConnectTwitchForm orgSlug={orgSlug} hasCredentials={hasTwitch} />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Channels are resolved via the platform’s public API (YouTube channels.list forHandle, Twitch Helix /users). We never store your API key or secret in the browser.</p>
+            <p className="text-xs text-muted-foreground">We verify channels directly with YouTube and Twitch. Your keys are never shown in the browser.</p>
           </CardContent>
         </Card>
       </section>

@@ -52,6 +52,23 @@ export async function listScansByOrg(
   return (data ?? []) as Scan[];
 }
 
+export async function listScansByCampaign(
+  supabase: SupabaseClient,
+  organizationId: string,
+  campaignId: string,
+  limit: number = 5,
+): Promise<Scan[]> {
+  const { data, error } = await supabase
+    .from("scans")
+    .select("id, campaign_id, organization_id, platform, status, started_at, completed_at, created_at")
+    .eq("organization_id", organizationId)
+    .eq("campaign_id", campaignId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as Scan[];
+}
+
 export async function updateScanStatus(
   supabase: SupabaseClient,
   id: string,

@@ -60,7 +60,11 @@ export async function listEvaluationsByScan(
   supabase: SupabaseClient,
   scanId: string,
 ): Promise<Evaluation[]> {
-  const { data, error } = await supabase.from("evaluations").select("*").eq("scan_id", scanId).order("created_at", { ascending: true });
+  const { data, error } = await supabase
+    .from("evaluations")
+    .select("id, evidence_id, deliverable_id, result, reason, evaluated_at")
+    .eq("scan_id", scanId)
+    .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []) as Evaluation[];
 }

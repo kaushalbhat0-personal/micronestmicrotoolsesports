@@ -49,7 +49,7 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
     <div className="space-y-8">
       <PageHeader
         title="Your sponsorship operations"
-        description={`Manage sponsorship campaigns, creator channels, and proof of delivery for ${ctx.organization.name} — ${ctx.membership.role}`}
+        description={`Manage sponsorship campaigns, creator channels, and proof of delivery for ${ctx.organization.name}`}
       />
 
       <ReadinessCard
@@ -91,18 +91,18 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
           }
         />
         {hasCampaigns ? (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             {recentCampaigns.map((c) => (
-              <Card key={c.id}>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center justify-between">
+              <Card key={c.id} className={c.status === "active" ? "border-l-2 border-l-emerald-500" : undefined}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center justify-between gap-2">
                     <span className="truncate">{c.name}</span>
                     <StatusBadge status={c.status} />
                   </CardTitle>
                   <CardDescription className="line-clamp-2">{c.description ?? "No description"}</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
+                <CardContent className="space-y-2 pt-0">
+                  <p className="text-xs tabular-nums text-muted-foreground">
                     {new Date(c.starts_at).toLocaleDateString()} → {new Date(c.ends_at).toLocaleDateString()}
                   </p>
                   <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${c.id}` as Route}>
@@ -178,17 +178,10 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
         )}
       </section>
 
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle className="text-base">Workspace</CardTitle>
-          <CardDescription>
-            {ctx.organization.name} • {ctx.organization.slug} • Role: {ctx.membership.role}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs text-muted-foreground">ID: {ctx.organization.id}</p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2 border-t pt-6 text-xs text-muted-foreground">
+        <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+        Workspace {ctx.organization.name} • {ctx.organization.slug}
+      </div>
     </div>
   );
 }

@@ -32,7 +32,7 @@ export function DashboardShell({ children, organizations = [] }: DashboardShellP
               </div>
             )}
           </div>
-          <nav className="space-y-1 p-3 pt-0" aria-label="Organization navigation">
+          <nav className="space-y-1 p-3 pt-0" aria-label="Workspace navigation">
             {navItems.map((item, idx) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               const prevIsComingSoon = idx > 0 ? navItems[idx - 1]?.comingSoon : false;
@@ -46,8 +46,8 @@ export function DashboardShell({ children, organizations = [] }: DashboardShellP
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      isActive && "bg-muted font-semibold",
+                      "relative flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      isActive && "bg-card border font-semibold shadow-sm after:absolute after:left-0 after:top-1.5 after:bottom-1.5 after:w-0.5 after:bg-primary after:rounded-full",
                       item.comingSoon && "opacity-60"
                     )}
                   >
@@ -66,7 +66,7 @@ export function DashboardShell({ children, organizations = [] }: DashboardShellP
       </aside>
       <div className="flex flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b px-4 lg:px-6">
-          <span className="text-sm text-muted-foreground">{orgSlug ? `Organization: ${orgSlug}` : "Dashboard"}</span>
+          <span className="text-sm text-muted-foreground">{activeOrg?.name ? `Workspace: ${activeOrg.name}` : orgSlug ? `Workspace: ${orgSlug}` : "Dashboard"}</span>
           <div className="hidden lg:block text-sm">
             {organizations.length > 0 && <OrgSwitcher organizations={organizations} activeOrgId={activeOrg?.id} />}
           </div>

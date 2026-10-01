@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
-/* Design tokens — semantic, not scattered magic values */
+/* Design tokens — esports operations: neutral hierarchy, single purple accent, restrained */
 @theme {
-  /* Surfaces */
-  --color-background: hsl(0 0% 100%);
+  /* Surfaces — hierarchy: background (97% neutral) < card (white) < muted (95.9%) */
+  --color-background: hsl(240 6% 97.5%);
   --color-foreground: hsl(240 10% 3.9%);
   --color-card: hsl(0 0% 100%);
   --color-card-foreground: hsl(240 10% 3.9%);
@@ -11,7 +11,7 @@
   --color-muted-foreground: hsl(240 3.8% 46.1%);
   --color-border: hsl(240 5.9% 90%);
   --color-input: hsl(240 5.9% 90%);
-  --color-ring: hsl(240 5.9% 10%);
+  --color-ring: hsl(262 83% 58%);
 
   /* Brand */
   --color-primary: hsl(262 83% 58%);

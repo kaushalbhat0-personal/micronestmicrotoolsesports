@@ -52,7 +52,7 @@ export async function listDeliverablesByCampaign(
 ): Promise<Deliverable[]> {
   const { data, error } = await supabase
     .from("deliverables")
-    .select("*")
+    .select("id, campaign_id, organization_id, name, description, rule, status")
     .eq("campaign_id", campaignId)
     .order("created_at", { ascending: true });
   if (error) throw error;

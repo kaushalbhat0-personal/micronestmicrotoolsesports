@@ -53,7 +53,7 @@ export async function listConnectedChannelsByOrg(
 ): Promise<ConnectedChannel[]> {
   const { data, error } = await supabase
     .from("connected_channels")
-    .select("*")
+    .select("id, organization_id, platform, external_channel_id, external_handle, display_name, canonical_url, connection_status")
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: true });
   if (error) throw error;
