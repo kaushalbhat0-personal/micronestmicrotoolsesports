@@ -17,8 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DeliverableForm } from "@/features/sponsor-sentinel/components/deliverable-form";
 import { deleteDeliverableAction } from "@/features/sponsor-sentinel/actions/deliverable-actions";
-import { requestScanAction } from "@/features/sponsor-sentinel/actions/campaign-actions";
 import { ActivateCampaignButton } from "@/features/sponsor-sentinel/components/activate-campaign-button";
+import { CheckNowButton } from "@/features/sponsor-sentinel/components/check-now-button";
 import { formatRequirementDescription } from "@/features/sponsor-sentinel/components/requirement-description";
 import Link from "next/link";
 import type { Route } from "next";
@@ -108,15 +108,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             {isDraft ? (
               <ActivateCampaignButton orgSlug={orgSlug} campaignId={campaignId} disabled={!!activationBlockedReason} disabledReason={activationBlockedReason ?? undefined} />
             ) : null}
-            {isActive ? (
-              <form action={requestScanAction}>
-                <input type="hidden" name="orgSlug" value={orgSlug} />
-                <input type="hidden" name="campaignId" value={campaignId} />
-                <Button type="submit" size="sm" aria-label="Check now">
-                  Check now
-                </Button>
-              </form>
-            ) : null}
+            {isActive ? <CheckNowButton orgSlug={orgSlug} campaignId={campaignId} /> : null}
           </div>
         }
       />
@@ -281,15 +273,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           <EmptyState
             title="No proof checked yet"
             description="Check the creator channel to look for the latest sponsorship activity."
-            action={
-              <form action={requestScanAction}>
-                <input type="hidden" name="orgSlug" value={orgSlug} />
-                <input type="hidden" name="campaignId" value={campaignId} />
-                <Button type="submit" size="sm">
-                  Check now
-                </Button>
-              </form>
-            }
+            action={<CheckNowButton orgSlug={orgSlug} campaignId={campaignId} />}
           />
         ) : !latestScan ? (
           <EmptyState
@@ -299,13 +283,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
               isDraft ? (
                 <ActivateCampaignButton orgSlug={orgSlug} campaignId={campaignId} disabled={!!activationBlockedReason} disabledReason={activationBlockedReason ?? undefined} />
               ) : isActive ? (
-                <form action={requestScanAction}>
-                  <input type="hidden" name="orgSlug" value={orgSlug} />
-                  <input type="hidden" name="campaignId" value={campaignId} />
-                  <Button type="submit" size="sm">
-                    Check now
-                  </Button>
-                </form>
+                <CheckNowButton orgSlug={orgSlug} campaignId={campaignId} />
               ) : undefined
             }
           />
@@ -316,13 +294,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
               <p className="mt-1 text-sm text-muted-foreground">Check the creator channel to look for the latest sponsorship activity.</p>
               {isActive ? (
                 <div className="mt-3">
-                  <form action={requestScanAction}>
-                    <input type="hidden" name="orgSlug" value={orgSlug} />
-                    <input type="hidden" name="campaignId" value={campaignId} />
-                    <Button type="submit" size="sm">
-                      Check now
-                    </Button>
-                  </form>
+                  <CheckNowButton orgSlug={orgSlug} campaignId={campaignId} />
                 </div>
               ) : null}
               <p className="mt-2 text-xs text-muted-foreground">
