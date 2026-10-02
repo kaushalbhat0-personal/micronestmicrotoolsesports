@@ -16,6 +16,41 @@ export type ProviderCredentialRow = {
   last_test_status: "success" | "failed" | null;
   created_at: string;
   updated_at: string;
+  // OAuth (nullable, additive)
+  encrypted_access_token?: string | null;
+  encrypted_refresh_token?: string | null;
+  access_token_expires_at?: string | null;
+  scope?: string | null;
+  external_account_id?: string | null;
+  external_account_login?: string | null;
+  authorized_at?: string | null;
+};
+
+/** Server-only decrypted view — includes OAuth tokens */
+export type ProviderCredentialSecretView = {
+  clientId?: string;
+  clientSecret?: string;
+  apiKey?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  accessTokenExpiresAt?: string | null;
+  scope?: string | null;
+  externalAccountId?: string | null;
+  externalAccountLogin?: string | null;
+  authorizedAt?: string | null;
+};
+
+/** Client-safe masked view — never includes secrets/tokens */
+export type ProviderCredentialMaskedView = {
+  configured: boolean;
+  clientIdMasked?: string | null;
+  apiKeyMasked?: string | null;
+  lastTestedAt?: string | null;
+  lastTestStatus?: string | null;
+  // OAuth masked presence (no token)
+  hasOAuth?: boolean;
+  externalAccountLogin?: string | null;
+  authorizedAt?: string | null;
 };
 
 function mask(value: string): string {
@@ -72,9 +107,9 @@ export async function getProviderCredentialRow(
 }
 
 /** Decrypts only server-side — never call from client components */
-export function decryptRow(row: ProviderCredentialRow | null): { clientId?: string; clientSecret?: string; apiKey?: string } | null {
+export function decryptRow(row: ProviderCredentialRow | null): ProviderCredentialSecretView | null {
   if (!row) return null;
-  const out: Record<string, string> = {};
+  const out: ProviderCredentialSecretView = {};
   if (row.encrypted_client_id) {
     try {
       out.clientId = decryptSecret(row.encrypted_client_id);
@@ -90,22 +125,101 @@ export function decryptRow(row: ProviderCredentialRow | null): { clientId?: stri
       out.apiKey = decryptSecret(row.encrypted_api_key);
     } catch {}
   }
+  if (row.encrypted_access_token) {
+    try {
+      out.accessToken = decryptSecret(row.encrypted_access_token);
+    } catch {}
+  }
+  if (row.encrypted_refresh_token) {
+    try {
+      out.refreshToken = decryptSecret(row.encrypted_refresh_token);
+    } catch {}
+  }
+  out.accessTokenExpiresAt = row.access_token_expires_at ?? null;
+  out.scope = row.scope ?? null;
+  out.externalAccountId = row.external_account_id ?? null;
+  out.externalAccountLogin = row.external_account_login ?? null;
+  out.authorizedAt = row.authorized_at ?? null;
+  // Return null only if no legacy secret and no OAuth token material
+  const hasSecret = out.clientId || out.clientSecret || out.apiKey || out.accessToken || out.refreshToken;
+  if (!hasSecret && !out.accessTokenExpiresAt && !out.scope && !out.externalAccountId) return null;
+  // For legacy callers that only check clientId/secret/apiKey, still return object with those fields
+  if (!out.clientId && !out.clientSecret && !out.apiKey && (out.accessToken || out.refreshToken)) return out;
   if (Object.keys(out).length === 0) return null;
-  return out as { clientId?: string; clientSecret?: string; apiKey?: string };
+  return out;
 }
 
-/** Safe view for UI — never includes secrets */
-export function toMaskedView(row: ProviderCredentialRow | null): { configured: boolean; clientIdMasked?: string | null; apiKeyMasked?: string | null; lastTestedAt?: string | null; lastTestStatus?: string | null } {
+/** Safe view for UI — never includes secrets/tokens */
+export function toMaskedView(row: ProviderCredentialRow | null): ProviderCredentialMaskedView {
   if (!row) return { configured: false };
   const hasTwitchKick = !!(row.encrypted_client_id || row.encrypted_client_secret);
   const hasYouTube = !!row.encrypted_api_key;
+  const hasOAuth = !!(row.encrypted_access_token || row.encrypted_refresh_token);
   return {
-    configured: hasTwitchKick || hasYouTube,
+    configured: hasTwitchKick || hasYouTube || hasOAuth,
     clientIdMasked: row.client_id_masked ?? null,
     apiKeyMasked: row.api_key_masked ?? null,
     lastTestedAt: row.last_tested_at ?? null,
     lastTestStatus: row.last_test_status ?? null,
+    hasOAuth,
+    externalAccountLogin: row.external_account_login ?? null,
+    authorizedAt: row.authorized_at ?? null,
   };
+}
+
+/** OAuth: persist encrypted tokens — server-only */
+export async function upsertOAuthTokens(
+  supabase: SupabaseClient,
+  organizationId: string,
+  provider: Provider,
+  input: {
+    accessToken: string;
+    refreshToken?: string | null;
+    expiresAt?: string | null;
+    scope?: string | null;
+    externalAccountId?: string | null;
+    externalAccountLogin?: string | null;
+  },
+): Promise<ProviderCredentialRow> {
+  const payload: Record<string, unknown> = {
+    organization_id: organizationId,
+    provider,
+    encrypted_access_token: encryptSecret(input.accessToken),
+    access_token_expires_at: input.expiresAt ?? null,
+    scope: input.scope ?? null,
+    external_account_id: input.externalAccountId ?? null,
+    external_account_login: input.externalAccountLogin ?? null,
+    authorized_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if (input.refreshToken !== undefined) {
+    payload.encrypted_refresh_token = input.refreshToken ? encryptSecret(input.refreshToken) : null;
+  }
+  const { data, error } = await supabase
+    .from("organization_provider_credentials")
+    .upsert(payload, { onConflict: "organization_id,provider" })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as ProviderCredentialRow;
+}
+
+export async function clearOAuthTokens(supabase: SupabaseClient, organizationId: string, provider: Provider): Promise<void> {
+  const { error } = await supabase
+    .from("organization_provider_credentials")
+    .update({
+      encrypted_access_token: null,
+      encrypted_refresh_token: null,
+      access_token_expires_at: null,
+      scope: null,
+      external_account_id: null,
+      external_account_login: null,
+      authorized_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("organization_id", organizationId)
+    .eq("provider", provider);
+  if (error) throw error;
 }
 
 export async function updateLastTest(
