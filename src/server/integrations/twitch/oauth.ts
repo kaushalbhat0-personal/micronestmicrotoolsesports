@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 export interface TwitchTokenResponse {
   access_token: string;
   refresh_token?: string;

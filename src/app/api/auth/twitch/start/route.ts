@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { getCurrentUser } from "@/lib/auth/get-user";
