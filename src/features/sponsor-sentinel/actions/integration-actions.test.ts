@@ -48,6 +48,11 @@ vi.mock("@/server/integrations/twitch/client", async (importOriginal) => {
     }),
   };
 });
+vi.mock("@/server/integrations/youtube/oauth", () => ({
+  getYouTubeChannelForToken: vi.fn(async () => ({ id: "UC123", title: "Mystic Minutes" })),
+  exchangeYouTubeCode: vi.fn(async () => ({ access_token: "tok", refresh_token: "ref", expires_in: 3600 })),
+  refreshYouTubeToken: vi.fn(async () => ({ access_token: "newTok", expires_in: 3600 })),
+}));
 
 import { saveProviderCredential, testProviderCredential, deleteProviderCredential } from "./integration-actions";
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
@@ -256,5 +261,39 @@ describe("integration-actions testProviderCredential OAuth — RCCF-OAUTH-08", (
     expect(JSON.stringify(res)).not.toContain("superSecretOAuth");
     expect((res as Record<string, unknown>).accessToken).toBeUndefined();
     expect((res as Record<string, unknown>).refreshToken).toBeUndefined();
+  });
+});
+
+describe("integration-actions testProviderCredential OAuth YouTube — RCCF-OAUTH-10", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRevalidate.mockImplementation(() => {});
+    process.env.YOUTUBE_CLIENT_ID = "ytClient";
+    process.env.YOUTUBE_CLIENT_SECRET = "ytSecret";
+  });
+
+  it("YouTube OAuth success without API key", async () => {
+    const { getValidAccessToken } = await import("@/server/credentials/token-service");
+    vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: true, accessToken: "ytOAuth", expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(), provider: "youtube" } as never);
+    const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
+    vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "youtube" } as never);
+    vi.mocked(decryptRow).mockReturnValueOnce({} as never);
+    const youtubeOAuth = await import("@/server/integrations/youtube/oauth");
+    vi.mocked(youtubeOAuth.getYouTubeChannelForToken).mockResolvedValueOnce({ id: "UC123", title: "Mystic Minutes" } as never);
+    const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "youtube" }));
+    expect(res.ok).toBe(true);
+    expect(JSON.stringify(res)).not.toContain("ytOAuth");
+  });
+
+  it("YouTube legacy fallback when OAuth not_configured", async () => {
+    const { getValidAccessToken } = await import("@/server/credentials/token-service");
+    vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: false, reason: "not_configured" } as never);
+    const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
+    vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "youtube" } as never);
+    vi.mocked(decryptRow).mockReturnValueOnce({ apiKey: "ytApiKey" } as never);
+    const { testYouTubeConnection } = await import("@/server/credentials/test-connection");
+    vi.mocked(testYouTubeConnection).mockResolvedValueOnce({ ok: true } as never);
+    const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "youtube" }));
+    expect(res.ok).toBe(true);
   });
 });

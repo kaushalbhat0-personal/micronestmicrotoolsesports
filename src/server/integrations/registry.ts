@@ -132,10 +132,22 @@ export async function createProviderRegistryForOrg(
   }
   let youtubeClient: YouTubeClient | null = opts.youtubeClient ?? null;
   if (!youtubeClient && !opts.forceMockYouTube) {
-    const { resolveYouTubeCredentials } = await import("@/server/credentials/resolver");
-    const creds = await resolveYouTubeCredentials(supabase, organizationId);
-    if (creds) youtubeClient = new YouTubeClient({ apiKey: creds.apiKey }, fetchFn);
-    else youtubeClient = createYouTubeClientFromEnv() ? new YouTubeClient({ apiKey: process.env.YOUTUBE_API_KEY! }, fetchFn) : null;
+    // OAuth path (preferred)
+    try {
+      const { getValidAccessToken } = await import("@/server/credentials/token-service");
+      const tok = await getValidAccessToken(supabase, organizationId, "youtube");
+      if (tok.ok) {
+        youtubeClient = new YouTubeClient({ accessToken: tok.accessToken }, fetchFn);
+      }
+    } catch {
+      // ignore, fallback to legacy
+    }
+    if (!youtubeClient) {
+      const { resolveYouTubeCredentials } = await import("@/server/credentials/resolver");
+      const creds = await resolveYouTubeCredentials(supabase, organizationId);
+      if (creds) youtubeClient = new YouTubeClient({ apiKey: creds.apiKey }, fetchFn);
+      else youtubeClient = createYouTubeClientFromEnv() ? new YouTubeClient({ apiKey: process.env.YOUTUBE_API_KEY! }, fetchFn) : null;
+    }
   }
   let kickClient: KickClient | null = opts.kickClient ?? null;
   if (!kickClient && !opts.forceMockKick) {

@@ -118,8 +118,23 @@ export async function testProviderCredential(formData: FormData): Promise<{ ok: 
     if (!dec?.clientId || !dec?.clientSecret) return { ok: false, errorKind: "not_configured" };
     result = await testKickConnection(dec.clientId, dec.clientSecret);
   } else if (provider === "youtube") {
-    if (!dec?.apiKey) return { ok: false, errorKind: "not_configured" };
-    result = await testYouTubeConnection(dec.apiKey);
+    const oauth = await getValidAccessToken(admin as never, ctx.organization.id, "youtube");
+    if (oauth.ok) {
+      try {
+        const { getYouTubeChannelForToken } = await import("@/server/integrations/youtube/oauth");
+        await getYouTubeChannelForToken(oauth.accessToken);
+        result = { ok: true };
+      } catch (e) {
+        const kind = (e as { kind?: string }).kind ?? "auth";
+        if (kind === "auth") result = { ok: false, errorKind: "auth" };
+        else if (kind === "quota_exceeded") result = { ok: false, errorKind: "quota_exceeded" };
+        else result = { ok: false, errorKind: kind };
+      }
+    } else if (dec?.apiKey) {
+      result = await testYouTubeConnection(dec.apiKey);
+    } else {
+      return { ok: false, errorKind: "not_configured" };
+    }
   } else {
     return { ok: false, errorKind: "unsupported" };
   }

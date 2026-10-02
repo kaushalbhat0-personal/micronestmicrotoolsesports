@@ -30,19 +30,23 @@ export class YouTubeApiError extends Error {
 }
 
 function sanitizeBody(body: string): string {
-  return body.slice(0, 500).replace(/key=[^&\s]+/gi, "key=***");
+  return body.slice(0, 500).replace(/key=[^&\s]+/gi, "key=***").replace(/access_token[^&\s]*/gi, "access_token=***");
 }
 
 export interface YouTubeClientConfig {
-  apiKey: string;
+  apiKey?: string;
+  accessToken?: string;
 }
 
 export class YouTubeClient {
-  private readonly apiKey: string;
+  private readonly apiKey: string | undefined;
+  private readonly accessToken: string | undefined;
   private readonly fetchFn: typeof fetch;
 
   constructor(config: YouTubeClientConfig, fetchFn: typeof fetch = fetch) {
-    this.apiKey = config.apiKey;
+    if (!config.apiKey && !config.accessToken) throw new Error("YouTubeClient requires apiKey or accessToken");
+    this.apiKey = config.apiKey ?? undefined;
+    this.accessToken = config.accessToken ?? undefined;
     this.fetchFn = fetchFn;
   }
 
@@ -51,13 +55,19 @@ export class YouTubeClient {
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined) url.searchParams.set(k, v);
     }
-    url.searchParams.set("key", this.apiKey);
+    if (this.accessToken) {
+      // OAuth path — Bearer, no key
+    } else if (this.apiKey) {
+      url.searchParams.set("key", this.apiKey);
+    }
 
     let res: Response;
     try {
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
       res = await this.fetchFn(url.toString(), {
         method: "GET",
-        headers: { Accept: "application/json" },
+        headers,
       });
     } catch (e) {
       throw new YouTubeApiError({ kind: "network", status: 0, message: `YouTube network error for ${operation}: ${e instanceof Error ? e.message : String(e)}` });

@@ -22,8 +22,10 @@ const serverSchema = z.object({
   // Twitch — optional
   TWITCH_CLIENT_ID: z.string().optional(),
   TWITCH_CLIENT_SECRET: z.string().optional(),
-  // YouTube — optional (API key for public Data API v3)
+  // YouTube — optional (API key for public Data API v3, OAuth for YouTube)
   YOUTUBE_API_KEY: z.string().min(1).optional(),
+  YOUTUBE_CLIENT_ID: z.string().optional(),
+  YOUTUBE_CLIENT_SECRET: z.string().optional(),
   // Kick — optional (OAuth client credentials)
   KICK_CLIENT_ID: z.string().optional(),
   KICK_CLIENT_SECRET: z.string().optional(),

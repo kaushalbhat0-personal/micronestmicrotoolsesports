@@ -80,4 +80,19 @@ describe("IntegrationsForm", () => {
     expect(html).toContain("isn’t connected");
     expect(html).toContain("Connect Twitch");
   });
+
+  it("OAuth connected YouTube shows Connected as @mysticminutes17", () => {
+    const html = renderToString(
+      <IntegrationsForm
+        orgSlug="tag-esports"
+        twitch={{ configured: false }}
+        youtube={{ configured: true, hasOAuth: true, externalAccountLogin: "@mysticminutes17", authorizedAt: "2026-10-02T20:16:00Z" }}
+        kick={{ configured: false }}
+      />,
+    );
+    expect(html).toContain("Connected as");
+    expect(html).toContain("@mysticminutes17");
+    expect(html).toContain("Reconnect YouTube");
+    expect(html).toContain("Test YouTube connection");
+  });
 });
