@@ -145,55 +145,78 @@ describe("kick oauth service — refreshKickToken", () => {
 });
 
 describe("kick oauth service — getKickUser", () => {
-  it("Authorization Bearer header sent", async () => {
-    let capturedHeaders: Record<string, string> = {};
-    const mockFetch = vi.fn(async (url: string, init: RequestInit) => {
-      capturedHeaders = (init.headers as Record<string, string>) ?? {};
-      return { ok: true, status: 200, json: async () => ({ data: [{ id: 1, username: "testuser", slug: "testuser" }] }), text: async () => "" } as Response;
-    });
-    const user = await getKickUser("myAccessToken", mockFetch as unknown as typeof fetch);
-    expect(capturedHeaders.Authorization).toBe("Bearer myAccessToken");
-    expect(user.id).toBe("1");
-    expect(user.slug).toBe("testuser");
-  });
-
-  it("successful identity normalization (users endpoint)", async () => {
-    const mockFetch = vi.fn(async () => ({
-      ok: true, status: 200, json: async () => ({ data: [{ id: 123, username: "coolkick", slug: "coolkick" }] }), text: async () => "",
-    } as Response));
-    const u = await getKickUser("tok", mockFetch as unknown as typeof fetch);
-    expect(u.id).toBe("123");
-    expect(u.username).toBe("coolkick");
-  });
-
-  it("fallback to channels when users fails", async () => {
+  it("1. valid users + channels returns normalized identity", async () => {
     const mockFetch = vi.fn(async (url: string) => {
-      if (url.includes("/users")) return { ok: false, status: 401, text: async () => "unauthorized" } as Response;
-      return { ok: true, status: 200, json: async () => ({ data: [{ id: 55, slug: "fallbackslug", broadcaster_user_id: 99 }] }), text: async () => "" } as Response;
+      if (url.includes("/public/v1/users")) {
+        return { ok: true, status: 200, json: async () => ({ data: [{ user_id: 12345, name: "kickuser", email: "a@b.com" }] }), text: async () => "" } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({ data: [{ broadcaster_user_id: 12345, slug: "kickslug" }] }), text: async () => "" } as Response;
     });
     const u = await getKickUser("tok", mockFetch as unknown as typeof fetch);
-    expect(u.slug).toBe("fallbackslug");
-    expect(u.id).toBe("99");
+    expect(u.id).toBe("12345");
+    expect(u.username).toBe("kickuser");
+    expect(u.slug).toBe("kickslug");
   });
 
-  it("provider failure throws sanitized", async () => {
-    const mockFetch = vi.fn(async () => ({
-      ok: false, status: 500, text: async () => "server error access_token=tok123", json: async () => ({}),
-    } as Response));
-    await expect(getKickUser("tok123", mockFetch as unknown as typeof fetch)).rejects.toThrow(expect.not.stringContaining("tok123"));
+  it("2. users returns user_id/name not id/username → PASS", async () => {
+    const mockFetch = vi.fn(async (url: string) => {
+      if (url.includes("/users")) {
+        return { ok: true, status: 200, json: async () => ({ data: [{ user_id: 999, name: "realname" }] }), text: async () => "" } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({ data: [{ broadcaster_user_id: 999, slug: "realslug" }] }), text: async () => "" } as Response;
+    });
+    const u = await getKickUser("tok", mockFetch as unknown as typeof fetch);
+    expect(u.id).toBe("999");
+    expect(u.username).toBe("realname");
+    // ensure old shape would fail — proves new mapping
+    expect(u.slug).toBe("realslug");
   });
 
-  it("malformed response throws", async () => {
-    const mockFetch = vi.fn(async () => ({
-      ok: true, status: 200, json: async () => ({ data: [] }), text: async () => "",
-    } as Response));
-    await expect(getKickUser("tok", mockFetch as unknown as typeof fetch)).rejects.toThrow(/not found/i);
+  it("3. users empty data → Kick authorized user not found", async () => {
+    const mockFetch = vi.fn(async (url: string) => {
+      if (url.includes("/users")) return { ok: true, status: 200, json: async () => ({ data: [] }), text: async () => "" } as Response;
+      return { ok: true, status: 200, json: async () => ({ data: [{ broadcaster_user_id: 1, slug: "s" }] }), text: async () => "" } as Response;
+    });
+    await expect(getKickUser("tok", mockFetch as unknown as typeof fetch)).rejects.toThrow(/Kick authorized user not found/i);
   });
 
-  it("no token leakage in error", async () => {
-    const mockFetch = vi.fn(async () => ({
-      ok: false, status: 401, text: async () => "unauthorized access_token=superSecret", json: async () => ({}),
-    } as Response));
+  it("4. channels empty data → Kick authorized channel not found", async () => {
+    const mockFetch = vi.fn(async (url: string) => {
+      if (url.includes("/users")) return { ok: true, status: 200, json: async () => ({ data: [{ user_id: 1, name: "n" }] }), text: async () => "" } as Response;
+      return { ok: true, status: 200, json: async () => ({ data: [] }), text: async () => "" } as Response;
+    });
+    await expect(getKickUser("tok", mockFetch as unknown as typeof fetch)).rejects.toThrow(/Kick authorized channel not found/i);
+  });
+
+  it("5. mismatched broadcaster_user_id → safe failure", async () => {
+    const mockFetch = vi.fn(async (url: string) => {
+      if (url.includes("/users")) return { ok: true, status: 200, json: async () => ({ data: [{ user_id: 111, name: "a" }] }), text: async () => "" } as Response;
+      return { ok: true, status: 200, json: async () => ({ data: [{ broadcaster_user_id: 222, slug: "other" }] }), text: async () => "" } as Response;
+    });
+    await expect(getKickUser("tok", mockFetch as unknown as typeof fetch)).rejects.toThrow(/Kick authorized channel not found/i);
+  });
+
+  it("6. users HTTP error → Kick user identity lookup failed", async () => {
+    const mockFetch = vi.fn(async (url: string) => {
+      if (url.includes("/users")) return { ok: false, status: 500, text: async () => "server error", json: async () => ({}) } as Response;
+      return { ok: true, status: 200, json: async () => ({ data: [{ broadcaster_user_id: 1, slug: "s" }] }), text: async () => "" } as Response;
+    });
+    await expect(getKickUser("tok", mockFetch as unknown as typeof fetch)).rejects.toThrow(/Kick user identity lookup failed/i);
+  });
+
+  it("7. channels HTTP error → Kick channel lookup failed", async () => {
+    const mockFetch = vi.fn(async (url: string) => {
+      if (url.includes("/users")) return { ok: true, status: 200, json: async () => ({ data: [{ user_id: 1, name: "n" }] }), text: async () => "" } as Response;
+      return { ok: false, status: 403, text: async () => "forbidden", json: async () => ({}) } as Response;
+    });
+    await expect(getKickUser("tok", mockFetch as unknown as typeof fetch)).rejects.toThrow(/Kick channel lookup failed/i);
+  });
+
+  it("8. no token leakage in errors", async () => {
+    const mockFetch = vi.fn(async (url: string) => {
+      if (url.includes("/users")) return { ok: false, status: 401, text: async () => "unauthorized access_token=superSecret", json: async () => ({}) } as Response;
+      return { ok: true, status: 200, json: async () => ({ data: [] }), text: async () => "" } as Response;
+    });
     try {
       await getKickUser("superSecret", mockFetch as unknown as typeof fetch);
       throw new Error("should have thrown");
@@ -201,5 +224,27 @@ describe("kick oauth service — getKickUser", () => {
       expect((e as Error).message).not.toContain("superSecret");
       expect((e as Error).message).toContain("access_token=***");
     }
+  });
+
+  it("9. correct Authorization Bearer header on both requests", async () => {
+    const headers: string[] = [];
+    const mockFetch = vi.fn(async (url: string, init: RequestInit) => {
+      headers.push((init.headers as Record<string, string>).Authorization);
+      if (url.includes("/users")) return { ok: true, status: 200, json: async () => ({ data: [{ user_id: 5, name: "u" }] }), text: async () => "" } as Response;
+      return { ok: true, status: 200, json: async () => ({ data: [{ broadcaster_user_id: 5, slug: "s" }] }), text: async () => "" } as Response;
+    });
+    await getKickUser("myAccessToken", mockFetch as unknown as typeof fetch);
+    expect(headers).toHaveLength(2);
+    expect(headers[0]).toBe("Bearer myAccessToken");
+    expect(headers[1]).toBe("Bearer myAccessToken");
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("/public/v1/users"), expect.anything());
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("/public/v1/channels"), expect.anything());
+  });
+
+  it("provider failure throws sanitized (users)", async () => {
+    const mockFetch = vi.fn(async () => ({
+      ok: false, status: 500, text: async () => "server error access_token=tok123", json: async () => ({}),
+    } as Response));
+    await expect(getKickUser("tok123", mockFetch as unknown as typeof fetch)).rejects.toThrow(expect.not.stringContaining("tok123"));
   });
 });

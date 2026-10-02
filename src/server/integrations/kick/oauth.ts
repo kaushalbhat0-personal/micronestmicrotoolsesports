@@ -71,42 +71,48 @@ export async function refreshKickToken(refreshToken: string, fetchFn: typeof fet
   return data;
 }
 
+type KickUsersResponse = {
+  data: Array<{ user_id: number; name: string; email?: string; profile_picture?: string }>;
+  message?: string;
+};
+
+type KickChannelsResponse = {
+  data: Array<{ broadcaster_user_id: number; slug: string; channel_id?: number }>;
+  message?: string;
+};
+
 export async function getKickUser(accessToken: string, fetchFn: typeof fetch = fetch): Promise<{ id: string; slug: string; username: string }> {
-  // Kick authenticated user identity — GET /public/v1/users with Bearer returns current user
-  // Fallback to channels if users endpoint not available, try users first
-  const res = await fetchFn("https://api.kick.com/public/v1/users", {
+  // Step 1: resolve current authorized user via /public/v1/users (no user_id param = current user)
+  const usersRes = await fetchFn("https://api.kick.com/public/v1/users", {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
   });
-  if (!res.ok) {
-    // Fallback: try channels with Bearer (some Kick versions return channel for authenticated user)
-    const fallback = await fetchFn("https://api.kick.com/public/v1/channels", {
-      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-    });
-    if (fallback.ok) {
-      const json = (await fallback.json()) as { data?: Array<{ id: number; slug: string; user_id?: number; broadcaster_user_id?: number }> };
-      const ch = json.data?.[0];
-      if (ch) {
-        return { id: String(ch.broadcaster_user_id ?? ch.user_id ?? ch.id), slug: ch.slug, username: ch.slug };
-      }
-    }
-    const text = await res.text().catch(() => "");
-    throw new Error(sanitize(`Kick Get Users ${res.status} ${text}`));
+  if (!usersRes.ok) {
+    const text = await usersRes.text().catch(() => "");
+    throw new Error(sanitize(`Kick user identity lookup failed ${usersRes.status} ${text}`));
   }
-  const json = (await res.json()) as { data?: Array<{ id: number; username?: string; slug?: string; email?: string }> | { id: number; username: string } };
-  // Handle both array and single object forms
-  const dataArray = Array.isArray((json as { data?: unknown }).data) ? (json as { data: Array<Record<string, unknown> > }).data : null;
-  const user = dataArray?.[0] as Record<string, unknown> | undefined;
-  const single = !dataArray ? (json as Record<string, unknown>) : null;
-  const raw: Record<string, unknown> | undefined = user ?? (single as Record<string, unknown> | undefined);
-  // Also handle {data: {id, username}} not array
-  const id = (raw?.id as number | string | undefined) ?? (json as { id?: number | string })?.id;
-  const username = (raw?.username as string | undefined) ?? (raw?.slug as string | undefined) ?? (json as { username?: string })?.username;
-  if (!id || !username) {
-    // Try alternative: data is { data: { id, slug } }
-    const alt = (json as unknown as { data: { id: number; slug: string } })?.data;
-    if (alt?.id && alt?.slug) return { id: String(alt.id), slug: alt.slug, username: alt.slug };
-    throw new Error("Kick user not found");
+  const usersJson = (await usersRes.json()) as KickUsersResponse;
+  const user = usersJson.data?.[0];
+  if (!user || typeof user.user_id === "undefined" || !user.name) {
+    throw new Error("Kick authorized user not found");
   }
-  const slug = (raw?.slug as string | undefined) ?? username;
-  return { id: String(id), slug: slug as string, username: username as string };
+
+  // Step 2: resolve current authorized channel via /public/v1/channels (no param = current channel)
+  const channelsRes = await fetchFn("https://api.kick.com/public/v1/channels", {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+  });
+  if (!channelsRes.ok) {
+    const text = await channelsRes.text().catch(() => "");
+    throw new Error(sanitize(`Kick channel lookup failed ${channelsRes.status} ${text}`));
+  }
+  const channelsJson = (await channelsRes.json()) as KickChannelsResponse;
+  const channel = channelsJson.data?.[0];
+  if (!channel || typeof channel.broadcaster_user_id === "undefined" || !channel.slug) {
+    throw new Error("Kick authorized channel not found");
+  }
+  // Consistency check: channel must belong to the authenticated user
+  if (String(channel.broadcaster_user_id) !== String(user.user_id)) {
+    throw new Error("Kick authorized channel not found");
+  }
+
+  return { id: String(user.user_id), slug: channel.slug, username: user.name };
 }
