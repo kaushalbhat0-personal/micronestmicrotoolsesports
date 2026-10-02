@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScanStatusBadge } from "@/features/sponsor-sentinel/components/scan-status-badge";
+import { PlatformProofSections } from "@/features/sponsor-sentinel/components/platform-proof-sections";
 import { AppError } from "@/lib/errors";
 import { formatDateTimeKolkata } from "@/lib/utils/format";
 
@@ -95,38 +96,7 @@ export default async function ScanDetailPage({
           <CardDescription>Proof collected for this check. Each check creates its own record.</CardDescription>
         </CardHeader>
         <CardContent>
-          {evidence.length === 0 ? (
-            <EmptyState title="No proof yet" description="No proof was found for this check. This may be a failed or pending check." />
-          ) : (
-            <Table aria-label="Proof for check">
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col">Requirement</TableHead>
-                  <TableHead scope="col">Platform</TableHead>
-                  <TableHead scope="col">Source</TableHead>
-                  <TableHead scope="col">Observed</TableHead>
-                  <TableHead scope="col">Value</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {evidence.map((ev) => (
-                  <TableRow key={ev.id}>
-                    <TableCell className="text-xs max-w-[10rem] truncate">
-                      {detail.deliverableMap.get(ev.deliverable_id)?.name ?? "Requirement"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{ev.platform}</Badge>
-                    </TableCell>
-                    <TableCell className="text-xs capitalize">{ev.platform}</TableCell>
-                    <TableCell className="whitespace-nowrap text-xs">{formatDateTime(ev.observed_at)}</TableCell>
-                    <TableCell className="max-w-[14rem] truncate text-xs" title={ev.observed_value}>
-                      {ev.observed_value}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <PlatformProofSections evidence={evidence} deliverableMap={detail.deliverableMap} />
         </CardContent>
       </Card>
 

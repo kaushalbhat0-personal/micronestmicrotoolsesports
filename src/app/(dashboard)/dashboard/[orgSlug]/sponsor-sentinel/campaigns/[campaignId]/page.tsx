@@ -325,33 +325,110 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             </CardContent>
           </Card>
         ) : (
-          <ul className="space-y-3">
-            {evidence.map((ev) => {
-              const evalForEvidence = evaluations.find((e) => e.evidence_id === ev.id);
-              const resultStatus = evalForEvidence?.result ?? "PENDING";
+          (() => {
+            const grouped = (() => {
+              const byPlatform = new Map<string, typeof evidence>();
+              for (const ev of evidence) {
+                const p = (ev.platform as string) ?? "";
+                if (p !== "youtube" && p !== "twitch" && p !== "kick") continue;
+                const list = byPlatform.get(p) ?? [];
+                list.push(ev);
+                byPlatform.set(p, list);
+              }
+              const order = ["youtube", "twitch", "kick"] as const;
+              const out: Array<{ platform: string; items: typeof evidence }> = [];
+              for (const p of order) {
+                const items = byPlatform.get(p);
+                if (items && items.length > 0) out.push({ platform: p, items });
+              }
+              return out;
+            })();
+            if (grouped.length === 0) {
               return (
-                <li key={ev.id} className="rounded-lg border bg-card p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={resultStatus} />
-                      </div>
-                      <p className="text-sm font-medium truncate">{ev.observed_value}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Checked {formatDateTimeKolkata(ev.observed_at)} • {platformLabel(ev.platform ?? ev.source)}
-                      </p>
-                      {ev.source_url ? (
-                        <a href={ev.source_url} target="_blank" rel="noreferrer" className="inline-block text-xs text-primary underline">
-                          View source
-                        </a>
-                      ) : null}
-                      {evalForEvidence?.reason ? <p className="text-xs text-muted-foreground">Why: {evalForEvidence.reason}</p> : null}
-                    </div>
-                  </div>
-                </li>
+                <ul className="space-y-3">
+                  {evidence.map((ev) => {
+                    const evalForEvidence = evaluations.find((e) => e.evidence_id === ev.id);
+                    const resultStatus = evalForEvidence?.result ?? "PENDING";
+                    return (
+                      <li key={ev.id} className="rounded-lg border bg-card p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={resultStatus} />
+                            </div>
+                            <p className="text-sm font-medium truncate">{ev.observed_value}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Checked {formatDateTimeKolkata(ev.observed_at)} • {platformLabel(ev.platform ?? ev.source)}
+                            </p>
+                            {ev.source_url ? (
+                              <a href={ev.source_url} target="_blank" rel="noreferrer" className="inline-block text-xs text-primary underline">
+                                View source
+                              </a>
+                            ) : null}
+                            {evalForEvidence?.reason ? <p className="text-xs text-muted-foreground">Why: {evalForEvidence.reason}</p> : null}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               );
-            })}
-          </ul>
+            }
+            return (
+              <div className="space-y-4">
+                {grouped.map(({ platform, items }, idx) => {
+                  const defaultOpen = grouped.length === 1 || idx === 0;
+                  return (
+                    <details key={platform} open={defaultOpen} className="group rounded-lg border bg-card" aria-label={`${platformLabel(platform)} Proofs (${items.length})`}>
+                      <summary
+                        className="flex cursor-pointer list-none items-center justify-between gap-2 p-4 text-sm font-medium hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        aria-label={`${platformLabel(platform)} Proofs (${items.length})`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Badge variant="outline" className="capitalize">
+                            {platformLabel(platform)}
+                          </Badge>
+                          <span>
+                            {platformLabel(platform)} Proofs ({items.length})
+                          </span>
+                        </span>
+                        <span aria-hidden className="text-muted-foreground group-open:rotate-180 transition-transform">
+                          ▾
+                        </span>
+                      </summary>
+                      <div className="space-y-3 border-t p-4">
+                        {items.map((ev) => {
+                          const evalForEvidence = evaluations.find((e) => e.evidence_id === ev.id);
+                          const resultStatus = evalForEvidence?.result ?? "PENDING";
+                          return (
+                            <div key={ev.id} className="rounded-lg border p-4">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <StatusBadge status={resultStatus} />
+                                </div>
+                                <p className="text-sm font-medium break-words" title={ev.observed_value}>
+                                  {ev.observed_value}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Checked {formatDateTimeKolkata(ev.observed_at)} • {platformLabel(ev.platform ?? ev.source)}
+                                </p>
+                                {ev.source_url ? (
+                                  <a href={ev.source_url} target="_blank" rel="noreferrer" className="inline-block text-xs text-primary underline">
+                                    View source
+                                  </a>
+                                ) : null}
+                                {evalForEvidence?.reason ? <p className="text-xs text-muted-foreground">Why: {evalForEvidence.reason}</p> : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            );
+          })()
         )}
       </section>
 
