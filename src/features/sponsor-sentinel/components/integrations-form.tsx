@@ -249,9 +249,13 @@ export function IntegrationsForm({
         orgSlug={orgSlug}
         provider="kick"
         title="Kick"
-        description="Kick connection is coming soon. We're preparing the platform connection for Sponsor Sentinel."
+        description="Connect Kick so we can verify activity on creator channels."
+        connectedDescription="Kick connection is working. You can now connect creator channels."
         masked={kick}
-        fields={[]}
+        fields={[
+          { name: "clientId", label: "Client ID", placeholder: "Kick Client ID" },
+          { name: "clientSecret", label: "Client Secret", placeholder: "••••••••••", type: "password" },
+        ]}
       />
     </div>
   );

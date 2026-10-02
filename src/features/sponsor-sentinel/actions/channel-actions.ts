@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createClient } from "@/lib/supabase/server";
-import { resolveTwitchCredentials, resolveYouTubeCredentials } from "@/server/credentials/resolver";
+import { resolveTwitchCredentials, resolveYouTubeCredentials, resolveKickCredentials } from "@/server/credentials/resolver";
 import { TwitchClient, TwitchApiError } from "@/server/integrations/twitch/client";
 import { TwitchProvider } from "@/server/integrations/twitch/provider";
 import { YouTubeClient, YouTubeApiError } from "@/server/integrations/youtube/client";
 import { YouTubeProvider } from "@/server/integrations/youtube/provider";
+import { KickClient, KickApiError } from "@/server/integrations/kick/client";
+import { KickProvider } from "@/server/integrations/kick/provider";
 import { createConnectedChannel, listConnectedChannels, getConnectedChannel } from "@/features/sponsor-sentinel/services/connected-channel-service";
 import { deleteConnectedChannel } from "@/server/repositories/connected-channels";
 import { AppError } from "@/lib/errors";
@@ -83,6 +85,39 @@ function mapYouTubeError(kind: string): string {
       return "Enter a valid YouTube channel handle.";
     default:
       return "YouTube service temporarily unavailable. Please try again later.";
+  }
+}
+
+function validateKickHandle(raw: string): { error?: string; fieldErrors?: Record<string, string[]>; normalized?: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return { error: "Enter a valid Kick channel handle.", fieldErrors: { handle: ["Enter a valid Kick channel handle."] } };
+  }
+  if (trimmed.includes("kick.com") || trimmed.includes("http://") || trimmed.includes("https://") || trimmed.includes("/")) {
+    return { error: "Enter a valid Kick channel handle.", fieldErrors: { handle: ["Enter a valid Kick channel handle. Do not enter a URL."] } };
+  }
+  const withoutAt = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+  if (!withoutAt || withoutAt.length > 100) {
+    return { error: "Enter a valid Kick channel handle.", fieldErrors: { handle: ["Enter a valid Kick channel handle."] } };
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(withoutAt)) {
+    return { error: "Enter a valid Kick channel handle.", fieldErrors: { handle: ["Enter a valid Kick channel handle."] } };
+  }
+  return { normalized: trimmed };
+}
+
+function mapKickError(kind: string): string {
+  switch (kind) {
+    case "auth":
+      return "Kick authentication failed. Check the configured Client ID and Client Secret.";
+    case "rate_limited":
+      return "Kick rate limit reached. Please try again later.";
+    case "not_found":
+      return "Kick channel not found.";
+    case "invalid_request":
+      return "Enter a valid Kick channel handle.";
+    default:
+      return "Kick service temporarily unavailable. Please try again later.";
   }
 }
 
@@ -376,6 +411,148 @@ export async function disconnectYouTubeChannelAction(formData: FormData): Promis
       return { error: e.safeMessage };
     }
     console.error("[disconnectYouTubeChannelAction] unexpected", e);
+    return { error: "Something went wrong. Please try again." };
+  }
+}
+
+export async function connectKickChannelAction(formData: FormData): Promise<ChannelActionResult> {
+  const orgSlug = String(formData.get("orgSlug") ?? "").trim();
+  const handleRaw = String(formData.get("handle") ?? "");
+
+  if (!orgSlug) return { error: "Missing organization" };
+
+  try {
+    const ctx = await requireOrganizationContext(orgSlug);
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+    const supabase = await createClient();
+
+    const validation = validateKickHandle(handleRaw);
+    if (validation.error) {
+      if (validation.fieldErrors) return { error: validation.error, fieldErrors: validation.fieldErrors };
+      return { error: validation.error };
+    }
+    const handle = validation.normalized!;
+
+    const creds = await resolveKickCredentials(supabase, ctx.organization.id);
+    if (!creds) {
+      return {
+        error: "Configure Kick credentials first. Go to /dashboard/" + orgSlug + "/settings/integrations",
+        fieldErrors: { handle: ["Configure Kick credentials first."] },
+      };
+    }
+
+    const client = new KickClient({ clientId: creds.clientId, clientSecret: creds.clientSecret });
+    const provider = new KickProvider(client);
+
+    let ref: Awaited<ReturnType<KickProvider["resolveChannel"]>>;
+    try {
+      ref = await provider.resolveChannel(handle);
+    } catch (e) {
+      if (e instanceof KickApiError) {
+        const msg = mapKickError(e.kind);
+        console.warn(`[Kick resolveChannel ${e.kind}]`, e.message);
+        return { error: msg, fieldErrors: { handle: [msg] } };
+      }
+      console.error("[connectKickChannelAction] resolveChannel unexpected", e);
+      return { error: "Something went wrong. Please try again." };
+    }
+
+    if (!ref) {
+      return { error: "Kick channel not found.", fieldErrors: { handle: ["Kick channel not found."] } };
+    }
+
+    try {
+      const existingChannels = await listConnectedChannels(supabase, ctx.organization.id);
+      const duplicate = existingChannels.find(
+        (c) => c.platform === "kick" && c.external_channel_id === ref.externalChannelId,
+      );
+      if (duplicate) {
+        return { error: "This Kick channel is already connected to this organization." };
+      }
+      const duplicateHandle = existingChannels.find(
+        (c) => c.platform === "kick" && c.external_handle.toLowerCase() === ref.externalHandle.toLowerCase(),
+      );
+      if (duplicateHandle) {
+        return { error: "This Kick channel is already connected to this organization." };
+      }
+    } catch {
+      // Ignore list error, proceed to try insert — DB constraint will handle
+    }
+
+    try {
+      const channel = await createConnectedChannel(supabase, ctx.organization.id, {
+        platform: "kick",
+        external_channel_id: ref.externalChannelId,
+        external_handle: ref.externalHandle,
+        display_name: ref.displayName ?? null,
+        canonical_url: ref.canonicalUrl,
+        connection_mode: "discovered",
+        connection_status: "connected",
+      });
+      revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns`);
+      revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
+      return { success: true, channel };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("duplicate") || msg.includes("unique") || msg.includes("connected_channels_org_platform_ext_unique")) {
+        return { error: "This Kick channel is already connected to this organization." };
+      }
+      if (e instanceof AppError) {
+        console.warn(`[AppError ${e.code}]`, e.safeMessage);
+        return { error: e.safeMessage };
+      }
+      console.error("[connectKickChannelAction] create unexpected", e);
+      return { error: "Something went wrong. Please try again." };
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+    if (e instanceof AppError) {
+      console.warn(`[AppError ${e.code}]`, e.safeMessage);
+      return { error: e.safeMessage };
+    }
+    console.error("[connectKickChannelAction] unexpected", e);
+    return { error: "Something went wrong. Please try again." };
+  }
+}
+
+export async function disconnectKickChannelAction(formData: FormData): Promise<ChannelActionResult> {
+  const orgSlug = String(formData.get("orgSlug") ?? "").trim();
+  const channelId = String(formData.get("channelId") ?? "").trim();
+
+  if (!orgSlug) return { error: "Missing organization" };
+  if (!channelId) return { error: "Missing channel" };
+
+  try {
+    const ctx = await requireOrganizationContext(orgSlug);
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+    const supabase = await createClient();
+
+    let channel: Awaited<ReturnType<typeof getConnectedChannel>>;
+    try {
+      channel = await getConnectedChannel(supabase, ctx.organization.id, channelId);
+    } catch (e) {
+      if (e instanceof AppError) {
+        console.warn(`[AppError ${e.code}]`, e.safeMessage);
+        return { error: e.safeMessage };
+      }
+      throw e;
+    }
+
+    if (channel.platform !== "kick") {
+      return { error: "Only Kick channels can be disconnected via this action." };
+    }
+
+    await deleteConnectedChannel(supabase, channel.id);
+    revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns`);
+    revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
+    return { success: true };
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+    if (e instanceof AppError) {
+      console.warn(`[AppError ${e.code}]`, e.safeMessage);
+      return { error: e.safeMessage };
+    }
+    console.error("[disconnectKickChannelAction] unexpected", e);
     return { error: "Something went wrong. Please try again." };
   }
 }

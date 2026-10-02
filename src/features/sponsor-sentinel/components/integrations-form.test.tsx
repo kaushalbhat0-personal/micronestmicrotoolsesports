@@ -35,11 +35,13 @@ describe("IntegrationsForm", () => {
     expect(html).toContain("Test: Failed");
   });
 
-  it("renders Kick coming soon", () => {
+  it("renders Kick credential fields", () => {
     const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: false }} kick={{ configured: false }} />);
     expect(html).toContain("Kick");
-    expect(html).toContain("coming soon");
-    expect(html).toContain("We’re preparing");
+    expect(html).toContain("Kick Client ID");
+    expect(html).toContain("kick-clientId");
+    expect(html).toContain("kick-clientSecret");
+    expect(html).not.toContain("Kick connection is coming soon");
   });
 
   it("does not expose secrets", () => {

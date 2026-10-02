@@ -9,6 +9,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { IntegrationsForm } from "@/features/sponsor-sentinel/components/integrations-form";
 import { ConnectYouTubeForm } from "@/features/sponsor-sentinel/components/connect-youtube-form";
 import { ConnectTwitchForm } from "@/features/sponsor-sentinel/components/connect-twitch-form";
+import { ConnectKickForm } from "@/features/sponsor-sentinel/components/connect-kick-form";
 import { ConnectedChannelsList } from "@/features/sponsor-sentinel/components/connected-channels-list";
 
 export default async function IntegrationsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
@@ -39,6 +40,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ o
 
   const hasYouTube = youtube.configured;
   const hasTwitch = twitch.configured;
+  const hasKick = kick.configured;
 
   return (
     <div className="space-y-8">
@@ -50,7 +52,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ o
       <div className="rounded-lg border bg-muted/20 p-4 text-sm">
         <p className="font-medium">How it works</p>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
-          <li>Connect YouTube or Twitch — your API access lets us read public channel activity.</li>
+          <li>Connect YouTube, Twitch or Kick — your API access lets us read public channel activity.</li>
           <li>Connect a creator channel — we’ll verify it exists and save it to this workspace.</li>
           <li>Create a campaign and start tracking — campaigns check all connected channels for proof.</li>
         </ol>
@@ -59,7 +61,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ o
       <section className="space-y-4">
         <SectionHeader
           title="Platform connections"
-          description="Connect YouTube or Twitch so we can access public channel activity. Your credentials are encrypted and never shown again."
+          description="Connect YouTube, Twitch or Kick so we can access public channel activity. Your credentials are encrypted and never shown again."
         />
         <IntegrationsForm orgSlug={orgSlug} twitch={twitch} youtube={youtube} kick={kick} />
         <p className="text-xs text-muted-foreground">Your workspace credentials are used first, then platform defaults if needed.</p>
@@ -78,7 +80,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ o
           </CardHeader>
           <CardContent className="space-y-6">
             <ConnectedChannelsList orgSlug={orgSlug} channels={(channels ?? []) as never} />
-            <div className="grid gap-6 border-t pt-6 sm:grid-cols-2">
+            <div className="grid gap-6 border-t pt-6 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-3">
                 <h4 className="text-sm font-medium flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden /> Connect YouTube
@@ -104,8 +106,22 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ o
                 )}
                 <ConnectTwitchForm orgSlug={orgSlug} hasCredentials={hasTwitch} />
               </div>
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden /> Connect Kick
+                </h4>
+                {!hasKick ? (
+                  <p className="text-sm">
+                    <span className="text-destructive">Connect your Kick API access first.</span>{" "}
+                    <span className="text-muted-foreground">Add Client ID &amp; Secret above.</span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Kick is ready. Enter the creator’s slug to connect.</p>
+                )}
+                <ConnectKickForm orgSlug={orgSlug} hasCredentials={hasKick} />
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">We verify channels directly with YouTube and Twitch. Your keys are never shown in the browser.</p>
+            <p className="text-xs text-muted-foreground">We verify channels directly with YouTube, Twitch and Kick. Your keys are never shown in the browser.</p>
           </CardContent>
         </Card>
       </section>
