@@ -13,7 +13,20 @@ import { revalidatePath } from "next/cache";
 import { isSafeRedirect } from "@/lib/validation";
 
 function sanitizeError(msg: string): string {
-  return msg.slice(0, 300).replace(/code=[^&\s]+/gi, "code=***").replace(/access_token[^&\s]*/gi, "access_token=***").replace(/refresh_token[^&\s]*/gi, "refresh_token=***");
+  return msg.slice(0, 300).replace(/code=[^&\s]+/gi, "code=***").replace(/access_token[^&\s]*/gi, "access_token=***").replace(/refresh_token[^&\s]*/gi, "refresh_token=***").replace(/client_secret[^&\s]*/gi, "client_secret=***").replace(/code_verifier[^&\s]*/gi, "code_verifier=***");
+}
+
+function clearOAuthCookies(res: NextResponse): void {
+  const isProd = process.env.NODE_ENV === "production";
+  res.cookies.set(stateCookieName("twitch"), "", { httpOnly: true, secure: isProd, sameSite: "lax", path: "/", maxAge: 0 });
+  res.cookies.set(verifierCookieName("twitch"), "", { httpOnly: true, secure: isProd, sameSite: "lax", path: "/", maxAge: 0 });
+  res.cookies.set("oauth_next_twitch", "", { httpOnly: true, secure: isProd, sameSite: "lax", path: "/", maxAge: 0 });
+}
+
+function errorJson(message: string, status: number): NextResponse {
+  const res = NextResponse.json({ error: sanitizeError(message) }, { status });
+  clearOAuthCookies(res);
+  return res;
 }
 
 export async function GET(request: Request) {
@@ -24,16 +37,14 @@ export async function GET(request: Request) {
   const errorDescription = url.searchParams.get("error_description");
 
   if (error) {
-    // User cancelled or provider error
     const safeMsg = sanitizeError(errorDescription ?? error);
     const isCancelled = error === "access_denied";
     const msg = isCancelled ? "Twitch authorization was cancelled." : `Twitch authorization failed: ${safeMsg}`;
-    // Redirect to integrations with error? For now return 400 with message
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return errorJson(msg, 400);
   }
 
   if (!code || !state) {
-    return NextResponse.json({ error: "Missing code or state" }, { status: 400 });
+    return errorJson("Missing code or state", 400);
   }
 
   const cookieStore = await cookies();
@@ -42,21 +53,14 @@ export async function GET(request: Request) {
   const nextCookie = cookieStore.get("oauth_next_twitch")?.value;
   const safeNext = nextCookie && isSafeRedirect(nextCookie) ? nextCookie : null;
 
-  if (!stateCookie) return NextResponse.json({ error: "Missing state cookie" }, { status: 400 });
-  if (!verifier) return NextResponse.json({ error: "Missing verifier" }, { status: 400 });
-  if (state !== stateCookie) return NextResponse.json({ error: "State mismatch" }, { status: 400 });
+  if (!stateCookie) return errorJson("Missing state cookie", 400);
+  if (!verifier) return errorJson("Missing verifier", 400);
+  if (state !== stateCookie) return errorJson("State mismatch", 400);
 
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) return errorJson("Unauthorized", 401);
 
-  // Verify signed state is tenant-bound to this user
-  // We need organizationId from state payload itself, but we must also verify it matches an org the user belongs to.
-  // Decode without yet knowing orgSlug: verify with expected org from state after decoding raw? Instead we verify after retrieving payload.
-  // First, peek payload to get orgId (without full verification of org), then verify fully.
   let payload: ReturnType<typeof verifyState>;
-  // We need expectedOrganizationId — we can extract by decoding payload without verification first, then verify fully.
-  // Simpler: try to verify against every org? Instead, decode payload JSON without sig check to get orgId, then verify.
-  // For now, decode payloadB64
   try {
     const payloadB64 = state.split(".")[0]!;
     const json = Buffer.from(payloadB64.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
@@ -64,29 +68,25 @@ export async function GET(request: Request) {
     payload = verifyState({ state, expectedOrganizationId: parsed.orgId, expectedUserId: user.id, expectedProvider: "twitch" });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Invalid state";
-    return NextResponse.json({ error: sanitizeError(msg) }, { status: 400 });
+    return errorJson(msg, 400);
   }
 
   if (payload.userId !== user.id) {
-    return NextResponse.json({ error: "User mismatch" }, { status: 400 });
+    return errorJson("User mismatch", 400);
   }
 
-  // Verify user still belongs to that organization
   let ctx: Awaited<ReturnType<typeof requireOrganizationContext>>;
   try {
-    // We need org slug to call requireOrganizationContext, but we only have orgId.
-    // Instead, fetch organization slug via admin, then verify membership.
     const admin = createAdminClient();
     const { data: orgRow } = await admin.from("organizations").select("id, slug").eq("id", payload.orgId).single();
-    if (!orgRow) return NextResponse.json({ error: "Organization not found" }, { status: 400 });
-    // Use requireOrganizationContext with slug to enforce membership
+    if (!orgRow) return errorJson("Organization not found", 400);
     ctx = await requireOrganizationContext((orgRow as { slug: string }).slug);
     if (ctx.organization.id !== payload.orgId) {
-      return NextResponse.json({ error: "Organization mismatch" }, { status: 400 });
+      return errorJson("Organization mismatch", 400);
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Forbidden";
-    return NextResponse.json({ error: sanitizeError(msg) }, { status: 403 });
+    return errorJson(msg, 403);
   }
 
   const orgSlug = ctx.organization.slug;
@@ -94,10 +94,9 @@ export async function GET(request: Request) {
   const clientId = process.env.TWITCH_CLIENT_ID;
   const clientSecret = process.env.TWITCH_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
-    return NextResponse.json({ error: "Twitch not configured" }, { status: 500 });
+    return errorJson("Twitch not configured", 500);
   }
 
-  // Exchange code for tokens
   let tokenData: { access_token: string; refresh_token?: string; expires_in: number; scope?: string; token_type: string };
   try {
     const res = await fetch("https://id.twitch.tv/oauth2/token", {
@@ -119,11 +118,10 @@ export async function GET(request: Request) {
     tokenData = (await res.json()) as typeof tokenData;
     if (!tokenData.access_token || typeof tokenData.expires_in !== "number") throw new Error("Twitch token malformed");
   } catch (e) {
-    const msg = e instanceof Error ? sanitizeError(e.message) : "Token exchange failed";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    const msg = e instanceof Error ? e.message : "Token exchange failed";
+    return errorJson(msg, 400);
   }
 
-  // Get Twitch user identity via Get Users with user token
   let twitchUser: { id: string; login: string; display_name: string };
   try {
     const res = await fetch("https://api.twitch.tv/helix/users", {
@@ -141,11 +139,10 @@ export async function GET(request: Request) {
     if (!u?.id || !u?.login) throw new Error("Twitch user not found");
     twitchUser = { id: u.id, login: u.login, display_name: u.display_name ?? u.login };
   } catch (e) {
-    const msg = e instanceof Error ? sanitizeError(e.message) : "Could not identify Twitch channel";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    const msg = e instanceof Error ? e.message : "Could not identify Twitch channel";
+    return errorJson(msg, 400);
   }
 
-  // Persist OAuth tokens encrypted
   const supabaseAdmin = createAdminClient();
   const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
   try {
@@ -158,14 +155,12 @@ export async function GET(request: Request) {
       externalAccountLogin: twitchUser.login,
     });
   } catch (e) {
-    const msg = e instanceof Error ? sanitizeError(e.message) : "Persist failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const msg = e instanceof Error ? e.message : "Persist failed";
+    return errorJson(msg, 500);
   }
 
-  // Create/update Connected Channel (authorized)
   const supabase = await createClient();
   try {
-    // Check existing by platform + external_channel_id
     const { data: existing } = await supabase
       .from("connected_channels")
       .select("id, connection_mode")
@@ -175,7 +170,6 @@ export async function GET(request: Request) {
       .maybeSingle();
 
     if (existing) {
-      // Upgrade to authorized if needed
       await supabase
         .from("connected_channels")
         .update({
@@ -200,16 +194,12 @@ export async function GET(request: Request) {
       });
     }
   } catch (e) {
-    // Channel creation failure should not fail OAuth overall; log and continue
     console.error("[twitch callback channel]", e instanceof Error ? sanitizeError(e.message) : String(e).slice(0, 200));
   }
 
-  // Clear cookies
   const finalUrl = safeNext ?? `/dashboard/${orgSlug}/settings/integrations`;
   const redirectRes = NextResponse.redirect(new URL(finalUrl, request.url).toString());
-  redirectRes.cookies.set(stateCookieName("twitch"), "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
-  redirectRes.cookies.set(verifierCookieName("twitch"), "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
-  redirectRes.cookies.set("oauth_next_twitch", "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
+  clearOAuthCookies(redirectRes);
 
   try {
     revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);

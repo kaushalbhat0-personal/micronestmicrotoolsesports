@@ -107,6 +107,22 @@ async function attemptTwitchRefresh(
     } catch (e) {
       const msg = e instanceof Error ? e.message.slice(0, 300) : String(e).slice(0, 300);
       console.warn(`[twitch refresh failed] ${msg}`);
+      // If refresh failed due to rotation (invalid_grant), another instance may have already refreshed — re-read fresh token
+      const reReadAfterFail = await getProviderCredentialRow(supabase, row.organization_id, row.provider as Provider);
+      if (reReadAfterFail && reReadAfterFail.updated_at !== row.updated_at) {
+        const decFail = decryptRow(reReadAfterFail);
+        if (decFail?.accessToken) {
+          const expFail = decFail.accessTokenExpiresAt ?? reReadAfterFail.access_token_expires_at ?? null;
+          if (expFail) {
+            const expMsFail = new Date(expFail).getTime();
+            if (!Number.isNaN(expMsFail) && expMsFail - nowMs > EXPIRY_BUFFER_MS) {
+              return { ok: true, accessToken: decFail.accessToken, expiresAt: expFail, provider: row.provider as Provider };
+            }
+          } else {
+            return { ok: true, accessToken: decFail.accessToken, expiresAt: null, provider: row.provider as Provider };
+          }
+        }
+      }
       return null;
     }
 
