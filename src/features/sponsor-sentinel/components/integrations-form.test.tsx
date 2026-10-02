@@ -49,4 +49,35 @@ describe("IntegrationsForm", () => {
     expect(html).not.toContain("secret");
     expect(html).toContain("••••••••••••••••••");
   });
+
+  it("OAuth connected Twitch shows Connected as and Test available", () => {
+    const html = renderToString(
+      <IntegrationsForm
+        orgSlug="tag-esports"
+        twitch={{ configured: true, hasOAuth: true, externalAccountLogin: "divine1701", authorizedAt: "2026-10-02T20:16:00Z", lastTestStatus: "success" }}
+        youtube={{ configured: false }}
+        kick={{ configured: false }}
+      />,
+    );
+    expect(html).toContain("Connected as");
+    expect(html).toContain("divine1701");
+    expect(html).toContain("Test Twitch connection");
+    expect(html).toContain("Reconnect Twitch");
+    expect(html).not.toContain("Add your credentials first");
+    expect(html).toContain("Authorized:");
+  });
+
+  it("OAuth authorized without test shows OAuth message not legacy", () => {
+    const html = renderToString(
+      <IntegrationsForm orgSlug="tag-esports" twitch={{ configured: true, hasOAuth: true, externalAccountLogin: "divine1701" }} youtube={{ configured: false }} kick={{ configured: false }} />,
+    );
+    expect(html).toContain("OAuth connection authorized");
+    expect(html).not.toContain("Not yet tested — test the connection before adding creator channels.");
+  });
+
+  it("Neither configured shows not-connected", () => {
+    const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: false }} kick={{ configured: false }} />);
+    expect(html).toContain("isn’t connected");
+    expect(html).toContain("Connect Twitch");
+  });
 });

@@ -36,6 +36,18 @@ vi.mock("@/server/credentials/test-connection", () => ({
   testKickConnection: vi.fn(async () => ({ ok: true })),
   testYouTubeConnection: vi.fn(async () => ({ ok: true })),
 }));
+vi.mock("@/server/credentials/token-service", () => ({
+  getValidAccessToken: vi.fn(async () => ({ ok: false, reason: "not_configured" })),
+}));
+vi.mock("@/server/integrations/twitch/client", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    TwitchClient: vi.fn(function (this: unknown) {
+      return { getUsersByLogin: vi.fn(async () => ({ data: [] })) };
+    }),
+  };
+});
 
 import { saveProviderCredential, testProviderCredential, deleteProviderCredential } from "./integration-actions";
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
@@ -151,5 +163,98 @@ describe("integration-actions saveProviderCredential — RCCF-SPONSOR-PROVIDER-E
     });
     const res = await deleteProviderCredential(fd({ orgSlug: "tag-esports", provider: "youtube" }));
     expect(res).toEqual({ ok: true });
+  });
+});
+
+describe("integration-actions testProviderCredential OAuth — RCCF-OAUTH-08", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRevalidate.mockImplementation(() => {});
+    process.env.TWITCH_CLIENT_ID = "testClientId";
+  });
+
+  it("Test 1 — OAuth success → ok:true", async () => {
+    const { getValidAccessToken } = await import("@/server/credentials/token-service");
+    vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: true, accessToken: "oauthAcc", expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(), provider: "twitch" } as never);
+    const { TwitchClient } = await import("@/server/integrations/twitch/client");
+    const mockGetUsers = vi.fn(async () => ({ data: [{ id: "1", login: "divine1701" }] }));
+    vi.mocked(TwitchClient).mockImplementationOnce(function (this: unknown) {
+      return { getUsersByLogin: mockGetUsers } as unknown as never;
+    } as never);
+    const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
+    vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "twitch" } as never);
+    vi.mocked(decryptRow).mockReturnValueOnce({} as never);
+    const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch" }));
+    expect(res.ok).toBe(true);
+    expect(mockGetUsers).toHaveBeenCalled();
+  });
+
+  it("Test 2 — OAuth success does not require legacy credentials", async () => {
+    const { getValidAccessToken } = await import("@/server/credentials/token-service");
+    vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: true, accessToken: "oauthAcc2", expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(), provider: "twitch" } as never);
+    const { TwitchClient } = await import("@/server/integrations/twitch/client");
+    vi.mocked(TwitchClient).mockImplementationOnce(function (this: unknown) {
+      return { getUsersByLogin: vi.fn(async () => ({ data: [] })) } as unknown as never;
+    } as never);
+    const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
+    vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "twitch" } as never);
+    vi.mocked(decryptRow).mockReturnValueOnce({} as never); // no clientId/secret
+    const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch" }));
+    expect(res.ok).toBe(true);
+  });
+
+  it("Test 3 — OAuth refresh → succeeds", async () => {
+    const { getValidAccessToken } = await import("@/server/credentials/token-service");
+    // First call simulates near-expiry then refresh inside getValidAccessToken returns new token
+    vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: true, accessToken: "refreshedAcc", expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(), provider: "twitch" } as never);
+    const { TwitchClient } = await import("@/server/integrations/twitch/client");
+    vi.mocked(TwitchClient).mockImplementationOnce(function (this: unknown) {
+      return { getUsersByLogin: vi.fn(async () => ({ data: [] })) } as unknown as never;
+    } as never);
+    const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
+    vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "twitch" } as never);
+    vi.mocked(decryptRow).mockReturnValueOnce({} as never);
+    const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch" }));
+    expect(res.ok).toBe(true);
+  });
+
+  it("Test 4 — OAuth unavailable + legacy credentials → legacy path", async () => {
+    const { getValidAccessToken } = await import("@/server/credentials/token-service");
+    vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: false, reason: "not_configured" } as never);
+    const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
+    vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "twitch" } as never);
+    vi.mocked(decryptRow).mockReturnValueOnce({ clientId: "legacyId", clientSecret: "legacySecret" } as never);
+    const { testTwitchConnection } = await import("@/server/credentials/test-connection");
+    vi.mocked(testTwitchConnection).mockResolvedValueOnce({ ok: true } as never);
+    const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch" }));
+    expect(res.ok).toBe(true);
+    expect(testTwitchConnection).toHaveBeenCalledWith("legacyId", "legacySecret");
+  });
+
+  it("Test 5 — Neither configured → not_configured", async () => {
+    const { getValidAccessToken } = await import("@/server/credentials/token-service");
+    vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: false, reason: "not_configured" } as never);
+    const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
+    vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "twitch" } as never);
+    vi.mocked(decryptRow).mockReturnValueOnce({} as never);
+    const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch" }));
+    expect(res.ok).toBe(false);
+    expect(res.errorKind).toBe("not_configured");
+  });
+
+  it("Test 6 — OAuth token never returned to browser", async () => {
+    const { getValidAccessToken } = await import("@/server/credentials/token-service");
+    vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: true, accessToken: "superSecretOAuth", expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(), provider: "twitch" } as never);
+    const { TwitchClient } = await import("@/server/integrations/twitch/client");
+    vi.mocked(TwitchClient).mockImplementationOnce(function (this: unknown) {
+      return { getUsersByLogin: vi.fn(async () => ({ data: [] })) } as unknown as never;
+    } as never);
+    const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
+    vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "twitch" } as never);
+    vi.mocked(decryptRow).mockReturnValueOnce({} as never);
+    const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch" }));
+    expect(JSON.stringify(res)).not.toContain("superSecretOAuth");
+    expect((res as Record<string, unknown>).accessToken).toBeUndefined();
+    expect((res as Record<string, unknown>).refreshToken).toBeUndefined();
   });
 });

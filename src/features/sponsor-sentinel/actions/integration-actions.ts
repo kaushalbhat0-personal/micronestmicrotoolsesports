@@ -9,6 +9,8 @@ import { decryptRow } from "@/server/credentials/repository";
 import { testTwitchConnection, testKickConnection, testYouTubeConnection } from "@/server/credentials/test-connection";
 import type { Provider } from "@/server/credentials/repository";
 import { AppError } from "@/lib/errors";
+import { getValidAccessToken } from "@/server/credentials/token-service";
+import { TwitchClient } from "@/server/integrations/twitch/client";
 
 type SaveResult = { ok: true } | { ok: false; error: string };
 
@@ -90,8 +92,28 @@ export async function testProviderCredential(formData: FormData): Promise<{ ok: 
   const dec = decryptRow(row);
   let result: { ok: boolean; errorKind?: string };
   if (provider === "twitch") {
-    if (!dec?.clientId || !dec?.clientSecret) return { ok: false, errorKind: "not_configured" };
-    result = await testTwitchConnection(dec.clientId, dec.clientSecret);
+    // OAuth takes precedence over legacy
+    const oauth = await getValidAccessToken(admin as never, ctx.organization.id, "twitch");
+    if (oauth.ok) {
+      const clientId = process.env.TWITCH_CLIENT_ID;
+      if (!clientId) return { ok: false, errorKind: "not_configured" };
+      try {
+        const client = new TwitchClient(
+          { clientId, clientSecret: process.env.TWITCH_CLIENT_SECRET ?? "oauth", userAccessToken: oauth.accessToken },
+        );
+        // Lightweight authenticated request — Get Users with user token
+        await client.getUsersByLogin(["twitch"]);
+        result = { ok: true };
+      } catch (e) {
+        const kind = (e as { kind?: string }).kind ?? "server";
+        if (kind === "auth") result = { ok: false, errorKind: "auth" };
+        else result = { ok: false, errorKind: kind };
+      }
+    } else if (dec?.clientId && dec?.clientSecret) {
+      result = await testTwitchConnection(dec.clientId, dec.clientSecret);
+    } else {
+      return { ok: false, errorKind: "not_configured" };
+    }
   } else if (provider === "kick") {
     if (!dec?.clientId || !dec?.clientSecret) return { ok: false, errorKind: "not_configured" };
     result = await testKickConnection(dec.clientId, dec.clientSecret);

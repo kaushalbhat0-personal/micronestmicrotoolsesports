@@ -177,7 +177,13 @@ function ProviderCard({
               </p>
             ) : null}
             {provider !== "youtube" ? <p className="text-sm">Client Secret: <span className="text-muted-foreground">••••••••••••••••••</span></p> : null}
-            {masked.lastTestedAt ? <p className="text-xs text-muted-foreground">Last tested: {formatDateTimeKolkata(masked.lastTestedAt)}</p> : <p className="text-xs text-muted-foreground">Not yet tested — test the connection before adding creator channels.</p>}
+            {masked.lastTestedAt ? (
+              <p className="text-xs text-muted-foreground">Last tested: {formatDateTimeKolkata(masked.lastTestedAt)}</p>
+            ) : masked.hasOAuth && provider === "twitch" ? (
+              <p className="text-xs text-muted-foreground">OAuth connection authorized — test the connection before adding creator channels.</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Not yet tested — test the connection before adding creator channels.</p>
+            )}
             <form action={handleDelete} className="pt-2">
               <input type="hidden" name="orgSlug" value={orgSlug} />
               <input type="hidden" name="provider" value={provider} />
@@ -220,7 +226,7 @@ function ProviderCard({
           <p className="text-sm text-muted-foreground">Kick connection is coming soon. We’re preparing the platform for Sponsor Sentinel.</p>
         )}
 
-        {isConfigured && fields.length > 0 ? (
+        {isConfigured ? (
           <form action={handleTest}>
             <input type="hidden" name="orgSlug" value={orgSlug} />
             <input type="hidden" name="provider" value={provider} />
