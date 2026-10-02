@@ -1,3 +1,28 @@
+export const APP_TIMEZONE = "Asia/Kolkata" as const;
+
+/**
+ * Authoritative date-time formatter — always Asia/Kolkata.
+ * Use for all customer-facing timestamps. Stored UTC → display IST.
+ * Never rely on browser local timezone.
+ */
+export function formatDateTimeKolkata(value: string | null | undefined): string {
+  if (!value) return "—";
+  try {
+    const d = new Date(value);
+    return new Intl.DateTimeFormat("en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: APP_TIMEZONE,
+      timeZoneName: "short",
+    }).format(d);
+  } catch {
+    return String(value);
+  }
+}
+
 export function formatDate(date: string | Date, opts?: Intl.DateTimeFormatOptions) {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-US", {

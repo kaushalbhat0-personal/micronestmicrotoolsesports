@@ -8,13 +8,20 @@ import { upsertProviderCredential, updateLastTest, getProviderCredentialRow } fr
 import { decryptRow } from "@/server/credentials/repository";
 import { testTwitchConnection, testKickConnection, testYouTubeConnection } from "@/server/credentials/test-connection";
 import type { Provider } from "@/server/credentials/repository";
+import { AppError } from "@/lib/errors";
 
-export async function saveProviderCredential(formData: FormData) {
+type SaveResult = { ok: true } | { ok: false; error: string };
+
+function isNextRedirect(e: unknown): boolean {
+  return e instanceof Error && e.message.includes("NEXT_REDIRECT");
+}
+
+export async function saveProviderCredential(formData: FormData): Promise<SaveResult> {
   const orgSlug = String(formData.get("orgSlug") ?? "");
   const provider = String(formData.get("provider") ?? "") as Provider;
-  if (!["twitch", "youtube", "kick"].includes(provider)) throw new Error("Invalid provider");
-  const ctx = await requireOrganizationContext(orgSlug);
-  await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  if (!["twitch", "youtube", "kick"].includes(provider)) {
+    return { ok: false, error: "Invalid provider" };
+  }
 
   const clientId = String(formData.get("clientId") ?? "").trim() || undefined;
   const clientSecret = String(formData.get("clientSecret") ?? "").trim() || undefined;
@@ -22,27 +29,62 @@ export async function saveProviderCredential(formData: FormData) {
 
   // Validation: require appropriate fields, never trust orgId from form
   if (provider === "twitch" || provider === "kick") {
-    if (!clientId || !clientSecret) throw new Error("Client ID and Secret required");
+    if (!clientId || !clientSecret) return { ok: false, error: "Client ID and Secret required" };
   }
-  if (provider === "youtube" && !apiKey) throw new Error("API Key required");
+  if (provider === "youtube" && !apiKey) return { ok: false, error: "API Key required" };
+
+  let ctx: Awaited<ReturnType<typeof requireOrganizationContext>>;
+  try {
+    ctx = await requireOrganizationContext(orgSlug);
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  } catch (e) {
+    if (isNextRedirect(e)) throw e;
+    if (e instanceof AppError) {
+      console.warn(`[saveProviderCredential ${e.code}]`, e.safeMessage);
+      return { ok: false, error: e.safeMessage };
+    }
+    console.error("[saveProviderCredential auth unexpected]", e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200));
+    return { ok: false, error: "We couldn't save your connection. Please try again." };
+  }
 
   const admin = createAdminClient();
-  // Use service_role but explicitly scoped to ctx.organization.id (already verified membership)
   const payload: { clientId?: string; clientSecret?: string; apiKey?: string } = {};
   if (clientId !== undefined) payload.clientId = clientId;
   if (clientSecret !== undefined) payload.clientSecret = clientSecret;
   if (apiKey !== undefined) payload.apiKey = apiKey;
-  await upsertProviderCredential(admin as never, ctx.organization.id, provider, payload);
 
-  revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
+  try {
+    await upsertProviderCredential(admin as never, ctx.organization.id, provider, payload);
+  } catch (e) {
+    if (isNextRedirect(e)) throw e;
+    // Never log payload (may contain secrets) — log only provider and org prefix
+    console.error("[saveProviderCredential persist failed]", provider, ctx.organization.id.slice(0, 8), e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200));
+    return { ok: false, error: "We couldn't save your connection. Please try again." };
+  }
+
+  // Revalidation is best-effort — persistence already succeeded, don't falsely report failure
+  try {
+    revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
+  } catch (e) {
+    if (isNextRedirect(e)) throw e;
+    console.warn("[saveProviderCredential revalidate failed]", e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200));
+  }
   return { ok: true };
 }
 
-export async function testProviderCredential(formData: FormData) {
+export async function testProviderCredential(formData: FormData): Promise<{ ok: boolean; errorKind?: string; error?: string }> {
   const orgSlug = String(formData.get("orgSlug") ?? "");
   const provider = String(formData.get("provider") ?? "") as Provider;
-  const ctx = await requireOrganizationContext(orgSlug);
-  await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  if (!["twitch", "youtube", "kick"].includes(provider)) return { ok: false, errorKind: "unsupported", error: "Invalid provider" };
+  let ctx: Awaited<ReturnType<typeof requireOrganizationContext>>;
+  try {
+    ctx = await requireOrganizationContext(orgSlug);
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  } catch (e) {
+    if (isNextRedirect(e)) throw e;
+    if (e instanceof AppError) return { ok: false, errorKind: "auth", error: e.safeMessage };
+    return { ok: false, errorKind: "server", error: "We couldn't test your connection. Please try again." };
+  }
   const admin = createAdminClient();
   const row = await getProviderCredentialRow(admin as never, ctx.organization.id, provider);
   const dec = decryptRow(row);
@@ -60,20 +102,52 @@ export async function testProviderCredential(formData: FormData) {
     return { ok: false, errorKind: "unsupported" };
   }
 
-  await updateLastTest(admin as never, ctx.organization.id, provider, result.ok ? "success" : "failed");
-  revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
+  try {
+    await updateLastTest(admin as never, ctx.organization.id, provider, result.ok ? "success" : "failed");
+  } catch (e) {
+    if (isNextRedirect(e)) throw e;
+    console.warn("[testProviderCredential updateLastTest failed]", e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200));
+  }
+  try {
+    revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
+  } catch (e) {
+    if (isNextRedirect(e)) throw e;
+    console.warn("[testProviderCredential revalidate failed]", e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200));
+  }
   // Never return secret, only safe result
   return result;
 }
 
-export async function deleteProviderCredential(formData: FormData) {
+export async function deleteProviderCredential(formData: FormData): Promise<SaveResult> {
   const orgSlug = String(formData.get("orgSlug") ?? "");
   const provider = String(formData.get("provider") ?? "") as Provider;
-  const ctx = await requireOrganizationContext(orgSlug);
-  await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  if (!["twitch", "youtube", "kick"].includes(provider)) return { ok: false, error: "Invalid provider" };
+  let ctx: Awaited<ReturnType<typeof requireOrganizationContext>>;
+  try {
+    ctx = await requireOrganizationContext(orgSlug);
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  } catch (e) {
+    if (isNextRedirect(e)) throw e;
+    if (e instanceof AppError) {
+      console.warn(`[deleteProviderCredential ${e.code}]`, e.safeMessage);
+      return { ok: false, error: e.safeMessage };
+    }
+    return { ok: false, error: "We couldn't remove your connection. Please try again." };
+  }
   const admin = createAdminClient();
   const { deleteProviderCredential: del } = await import("@/server/credentials/repository");
-  await del(admin as never, ctx.organization.id, provider);
-  revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
+  try {
+    await del(admin as never, ctx.organization.id, provider);
+  } catch (e) {
+    if (isNextRedirect(e)) throw e;
+    console.error("[deleteProviderCredential failed]", provider, e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200));
+    return { ok: false, error: "We couldn't remove your connection. Please try again." };
+  }
+  try {
+    revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
+  } catch (e) {
+    if (isNextRedirect(e)) throw e;
+    console.warn("[deleteProviderCredential revalidate failed]", e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200));
+  }
   return { ok: true };
 }

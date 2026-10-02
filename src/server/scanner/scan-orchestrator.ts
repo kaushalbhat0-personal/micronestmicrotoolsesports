@@ -64,18 +64,21 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
     stageErrors.push({ stage: "DISCOVER", message: "no channels" });
   }
 
-  // Create scan per platform (one scan row per run; if multiple platforms we create one per platform? For simplicity create one scan for first platform or twitch)
-  // We'll create one scan row covering the run, using first channel platform or input filter
-  const scanPlatform: Platform = (input.platformFilter ?? (channels[0]?.platform as Platform | undefined) ?? "twitch");
+  // Authoritative platform: prefer explicit filter, else first channel, else twitch fallback.
+  // If execution later yields evidence on a single distinct platform, we correct the scan row to that platform
+  // (prevents youtube/twitch mismatch when org has multiple channels but proof is twitch).
+  const initialScanPlatform: Platform = (input.platformFilter ?? (channels[0]?.platform as Platform | undefined) ?? "twitch");
   let scan = await scanRepo.createScan(supabase, {
     organization_id: organizationId,
     campaign_id: campaignId,
-    platform: scanPlatform,
+    platform: initialScanPlatform,
     status: "pending",
     scanner_version: scannerVersion,
   });
   // pending -> running
   scan = await scanRepo.updateScanStatus(supabase, scan.id, { status: "running" });
+  // Track distinct evidence platforms for post-run correction
+  const evidencePlatforms = new Set<Platform>();
 
   let evidenceCount = 0;
   let evaluationCount = 0;
@@ -293,6 +296,7 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
             scan_id: scan.id,
           });
           evidenceCount++;
+          evidencePlatforms.add(platform);
 
           // PERSIST RESULT (evaluation)
           await evaluationRepo.createEvaluation(supabase, {
@@ -323,6 +327,20 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
 
       // Handle fetchError that we skipped above? Already continued.
       void fetchError; // unused
+    }
+  }
+
+  // Platform correction: if all evidence is on a single platform but initial scan platform differs, fix it
+  // This resolves twitch proof showing as youtube when org has youtube as first channel
+  if (evidencePlatforms.size === 1) {
+    const evidencePlatform = [...evidencePlatforms][0] as Platform;
+    if (evidencePlatform && evidencePlatform !== initialScanPlatform && !input.platformFilter) {
+      try {
+        scan = await scanRepo.updateScanPlatform(supabase, scan.id, evidencePlatform);
+      } catch {
+        // best-effort: if update fails, the completed scan below will still carry original platform
+        // but evidence platform remains authoritative for UI fallback
+      }
     }
   }
 

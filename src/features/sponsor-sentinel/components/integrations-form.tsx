@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { saveProviderCredential, testProviderCredential, deleteProviderCredential } from "@/features/sponsor-sentinel/actions/integration-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatDateTimeKolkata } from "@/lib/utils/format";
 
 type Masked = { configured: boolean; clientIdMasked?: string | null; apiKeyMasked?: string | null; lastTestedAt?: string | null; lastTestStatus?: string | null };
 
@@ -30,31 +31,39 @@ function ProviderCard({
   connectedDescription?: string;
   accentColor?: string;
 }) {
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
 
   async function handleSave(formData: FormData) {
     setMessage(null);
-    startTransition(async () => {
-      try {
-        await saveProviderCredential(formData);
+    setIsError(false);
+    setPending(true);
+    try {
+      const res = await saveProviderCredential(formData);
+      if (res.ok) {
         setMessage("Connection saved");
         setIsError(false);
-      } catch (e) {
-        setMessage(e instanceof Error ? e.message : "Save failed");
+      } else {
+        setMessage(res.error);
         setIsError(true);
       }
-    });
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+      setMessage(e instanceof Error ? e.message : "Save failed");
+      setIsError(true);
+    } finally {
+      setPending(false);
+    }
   }
 
   async function handleTest(formData: FormData) {
     setMessage(null);
+    setIsError(false);
     setIsTesting(true);
-    startTransition(async () => {
+    try {
       const res = await testProviderCredential(formData);
-      setIsTesting(false);
       if (res.ok) {
         setMessage("Connection is working");
         setIsError(false);
@@ -64,18 +73,38 @@ function ProviderCard({
         if (kind === "auth") friendly = provider === "youtube" ? "We couldn't connect to YouTube. Check your API key and make sure the YouTube Data API is enabled." : "We couldn't connect. Check your Client ID and Secret.";
         else if (kind === "quota_exceeded") friendly = "YouTube's daily API limit has been reached. Try again later.";
         else if (kind === "not_configured") friendly = provider === "youtube" ? "Add your YouTube API key first." : "Add your credentials first.";
+        else if (res.error) friendly = res.error;
         setMessage(friendly);
         setIsError(true);
       }
-    });
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+      setMessage(e instanceof Error ? e.message : "Test failed");
+      setIsError(true);
+    } finally {
+      setIsTesting(false);
+    }
   }
 
   async function handleDelete(formData: FormData) {
-    startTransition(async () => {
-      await deleteProviderCredential(formData);
-      setMessage("Connection removed");
-      setIsError(false);
-    });
+    setMessage(null);
+    setPending(true);
+    try {
+      const res = await deleteProviderCredential(formData);
+      if (res.ok) {
+        setMessage("Connection removed");
+        setIsError(false);
+      } else {
+        setMessage(res.error);
+        setIsError(true);
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+      setMessage(e instanceof Error ? e.message : "Remove failed");
+      setIsError(true);
+    } finally {
+      setPending(false);
+    }
   }
 
   const isConfigured = masked.configured;
@@ -119,7 +148,7 @@ function ProviderCard({
               </p>
             ) : null}
             {provider !== "youtube" ? <p className="text-sm">Client Secret: <span className="text-muted-foreground">••••••••••••••••••</span></p> : null}
-            {masked.lastTestedAt ? <p className="text-xs text-muted-foreground">Last tested: {new Date(masked.lastTestedAt).toLocaleString()}</p> : <p className="text-xs text-muted-foreground">Not yet tested — test the connection before adding creator channels.</p>}
+            {masked.lastTestedAt ? <p className="text-xs text-muted-foreground">Last tested: {formatDateTimeKolkata(masked.lastTestedAt)}</p> : <p className="text-xs text-muted-foreground">Not yet tested — test the connection before adding creator channels.</p>}
             <form action={handleDelete} className="pt-2">
               <input type="hidden" name="orgSlug" value={orgSlug} />
               <input type="hidden" name="provider" value={provider} />

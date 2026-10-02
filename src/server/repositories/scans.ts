@@ -78,3 +78,13 @@ export async function updateScanStatus(
   if (error) throw error;
   return data as Scan;
 }
+
+export async function updateScanPlatform(
+  supabase: SupabaseClient,
+  id: string,
+  platform: "twitch" | "youtube" | "kick",
+): Promise<Scan> {
+  const { data, error } = await supabase.from("scans").update({ platform }).eq("id", id).select("*").single();
+  if (error) throw error;
+  return data as Scan;
+}

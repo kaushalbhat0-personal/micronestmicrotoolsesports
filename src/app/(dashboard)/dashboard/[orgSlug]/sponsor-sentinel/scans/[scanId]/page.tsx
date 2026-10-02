@@ -12,24 +12,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScanStatusBadge } from "@/features/sponsor-sentinel/components/scan-status-badge";
 import { AppError } from "@/lib/errors";
+import { formatDateTimeKolkata } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
 
 function formatDateTime(value: string | null) {
-  if (!value) return "—";
-  try {
-    return new Intl.DateTimeFormat("en-GB", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "Asia/Kolkata",
-      timeZoneName: "short",
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
+  return formatDateTimeKolkata(value);
 }
 
 export default async function ScanDetailPage({

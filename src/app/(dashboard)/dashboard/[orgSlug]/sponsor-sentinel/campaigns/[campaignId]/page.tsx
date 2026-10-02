@@ -20,14 +20,15 @@ import { deleteDeliverableAction } from "@/features/sponsor-sentinel/actions/del
 import { ActivateCampaignButton } from "@/features/sponsor-sentinel/components/activate-campaign-button";
 import { CheckNowButton } from "@/features/sponsor-sentinel/components/check-now-button";
 import { formatRequirementDescription } from "@/features/sponsor-sentinel/components/requirement-description";
+import { APP_TIMEZONE, formatDateTimeKolkata } from "@/lib/utils/format";
 import Link from "next/link";
 import type { Route } from "next";
 
 function formatPeriod(startsAt: string, endsAt: string): string {
   try {
-    const s = new Date(startsAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-    const e = new Date(endsAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-    return `${s} – ${e}`;
+    const fmt = (v: string) =>
+      new Intl.DateTimeFormat("en-GB", { month: "short", day: "numeric", year: "numeric", timeZone: APP_TIMEZONE }).format(new Date(v));
+    return `${fmt(startsAt)} – ${fmt(endsAt)}`;
   } catch {
     return `${startsAt} – ${endsAt}`;
   }
@@ -319,7 +320,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                 </div>
               ) : null}
               <p className="mt-2 text-xs text-muted-foreground">
-                Last check: {latestScan ? new Date(latestScan.started_at).toLocaleString() : "—"} • {latestScan.platform ? platformLabel(latestScan.platform) : "—"}
+                Last check: {latestScan ? formatDateTimeKolkata(latestScan.started_at) : "—"} • {latestScan.platform ? platformLabel(latestScan.platform) : "—"}
               </p>
             </CardContent>
           </Card>
@@ -337,7 +338,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                       </div>
                       <p className="text-sm font-medium truncate">{ev.observed_value}</p>
                       <p className="text-xs text-muted-foreground">
-                        Checked {new Date(ev.observed_at).toLocaleString()} • {platformLabel(ev.platform ?? ev.source)}
+                        Checked {formatDateTimeKolkata(ev.observed_at)} • {platformLabel(ev.platform ?? ev.source)}
                       </p>
                       {ev.source_url ? (
                         <a href={ev.source_url} target="_blank" rel="noreferrer" className="inline-block text-xs text-primary underline">
@@ -371,7 +372,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm">
-                Last check: <span className="font-medium">{new Date(latestScan.started_at).toLocaleString()}</span> • {platformLabel(latestScan.platform)}
+                Last check: <span className="font-medium">{formatDateTimeKolkata(latestScan.started_at)}</span> • {platformLabel(latestScan.platform)}
               </p>
               {campaignScans.length > 1 ? (
                 <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route} className="mt-2 inline-block text-xs text-primary underline">

@@ -5,25 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScanStatusBadge } from "./scan-status-badge";
 import type { ScanHistoryItem } from "../services/scan-history";
-import { formatDate } from "@/lib/utils/format";
+import { formatDateTimeKolkata } from "@/lib/utils/format";
 
 function formatDateTime(value: string | null) {
-  if (!value) return "—";
-  // Use Asia/Kolkata as Sponsor Sentinel previously does, but keep as display with timezone context
-  try {
-    const d = new Date(value);
-    return new Intl.DateTimeFormat("en-GB", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "Asia/Kolkata",
-      timeZoneName: "short",
-    }).format(d);
-  } catch {
-    return formatDate(value);
-  }
+  return formatDateTimeKolkata(value);
 }
 
 function shortId(id: string) {
