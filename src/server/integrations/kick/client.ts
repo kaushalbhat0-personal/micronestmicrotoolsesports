@@ -39,6 +39,7 @@ function sanitizeBody(body: string): string {
 export interface KickClientConfig {
   clientId: string;
   clientSecret: string;
+  userAccessToken?: string;
 }
 
 export class KickClient {
@@ -51,7 +52,8 @@ export class KickClient {
   }
 
   private async authFetch(path: string, params: Record<string, string | string[] | undefined>, retryOnAuth = true): Promise<{ json: unknown; headers: Headers; status: number }> {
-    const token = await getKickAppToken(this.config.clientId, this.config.clientSecret, this.fetchFn);
+    const isOAuth = !!this.config.userAccessToken;
+    const token = this.config.userAccessToken ?? (await getKickAppToken(this.config.clientId, this.config.clientSecret, this.fetchFn));
     const url = new URL(`${KICK_API_BASE}${path}`);
     for (const [k, v] of Object.entries(params)) {
       if (v === undefined) continue;
@@ -73,7 +75,7 @@ export class KickClient {
     };
 
     let res = await doFetch(token);
-    if (res.status === 401 && retryOnAuth) {
+    if (res.status === 401 && retryOnAuth && !isOAuth) {
       clearKickTokenCache();
       const fresh = await getKickAppToken(this.config.clientId, this.config.clientSecret, this.fetchFn);
       res = await doFetch(fresh);

@@ -115,8 +115,22 @@ export async function testProviderCredential(formData: FormData): Promise<{ ok: 
       return { ok: false, errorKind: "not_configured" };
     }
   } else if (provider === "kick") {
-    if (!dec?.clientId || !dec?.clientSecret) return { ok: false, errorKind: "not_configured" };
-    result = await testKickConnection(dec.clientId, dec.clientSecret);
+    const oauth = await getValidAccessToken(admin as never, ctx.organization.id, "kick");
+    if (oauth.ok) {
+      try {
+        const { getKickUser } = await import("@/server/integrations/kick/oauth");
+        await getKickUser(oauth.accessToken);
+        result = { ok: true };
+      } catch (e) {
+        const kind = (e as { kind?: string }).kind ?? "auth";
+        if (kind === "auth") result = { ok: false, errorKind: "auth" };
+        else result = { ok: false, errorKind: kind };
+      }
+    } else if (dec?.clientId && dec?.clientSecret) {
+      result = await testKickConnection(dec.clientId, dec.clientSecret);
+    } else {
+      return { ok: false, errorKind: "not_configured" };
+    }
   } else if (provider === "youtube") {
     const oauth = await getValidAccessToken(admin as never, ctx.organization.id, "youtube");
     if (oauth.ok) {

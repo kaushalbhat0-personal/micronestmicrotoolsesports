@@ -151,10 +151,23 @@ export async function createProviderRegistryForOrg(
   }
   let kickClient: KickClient | null = opts.kickClient ?? null;
   if (!kickClient && !opts.forceMockKick) {
-    const { resolveKickCredentials } = await import("@/server/credentials/resolver");
-    const creds = await resolveKickCredentials(supabase, organizationId);
-    if (creds) kickClient = new KickClient({ clientId: creds.clientId, clientSecret: creds.clientSecret }, fetchFn);
-    else kickClient = createKickClientFromEnv() ? new KickClient({ clientId: process.env.KICK_CLIENT_ID!, clientSecret: process.env.KICK_CLIENT_SECRET! }, fetchFn) : null;
+    try {
+      const { getValidAccessToken } = await import("@/server/credentials/token-service");
+      const tok = await getValidAccessToken(supabase, organizationId, "kick");
+      if (tok.ok) {
+        const clientId = process.env.KICK_CLIENT_ID ?? "";
+        const clientSecret = process.env.KICK_CLIENT_SECRET ?? "";
+        kickClient = new KickClient({ clientId: clientId || "oauth", clientSecret: clientSecret || "oauth", userAccessToken: tok.accessToken }, fetchFn);
+      }
+    } catch {
+      // ignore, fallback to legacy
+    }
+    if (!kickClient) {
+      const { resolveKickCredentials } = await import("@/server/credentials/resolver");
+      const creds = await resolveKickCredentials(supabase, organizationId);
+      if (creds) kickClient = new KickClient({ clientId: creds.clientId, clientSecret: creds.clientSecret }, fetchFn);
+      else kickClient = createKickClientFromEnv() ? new KickClient({ clientId: process.env.KICK_CLIENT_ID!, clientSecret: process.env.KICK_CLIENT_SECRET! }, fetchFn) : null;
+    }
   }
   const registryOpts: Record<string, unknown> = { ...opts };
   if (twitchClient) registryOpts.twitchClient = twitchClient;

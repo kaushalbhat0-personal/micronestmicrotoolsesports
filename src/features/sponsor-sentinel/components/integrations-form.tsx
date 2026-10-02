@@ -183,6 +183,25 @@ function ProviderCard({
             ) : null}
           </div>
         ) : null}
+        {provider === "kick" ? (
+          <div className="rounded-md border p-3 space-y-2">
+            {masked.hasOAuth && masked.externalAccountLogin ? (
+              <p className="text-sm">
+                Connected as <span className="font-medium">{masked.externalAccountLogin}</span>
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Connect your Kick account with one click — no Client ID needed.</p>
+            )}
+            <Link href={`/api/auth/kick/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
+              <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect Kick" : "Connect Kick"}>
+                {masked.hasOAuth ? "Reconnect Kick" : "Connect Kick"}
+              </Button>
+            </Link>
+            {masked.hasOAuth && masked.authorizedAt ? (
+              <p className="text-xs text-muted-foreground">Authorized: {formatDateTimeKolkata(masked.authorizedAt)}</p>
+            ) : null}
+          </div>
+        ) : null}
         {isConfigured ? (
           <div className="rounded-md border bg-muted/20 p-3 space-y-1">
             {masked.clientIdMasked ? (
@@ -198,7 +217,7 @@ function ProviderCard({
             {provider !== "youtube" ? <p className="text-sm">Client Secret: <span className="text-muted-foreground">••••••••••••••••••</span></p> : null}
             {masked.lastTestedAt ? (
               <p className="text-xs text-muted-foreground">Last tested: {formatDateTimeKolkata(masked.lastTestedAt)}</p>
-            ) : masked.hasOAuth && (provider === "twitch" || provider === "youtube") ? (
+            ) : masked.hasOAuth ? (
               <p className="text-xs text-muted-foreground">OAuth connection authorized — test the connection before adding creator channels.</p>
             ) : (
               <p className="text-xs text-muted-foreground">Not yet tested — test the connection before adding creator channels.</p>
