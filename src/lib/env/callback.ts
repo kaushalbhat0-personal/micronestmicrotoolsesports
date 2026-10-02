@@ -14,3 +14,8 @@ export function getWebhookCallbackUrl(provider: "twitch" | "kick" | "youtube"): 
   const base = getAppBaseUrl();
   return `${base}/api/webhooks/${provider}`;
 }
+
+export function getOAuthCallbackUrl(provider: "twitch" | "youtube" | "kick"): string {
+  const base = getAppBaseUrl();
+  return `${base}/api/auth/${provider}/callback`;
+}

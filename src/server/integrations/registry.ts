@@ -107,13 +107,28 @@ export async function createProviderRegistryForOrg(
   opts: ProviderRegistryOptions & { fetchFn?: typeof fetch } = {},
 ): Promise<Record<Platform, CombinedProvider>> {
   const fetchFn = opts.fetchFn ?? fetch;
-  // Try org credentials first, fallback to env is handled inside resolvers + create*FromEnv
+  // Try org OAuth token first, then legacy credentials, then env fallback
   let twitchClient: TwitchClient | null = opts.twitchClient ?? null;
   if (!twitchClient && !opts.forceMockTwitch) {
-    const { resolveTwitchCredentials } = await import("@/server/credentials/resolver");
-    const creds = await resolveTwitchCredentials(supabase, organizationId);
-    if (creds) twitchClient = new TwitchClient({ clientId: creds.clientId, clientSecret: creds.clientSecret }, fetchFn);
-    else twitchClient = createTwitchClientFromEnv() ? new TwitchClient({ clientId: process.env.TWITCH_CLIENT_ID!, clientSecret: process.env.TWITCH_CLIENT_SECRET! }, fetchFn) : null;
+    // OAuth path (preferred)
+    try {
+      const { getValidAccessToken } = await import("@/server/credentials/token-service");
+      const tok = await getValidAccessToken(supabase, organizationId, "twitch");
+      if (tok.ok) {
+        const clientId = process.env.TWITCH_CLIENT_ID ?? "";
+        const clientSecret = process.env.TWITCH_CLIENT_SECRET ?? "";
+        // User token path: still need clientId for helix headers, clientSecret not needed for user token but keep for fallback
+        twitchClient = new TwitchClient({ clientId: clientId || "oauth", clientSecret: clientSecret || "oauth", userAccessToken: tok.accessToken }, fetchFn);
+      }
+    } catch {
+      // ignore, fallback to legacy
+    }
+    if (!twitchClient) {
+      const { resolveTwitchCredentials } = await import("@/server/credentials/resolver");
+      const creds = await resolveTwitchCredentials(supabase, organizationId);
+      if (creds) twitchClient = new TwitchClient({ clientId: creds.clientId, clientSecret: creds.clientSecret }, fetchFn);
+      else twitchClient = createTwitchClientFromEnv() ? new TwitchClient({ clientId: process.env.TWITCH_CLIENT_ID!, clientSecret: process.env.TWITCH_CLIENT_SECRET! }, fetchFn) : null;
+    }
   }
   let youtubeClient: YouTubeClient | null = opts.youtubeClient ?? null;
   if (!youtubeClient && !opts.forceMockYouTube) {

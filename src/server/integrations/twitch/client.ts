@@ -8,6 +8,8 @@ import { getAppAccessToken, clearTwitchTokenCache } from "./auth";
 export interface TwitchClientConfig {
   clientId: string;
   clientSecret: string;
+  /** Optional user OAuth access token — when provided, helixGet uses it instead of app token */
+  userAccessToken?: string;
 }
 
 export interface TwitchToken {
@@ -96,7 +98,7 @@ export class TwitchClient {
 
   /** Core Helix GET with auth, rate-limit, and error mapping */
   async helixGet<T>(path: string, params: Record<string, string | string[] | undefined>, opts: HelixRequestOptions = {}): Promise<{ data: T; headers: Headers }> {
-    const token = await getAppAccessToken(this.config.clientId, this.config.clientSecret, this.fetchFn);
+    const token = this.config.userAccessToken ?? (await getAppAccessToken(this.config.clientId, this.config.clientSecret, this.fetchFn));
 
     const url = new URL(`https://api.twitch.tv/helix${path}`);
     for (const [k, v] of Object.entries(params)) {
@@ -122,8 +124,8 @@ export class TwitchClient {
 
     let res = await doFetch(token);
 
-    // 401 → refresh once
-    if (res.status === 401 && opts.retryOnAuth !== false) {
+    // 401 → refresh once (only for app token path)
+    if (res.status === 401 && opts.retryOnAuth !== false && !this.config.userAccessToken) {
       clearTwitchTokenCache();
       const fresh = await getAppAccessToken(this.config.clientId, this.config.clientSecret, this.fetchFn);
       res = await doFetch(fresh);

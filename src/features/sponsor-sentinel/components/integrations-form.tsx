@@ -9,8 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTimeKolkata } from "@/lib/utils/format";
+import Link from "next/link";
 
-type Masked = { configured: boolean; clientIdMasked?: string | null; apiKeyMasked?: string | null; lastTestedAt?: string | null; lastTestStatus?: string | null };
+type Masked = {
+  configured: boolean;
+  clientIdMasked?: string | null;
+  apiKeyMasked?: string | null;
+  lastTestedAt?: string | null;
+  lastTestStatus?: string | null;
+  hasOAuth?: boolean;
+  externalAccountLogin?: string | null;
+  authorizedAt?: string | null;
+};
 
 function ProviderCard({
   orgSlug,
@@ -135,6 +145,25 @@ function ProviderCard({
         <CardDescription>{isConfigured && connectedDescription ? connectedDescription : description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {provider === "twitch" ? (
+          <div className="rounded-md border p-3 space-y-2">
+            {masked.hasOAuth && masked.externalAccountLogin ? (
+              <p className="text-sm">
+                Connected as <span className="font-medium">{masked.externalAccountLogin}</span>
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Connect your Twitch account with one click — no Client ID needed.</p>
+            )}
+            <Link href={`/api/auth/twitch/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
+              <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect Twitch" : "Connect Twitch"}>
+                {masked.hasOAuth ? "Reconnect Twitch" : "Connect Twitch"}
+              </Button>
+            </Link>
+            {masked.hasOAuth && masked.authorizedAt ? (
+              <p className="text-xs text-muted-foreground">Authorized: {formatDateTimeKolkata(masked.authorizedAt)}</p>
+            ) : null}
+          </div>
+        ) : null}
         {isConfigured ? (
           <div className="rounded-md border bg-muted/20 p-3 space-y-1">
             {masked.clientIdMasked ? (
