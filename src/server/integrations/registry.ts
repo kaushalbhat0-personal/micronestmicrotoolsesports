@@ -124,10 +124,8 @@ export async function createProviderRegistryForOrg(
       // ignore, fallback to legacy
     }
     if (!twitchClient) {
-      const { resolveTwitchCredentials } = await import("@/server/credentials/resolver");
-      const creds = await resolveTwitchCredentials(supabase, organizationId);
-      if (creds) twitchClient = new TwitchClient({ clientId: creds.clientId, clientSecret: creds.clientSecret }, fetchFn);
-      else twitchClient = createTwitchClientFromEnv() ? new TwitchClient({ clientId: process.env.TWITCH_CLIENT_ID!, clientSecret: process.env.TWITCH_CLIENT_SECRET! }, fetchFn) : null;
+      // No customer legacy — OAuth-only, fallback to server app credentials
+      twitchClient = createTwitchClientFromEnv() ? new TwitchClient({ clientId: process.env.TWITCH_CLIENT_ID!, clientSecret: process.env.TWITCH_CLIENT_SECRET! }, fetchFn) : null;
     }
   }
   let youtubeClient: YouTubeClient | null = opts.youtubeClient ?? null;
@@ -143,10 +141,8 @@ export async function createProviderRegistryForOrg(
       // ignore, fallback to legacy
     }
     if (!youtubeClient) {
-      const { resolveYouTubeCredentials } = await import("@/server/credentials/resolver");
-      const creds = await resolveYouTubeCredentials(supabase, organizationId);
-      if (creds) youtubeClient = new YouTubeClient({ apiKey: creds.apiKey }, fetchFn);
-      else youtubeClient = createYouTubeClientFromEnv() ? new YouTubeClient({ apiKey: process.env.YOUTUBE_API_KEY! }, fetchFn) : null;
+      // Platform/server fallback only — customer apiKey removed (OAuth-only)
+      youtubeClient = createYouTubeClientFromEnv() ? new YouTubeClient({ apiKey: process.env.YOUTUBE_API_KEY! }, fetchFn) : null;
     }
   }
   let kickClient: KickClient | null = opts.kickClient ?? null;
@@ -163,10 +159,8 @@ export async function createProviderRegistryForOrg(
       // ignore, fallback to legacy
     }
     if (!kickClient) {
-      const { resolveKickCredentials } = await import("@/server/credentials/resolver");
-      const creds = await resolveKickCredentials(supabase, organizationId);
-      if (creds) kickClient = new KickClient({ clientId: creds.clientId, clientSecret: creds.clientSecret }, fetchFn);
-      else kickClient = createKickClientFromEnv() ? new KickClient({ clientId: process.env.KICK_CLIENT_ID!, clientSecret: process.env.KICK_CLIENT_SECRET! }, fetchFn) : null;
+      // No customer legacy — OAuth-only, fallback to server app credentials
+      kickClient = createKickClientFromEnv() ? new KickClient({ clientId: process.env.KICK_CLIENT_ID!, clientSecret: process.env.KICK_CLIENT_SECRET! }, fetchFn) : null;
     }
   }
   const registryOpts: Record<string, unknown> = { ...opts };

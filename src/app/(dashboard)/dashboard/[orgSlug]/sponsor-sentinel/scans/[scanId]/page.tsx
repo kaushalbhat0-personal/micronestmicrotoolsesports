@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScanStatusBadge } from "@/features/sponsor-sentinel/components/scan-status-badge";
-import { PlatformProofSections } from "@/features/sponsor-sentinel/components/platform-proof-sections";
+import { ContentProofSections } from "@/features/sponsor-sentinel/components/content-proof-sections";
 import { AppError } from "@/lib/errors";
 import { formatDateTimeKolkata } from "@/lib/utils/format";
 
@@ -93,10 +93,10 @@ export default async function ScanDetailPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Proof ({String(evidence.length)})</CardTitle>
-          <CardDescription>Proof collected for this check. Each check creates its own record.</CardDescription>
+          <CardDescription>Proof grouped by content — each video shows all requirements it satisfies. Each check creates its own record.</CardDescription>
         </CardHeader>
         <CardContent>
-          <PlatformProofSections evidence={evidence} deliverableMap={detail.deliverableMap} />
+          <ContentProofSections evidence={evidence} evaluations={evaluations} deliverableMap={detail.deliverableMap} />
         </CardContent>
       </Card>
 

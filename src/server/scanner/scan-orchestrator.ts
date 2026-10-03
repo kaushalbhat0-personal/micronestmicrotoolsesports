@@ -159,123 +159,124 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
     }
 
     // NORMALIZE is already canonical from mock; validate shape
-    // EVALUATE + PERSIST per deliverable
+    // EVALUATE + PERSIST per deliverable — Cartesian: every candidate × every deliverable (bounded: YouTube ≤25, Twitch ≤20, Kick live-only)
     for (const deliverable of deliverables) {
       const rule = deliverable.rule as import("@/features/sponsor-sentinel/schemas/rules").DeliverableRule;
-      // Discovery: determine required observation type
       const needsVideo = rule.type === "minimum_duration" || rule.type === "required_vod_exists";
-      let observation: { kind: "live"; data: CanonicalLiveStream | null } | { kind: "video"; data: CanonicalVideo | null } | { kind: "none" } = { kind: "none" };
-      let source: string = "get_streams";
-      let sourceId: string = "none";
-      let observedAt: string = new Date().toISOString();
-      let titleForEvidence: string = "";
 
       if (needsVideo) {
+        // Preserve existing single-video semantics for duration/VOD existence
+        let observation: { kind: "video"; data: CanonicalVideo | null } | { kind: "none" } = { kind: "none" };
+        let source: string = "get_streams";
+        let sourceId: string = "none";
+        let observedAt: string = new Date().toISOString();
+        let titleForEvidence: string = "";
         const vid = fetchedVideos[0] ?? null;
         observation = vid ? { kind: "video", data: vid } : { kind: "none" };
         source = platform === "twitch" ? "get_videos" : platform === "youtube" ? "youtube_videos_list" : "get_videos";
         sourceId = vid?.externalVideoId ?? "none";
         observedAt = vid?.observedAt ?? new Date().toISOString();
         titleForEvidence = vid?.title ?? "";
-      } else {
-        // Content rules: evaluate candidate videos (up to 25) until PASS, prefer live PASS first
-        // 1. Check live if present
-        let candidateFound = false;
-        if (fetchedLive) {
-          const liveObs = { kind: "live" as const, data: fetchedLive };
-          let liveOutcome: ReturnType<typeof evaluateRule> | null = null;
-          try {
-            liveOutcome = evaluateRule(rule, platform, liveObs as never);
-          } catch {
-            liveOutcome = null;
-          }
-          if (liveOutcome?.result === "PASS") {
-            observation = liveObs;
-            source = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
-            sourceId = fetchedLive.externalStreamId;
-            observedAt = fetchedLive.observedAt;
-            titleForEvidence = fetchedLive.title;
-            candidateFound = true;
-            // Early persist will use this observation; outcome already PASS
-            // Set outcome directly to avoid re-evaluating
-            // We will handle persistence below via observation/outcome
-            // To avoid double evaluate, store outcome for later
-            // Use a temporary variable via closure: we will set outcome after branch
-            // For simplicity, fall through to evaluation block with precomputed outcome
-            // So we need to handle outcome assignment outside
-            // Instead, we will directly set observation and let later evaluate re-evaluate (cheap) — or store
-            // Keep observation, let normal EVALUATE path run (will re-evaluate same live and PASS again)
-          }
+
+        let outcome;
+        try {
+          outcome = evaluateRule(rule, platform, observation as never);
+        } catch (e) {
+          stageErrors.push({ stage: "EVALUATE", platform, message: e instanceof Error ? e.message : String(e) });
+          continue;
         }
-        if (!candidateFound) {
-          // Scan video candidates for PASS
-          let passVideo: (typeof fetchedVideos)[number] | null = null;
-          const fallbackVideo: (typeof fetchedVideos)[number] | null = fetchedVideos[0] ?? null;
-          // Determine if any video PASSes
-          for (const v of fetchedVideos) {
-            const obs = { kind: "video" as const, data: v };
-            let out: ReturnType<typeof evaluateRule> | null = null;
-            try {
-              out = evaluateRule(rule, platform, obs as never);
-            } catch {
+        if (observation.kind !== "none" && observation.data !== null) {
+          const evidenceType = "video";
+          const externalContentId = (observation.data as CanonicalVideo).externalVideoId;
+          const normalized = normalizeText(titleForEvidence);
+          try {
+            const ev = await evidenceRepo.createEvidence(supabase, {
+              organization_id: organizationId,
+              campaign_id: campaignId,
+              deliverable_id: deliverable.id,
+              platform,
+              external_channel_id: channel.external_channel_id,
+              external_content_id: externalContentId,
+              evidence_type: evidenceType,
+              source: source as never,
+              source_id: sourceId,
+              source_url: (observation.data as CanonicalVideo).canonicalUrl,
+              observed_at: observedAt,
+              observed_value: titleForEvidence,
+              normalized_value: normalized,
+              raw_ref: { externalId: externalContentId, url: sourceId, platform },
+              scanner_version: scannerVersion,
+              scan_id: scan.id,
+            });
+            evidenceCount++;
+            evidencePlatforms.add(platform);
+            await evaluationRepo.createEvaluation(supabase, {
+              organization_id: organizationId,
+              evidence_id: ev.id,
+              deliverable_id: deliverable.id,
+              result: outcome.result,
+              reason: outcome.reason,
+              evaluator_version: "1",
+              scan_id: scan.id,
+            });
+            evaluationCount++;
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg.includes("duplicate") || msg.includes("unique") || msg.includes("violates unique constraint")) {
               continue;
             }
-            if (out.result === "PASS") {
-              passVideo = v;
-              break;
-            }
+            stageErrors.push({ stage: "PERSIST_EVIDENCE", platform, message: msg });
           }
-          if (passVideo) {
-            observation = { kind: "video", data: passVideo };
-            source = platform === "youtube" ? "youtube_videos_list" : "get_videos";
-            sourceId = passVideo.externalVideoId;
-            observedAt = passVideo.observedAt;
-            titleForEvidence = passVideo.title;
-          } else if (fetchedLive) {
-            // No PASS video, fallback to live (already checked, but live was not PASS)
-            observation = { kind: "live", data: fetchedLive };
-            source = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
-            sourceId = fetchedLive.externalStreamId;
-            observedAt = fetchedLive.observedAt;
-            titleForEvidence = fetchedLive.title;
-          } else if (fallbackVideo) {
-            observation = { kind: "video", data: fallbackVideo };
-            source = platform === "youtube" ? "youtube_videos_list" : "get_videos";
-            sourceId = fallbackVideo.externalVideoId;
-            observedAt = fallbackVideo.observedAt;
-            titleForEvidence = fallbackVideo.title;
-          } else {
-            observation = { kind: "none" };
-            source = "get_streams";
-            sourceId = "none";
-            observedAt = new Date().toISOString();
-            titleForEvidence = "";
-          }
-        } else {
-          // candidateFound via live PASS already set observation above
-          // observation already set to live
-          // Ensure source fields already set
-          // they were set in the live PASS branch
         }
-      }
-
-      // EVALUATE (uses existing evaluator, never maps budget error to FAIL)
-      // If fetchError existed we already continued, so this path is only when fetch succeeded
-      let outcome;
-      try {
-        outcome = evaluateRule(rule, platform, observation as never);
-      } catch (e) {
-        stageErrors.push({ stage: "EVALUATE", platform, message: e instanceof Error ? e.message : String(e) });
+        void fetchError;
         continue;
       }
 
-      // PERSIST EVIDENCE (append-only, idempotent via unique index)
-      // Only persist if we have an observation (not PENDING with no data? but spec says persist usable observation)
-      // For PENDING we still may want evidence with empty? For now persist only when observation not none
-      if (observation.kind !== "none" && observation.data !== null) {
-        const evidenceType = observation.kind === "live" ? "live_stream" : "video";
-        const externalContentId = observation.kind === "live" ? (observation.data as CanonicalLiveStream).externalStreamId : (observation.data as CanonicalVideo).externalVideoId;
-        const normalized = normalizeText(titleForEvidence);
+      // Content rules — Cartesian product: every candidate × this deliverable
+      const candidates: Array<{ kind: "live"; data: CanonicalLiveStream } | { kind: "video"; data: CanonicalVideo }> = [];
+      if (fetchedLive) candidates.push({ kind: "live", data: fetchedLive });
+      for (const v of fetchedVideos) candidates.push({ kind: "video", data: v });
+
+      if (candidates.length === 0) {
+        // No observable content — prior behavior persisted nothing (PENDING via missing evidence)
+        continue;
+      }
+
+      let hasPass = false;
+      for (const cand of candidates) {
+        const obsKind = cand.kind;
+        const obsData = cand.data as CanonicalLiveStream | CanonicalVideo;
+        let candSource: string;
+        let candSourceId: string;
+        let candObservedAt: string;
+        let candTitle: string;
+        if (obsKind === "live") {
+          candSource = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
+          candSourceId = (obsData as CanonicalLiveStream).externalStreamId;
+          candObservedAt = (obsData as CanonicalLiveStream).observedAt;
+          candTitle = (obsData as CanonicalLiveStream).title;
+        } else {
+          candSource = platform === "youtube" ? "youtube_videos_list" : "get_videos";
+          candSourceId = (obsData as CanonicalVideo).externalVideoId;
+          candObservedAt = (obsData as CanonicalVideo).observedAt;
+          candTitle = (obsData as CanonicalVideo).title;
+        }
+
+        let candOutcome;
+        try {
+          const candObs = obsKind === "live" ? ({ kind: "live", data: obsData } as const) : ({ kind: "video", data: obsData } as const);
+          candOutcome = evaluateRule(rule, platform, candObs as never);
+        } catch (e) {
+          stageErrors.push({ stage: "EVALUATE", platform, message: e instanceof Error ? e.message : String(e) });
+          continue;
+        }
+
+        if (candOutcome.result !== "PASS") continue;
+        hasPass = true;
+        // Persist evidence/evaluation for this PASS candidate
+        const evidenceType = obsKind === "live" ? "live_stream" : "video";
+        const externalContentId = obsKind === "live" ? (obsData as CanonicalLiveStream).externalStreamId : (obsData as CanonicalVideo).externalVideoId;
+        const normalized = normalizeText(candTitle);
         try {
           const ev = await evidenceRepo.createEvidence(supabase, {
             organization_id: organizationId,
@@ -285,48 +286,111 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
             external_channel_id: channel.external_channel_id,
             external_content_id: externalContentId,
             evidence_type: evidenceType,
-            source: source as never,
-            source_id: sourceId,
-            source_url: observation.kind === "live" ? (observation.data as CanonicalLiveStream).canonicalUrl : (observation.data as CanonicalVideo).canonicalUrl,
-            observed_at: observedAt,
-            observed_value: titleForEvidence,
+            source: candSource as never,
+            source_id: candSourceId,
+            source_url: obsKind === "live" ? (obsData as CanonicalLiveStream).canonicalUrl : (obsData as CanonicalVideo).canonicalUrl,
+            observed_at: candObservedAt,
+            observed_value: candTitle,
             normalized_value: normalized,
-            raw_ref: { externalId: externalContentId, url: sourceId, platform },
+            raw_ref: { externalId: externalContentId, url: candSourceId, platform },
             scanner_version: scannerVersion,
             scan_id: scan.id,
           });
           evidenceCount++;
           evidencePlatforms.add(platform);
-
-          // PERSIST RESULT (evaluation)
           await evaluationRepo.createEvaluation(supabase, {
             organization_id: organizationId,
             evidence_id: ev.id,
             deliverable_id: deliverable.id,
-            result: outcome.result,
-            reason: outcome.reason,
+            result: candOutcome.result,
+            reason: candOutcome.reason,
             evaluator_version: "1",
             scan_id: scan.id,
           });
           evaluationCount++;
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          // Idempotency: duplicate key -> swallow, count as already persisted
           if (msg.includes("duplicate") || msg.includes("unique") || msg.includes("violates unique constraint")) {
-            // duplicate evidence -> idempotent, not an error
             continue;
           }
           stageErrors.push({ stage: "PERSIST_EVIDENCE", platform, message: msg });
         }
-      } else {
-        // No observation to persist evidence; still persist evaluation with synthetic? For PENDING we need evaluation but no evidence?
-        // For this proof, we create evaluation without evidence? Instead skip.
-        // To still produce evaluation for PENDING, we could create no evidence but evaluation requires evidence_id FK -> cannot.
-        // So we skip evaluation persistence when no evidence; stage will be PENDING implied by missing evidence.
       }
-
-      // Handle fetchError that we skipped above? Already continued.
-      void fetchError; // unused
+      if (hasPass) {
+        void fetchError;
+        continue;
+      }
+      // No PASS — fallback single evidence to preserve prior FAIL/PENDING audit trail
+      {
+        const fallbackCand = candidates.find((c) => c.kind === "video") ?? candidates[0]!;
+        const fbKind = fallbackCand.kind;
+        const fbData = fallbackCand.data as CanonicalLiveStream | CanonicalVideo;
+        let fbSource: string;
+        let fbSourceId: string;
+        let fbObservedAt: string;
+        let fbTitle: string;
+        if (fbKind === "live") {
+          fbSource = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
+          fbSourceId = (fbData as CanonicalLiveStream).externalStreamId;
+          fbObservedAt = (fbData as CanonicalLiveStream).observedAt;
+          fbTitle = (fbData as CanonicalLiveStream).title;
+        } else {
+          fbSource = platform === "youtube" ? "youtube_videos_list" : "get_videos";
+          fbSourceId = (fbData as CanonicalVideo).externalVideoId;
+          fbObservedAt = (fbData as CanonicalVideo).observedAt;
+          fbTitle = (fbData as CanonicalVideo).title;
+        }
+        let fbOutcome;
+        try {
+          const fbObs = fbKind === "live" ? ({ kind: "live", data: fbData } as const) : ({ kind: "video", data: fbData } as const);
+          fbOutcome = evaluateRule(rule, platform, fbObs as never);
+        } catch (e) {
+          stageErrors.push({ stage: "EVALUATE", platform, message: e instanceof Error ? e.message : String(e) });
+          void fetchError;
+          continue;
+        }
+        const evidenceType = fbKind === "live" ? "live_stream" : "video";
+        const externalContentId = fbKind === "live" ? (fbData as CanonicalLiveStream).externalStreamId : (fbData as CanonicalVideo).externalVideoId;
+        const normalized = normalizeText(fbTitle);
+        try {
+          const ev = await evidenceRepo.createEvidence(supabase, {
+            organization_id: organizationId,
+            campaign_id: campaignId,
+            deliverable_id: deliverable.id,
+            platform,
+            external_channel_id: channel.external_channel_id,
+            external_content_id: externalContentId,
+            evidence_type: evidenceType,
+            source: fbSource as never,
+            source_id: fbSourceId,
+            source_url: fbKind === "live" ? (fbData as CanonicalLiveStream).canonicalUrl : (fbData as CanonicalVideo).canonicalUrl,
+            observed_at: fbObservedAt,
+            observed_value: fbTitle,
+            normalized_value: normalized,
+            raw_ref: { externalId: externalContentId, url: fbSourceId, platform },
+            scanner_version: scannerVersion,
+            scan_id: scan.id,
+          });
+          evidenceCount++;
+          evidencePlatforms.add(platform);
+          await evaluationRepo.createEvaluation(supabase, {
+            organization_id: organizationId,
+            evidence_id: ev.id,
+            deliverable_id: deliverable.id,
+            result: fbOutcome.result,
+            reason: fbOutcome.reason,
+            evaluator_version: "1",
+            scan_id: scan.id,
+          });
+          evaluationCount++;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!msg.includes("duplicate") && !msg.includes("unique") && !msg.includes("violates unique constraint")) {
+            stageErrors.push({ stage: "PERSIST_EVIDENCE", platform, message: msg });
+          }
+        }
+      }
+      void fetchError;
     }
   }
 

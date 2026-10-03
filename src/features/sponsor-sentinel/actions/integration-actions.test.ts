@@ -70,25 +70,26 @@ describe("integration-actions saveProviderCredential — RCCF-SPONSOR-PROVIDER-E
     mockRevalidate.mockImplementation(() => {});
   });
 
-  it("1. Successful Twitch credential update → ok:true, revalidate called, no throw", async () => {
+  it("1. Twitch manual credentials no longer supported → rejected", async () => {
     const res = await saveProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch", clientId: "id123", clientSecret: "sec123" }));
-    expect(res).toEqual({ ok: true });
-    expect(mockUpsert).toHaveBeenCalledWith(expect.anything(), "org-a", "twitch", { clientId: "id123", clientSecret: "sec123" });
-    expect(mockRevalidate).toHaveBeenCalledWith("/dashboard/tag-esports/settings/integrations");
-    // No secret in result
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toMatch(/no longer supported|OAuth/i);
+    expect(mockUpsert).not.toHaveBeenCalled();
     expect(JSON.stringify(res)).not.toContain("sec123");
   });
 
-  it("1b. Successful YouTube credential update → ok:true (regression)", async () => {
+  it("1b. YouTube customer apiKey no longer supported → rejected", async () => {
     const res = await saveProviderCredential(fd({ orgSlug: "tag-esports", provider: "youtube", apiKey: "yt-key-123" }));
-    expect(res).toEqual({ ok: true });
-    expect(mockUpsert).toHaveBeenCalledWith(expect.anything(), "org-a", "youtube", { apiKey: "yt-key-123" });
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toMatch(/OAuth|no longer supported/i);
+    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(JSON.stringify(res)).not.toContain("yt-key-123");
   });
 
-  it("2. Invalid Twitch credentials (missing secret) → safe error, no throw, no persistence", async () => {
+  it("2. Twitch manual entry rejected → safe error, no persistence", async () => {
     const res = await saveProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch", clientId: "id123", clientSecret: "" }));
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toMatch(/Client ID and Secret required/);
+    if (!res.ok) expect(res.error).toMatch(/no longer supported|OAuth/i);
     expect(mockUpsert).not.toHaveBeenCalled();
     expect(JSON.stringify(res)).not.toContain("sec");
   });
@@ -98,34 +99,30 @@ describe("integration-actions saveProviderCredential — RCCF-SPONSOR-PROVIDER-E
     expect(res.ok).toBe(false);
   });
 
-  it("3. Persistence failure → safe failure, no false Connected", async () => {
-    mockUpsert.mockRejectedValueOnce(new Error("db down"));
+  it("3. Manual entry rejected before persistence → no DB call", async () => {
     const res = await saveProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch", clientId: "id", clientSecret: "sec" }));
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toMatch(/We couldn't save/);
+    if (!res.ok) expect(res.error).toMatch(/no longer supported|OAuth/i);
+    expect(mockUpsert).not.toHaveBeenCalled();
     expect(JSON.stringify(res)).not.toContain("sec");
   });
 
-  it("4. Post-save revalidate failure → still ok:true (best-effort, persistence succeeded)", async () => {
-    mockRevalidate.mockImplementationOnce(() => {
-      throw new Error("revalidate failed");
-    });
+  it("4. Post-save revalidate not applicable — manual entry rejected", async () => {
     const res = await saveProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch", clientId: "id", clientSecret: "sec" }));
-    // Persistence succeeded, so we still return ok:true (bug was falsely throwing)
-    expect(res).toEqual({ ok: true });
-    expect(mockUpsert).toHaveBeenCalled();
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.error).toMatch(/no longer supported|OAuth/i);
+    expect(mockUpsert).not.toHaveBeenCalled();
   });
 
-  it("5. NEXT_REDIRECT is not swallowed — rethrows", async () => {
-    mockUpsert.mockRejectedValueOnce(new Error("NEXT_REDIRECT /login"));
-    await expect(saveProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch", clientId: "id", clientSecret: "sec" }))).rejects.toThrow(/NEXT_REDIRECT/);
+  it("5. NEXT_REDIRECT is not swallowed — rethrows (auth check)", async () => {
+    vi.mocked(requireOrganizationContext).mockRejectedValueOnce(new Error("NEXT_REDIRECT /login") as never);
+    await expect(saveProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch" }))).rejects.toThrow(/NEXT_REDIRECT/);
+    vi.mocked(requireOrganizationContext).mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports", name: "Test Org" }, membership: { role: "owner", id: "mem-1" }, user: { id: "user-1" } } as never);
   });
 
-  it("5b. Revalidate NEXT_REDIRECT rethrows", async () => {
-    mockRevalidate.mockImplementationOnce(() => {
-      throw new Error("NEXT_REDIRECT /something");
-    });
-    await expect(saveProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch", clientId: "id", clientSecret: "sec" }))).rejects.toThrow(/NEXT_REDIRECT/);
+  it("5b. Save no longer persists — manual entry rejected", async () => {
+    const res = await saveProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch", clientId: "id", clientSecret: "sec" }));
+    expect(res.ok).toBe(false);
   });
 
   it("6. Auth failure → safe error, no secret leak", async () => {
@@ -144,16 +141,19 @@ describe("integration-actions saveProviderCredential — RCCF-SPONSOR-PROVIDER-E
     expect(JSON.stringify(res)).not.toContain("myId");
   });
 
-  it("8. testProviderCredential still works and never returns secret", async () => {
-    // Mock decryptRow to return valid creds
-    const { decryptRow } = await import("@/server/credentials/repository");
-    vi.mocked(decryptRow).mockReturnValueOnce({ clientId: "id", clientSecret: "sec" } as never);
-    // Need getProviderCredentialRow to return something
-    const { getProviderCredentialRow } = await import("@/server/credentials/repository");
+  it("8. testProviderCredential OAuth still works and never returns secret", async () => {
+    const { getValidAccessToken } = await import("@/server/credentials/token-service");
+    vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: true, accessToken: "oauthTok", expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(), provider: "twitch" } as never);
+    const { TwitchClient } = await import("@/server/integrations/twitch/client");
+    vi.mocked(TwitchClient).mockImplementationOnce(function (this: unknown) {
+      return { getUsersByLogin: vi.fn(async () => ({ data: [] })) } as unknown as never;
+    } as never);
+    const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
     vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "twitch" } as never);
+    vi.mocked(decryptRow).mockReturnValueOnce({} as never);
     const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch" }));
     expect(res.ok).toBe(true);
-    expect(JSON.stringify(res)).not.toContain("sec");
+    expect(JSON.stringify(res)).not.toContain("oauthTok");
   });
 
   it("9. deleteProviderCredential success → ok:true", async () => {
@@ -223,17 +223,15 @@ describe("integration-actions testProviderCredential OAuth — RCCF-OAUTH-08", (
     expect(res.ok).toBe(true);
   });
 
-  it("Test 4 — OAuth unavailable + legacy credentials → legacy path", async () => {
+  it("Test 4 — OAuth unavailable → not_configured (legacy removed)", async () => {
     const { getValidAccessToken } = await import("@/server/credentials/token-service");
     vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: false, reason: "not_configured" } as never);
     const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
     vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "twitch" } as never);
     vi.mocked(decryptRow).mockReturnValueOnce({ clientId: "legacyId", clientSecret: "legacySecret" } as never);
-    const { testTwitchConnection } = await import("@/server/credentials/test-connection");
-    vi.mocked(testTwitchConnection).mockResolvedValueOnce({ ok: true } as never);
     const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "twitch" }));
-    expect(res.ok).toBe(true);
-    expect(testTwitchConnection).toHaveBeenCalledWith("legacyId", "legacySecret");
+    expect(res.ok).toBe(false);
+    expect(res.errorKind).toBe("not_configured");
   });
 
   it("Test 5 — Neither configured → not_configured", async () => {
@@ -285,15 +283,16 @@ describe("integration-actions testProviderCredential OAuth YouTube — RCCF-OAUT
     expect(JSON.stringify(res)).not.toContain("ytOAuth");
   });
 
-  it("YouTube legacy fallback when OAuth not_configured", async () => {
+  it("YouTube without OAuth → not_configured (legacy apiKey removed)", async () => {
     const { getValidAccessToken } = await import("@/server/credentials/token-service");
     vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: false, reason: "not_configured" } as never);
     const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
     vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "youtube" } as never);
     vi.mocked(decryptRow).mockReturnValueOnce({ apiKey: "ytApiKey" } as never);
     const { testYouTubeConnection } = await import("@/server/credentials/test-connection");
-    vi.mocked(testYouTubeConnection).mockResolvedValueOnce({ ok: true } as never);
     const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "youtube" }));
-    expect(res.ok).toBe(true);
+    expect(res.ok).toBe(false);
+    expect(res.errorKind).toBe("not_configured");
+    expect(vi.mocked(testYouTubeConnection)).not.toHaveBeenCalled();
   });
 });

@@ -80,9 +80,9 @@ function ProviderCard({
       } else {
         const kind = res.errorKind ?? "unknown";
         let friendly = "We couldn't connect. Check your credentials.";
-        if (kind === "auth") friendly = provider === "youtube" ? "We couldn't connect to YouTube. Check your API key and make sure the YouTube Data API is enabled." : "We couldn't connect. Check your Client ID and Secret.";
+        if (kind === "auth") friendly = provider === "youtube" ? "We couldn't connect to YouTube. Reconnect via OAuth and ensure the YouTube Data API is enabled." : "We couldn't connect. Check your Client ID and Secret.";
         else if (kind === "quota_exceeded") friendly = "YouTube's daily API limit has been reached. Try again later.";
-        else if (kind === "not_configured") friendly = provider === "youtube" ? "Add your YouTube API key first." : "Add your credentials first.";
+        else if (kind === "not_configured") friendly = provider === "youtube" ? "Connect YouTube via OAuth to enable this feature." : "Add your credentials first.";
         else if (res.error) friendly = res.error;
         setMessage(friendly);
         setIsError(true);
@@ -204,17 +204,6 @@ function ProviderCard({
         ) : null}
         {isConfigured ? (
           <div className="rounded-md border bg-muted/20 p-3 space-y-1">
-            {masked.clientIdMasked ? (
-              <p className="text-sm">
-                Client ID: <code className="bg-muted px-1 rounded">{masked.clientIdMasked}</code>
-              </p>
-            ) : null}
-            {masked.apiKeyMasked ? (
-              <p className="text-sm">
-                API key: <code className="bg-muted px-1 rounded">{masked.apiKeyMasked}</code> <span className="text-muted-foreground">••••••••••••••••••</span>
-              </p>
-            ) : null}
-            {provider !== "youtube" ? <p className="text-sm">Client Secret: <span className="text-muted-foreground">••••••••••••••••••</span></p> : null}
             {masked.lastTestedAt ? (
               <p className="text-xs text-muted-foreground">Last tested: {formatDateTimeKolkata(masked.lastTestedAt)}</p>
             ) : masked.hasOAuth ? (
@@ -235,10 +224,10 @@ function ProviderCard({
             <p className="text-sm font-medium">{title} isn’t connected</p>
             <p className="text-xs text-muted-foreground mt-1">
               {provider === "youtube"
-                ? "Add your YouTube API key so we can verify creator channels."
+                ? "Connect your YouTube account via OAuth to verify creator channels."
                 : provider === "twitch"
-                  ? "Add your Twitch Client ID and Secret so we can verify creator channels."
-                  : "We're preparing this platform for Sponsor Sentinel."}
+                  ? "Connect your Twitch account via OAuth to verify creator channels."
+                  : "Connect your Kick account via OAuth to verify creator channels."}
             </p>
           </div>
         )}
@@ -250,8 +239,7 @@ function ProviderCard({
             {fields.map((f) => (
               <div key={f.name} className="space-y-1">
                 <Label htmlFor={`${provider}-${f.name}`}>{f.label}</Label>
-                <Input id={`${provider}-${f.name}`} name={f.name} type={f.type ?? "text"} placeholder={f.placeholder} autoComplete="off" aria-describedby={f.name === "apiKey" ? `${provider}-key-help` : undefined} />
-                {f.name === "apiKey" ? <p id={`${provider}-key-help`} className="text-xs text-muted-foreground">You can create a key in Google Cloud Console → APIs &amp; Services → Credentials.</p> : null}
+                <Input id={`${provider}-${f.name}`} name={f.name} type={f.type ?? "text"} placeholder={f.placeholder} autoComplete="off" />
               </div>
             ))}
             <div className="flex gap-2">
@@ -260,9 +248,9 @@ function ProviderCard({
               </Button>
             </div>
           </form>
-        ) : (
+        ) : provider === "kick" ? (
           <p className="text-sm text-muted-foreground">Kick connection is coming soon. We’re preparing the platform for Sponsor Sentinel.</p>
-        )}
+        ) : null}
 
         {isConfigured ? (
           <form action={handleTest}>
@@ -304,10 +292,7 @@ export function IntegrationsForm({
         description="Connect Twitch so we can verify activity on creator channels."
         connectedDescription="Twitch connection is working. You can now connect creator channels."
         masked={twitch}
-        fields={[
-          { name: "clientId", label: "Client ID", placeholder: "Twitch Client ID" },
-          { name: "clientSecret", label: "Client Secret", placeholder: "••••••••••", type: "password" },
-        ]}
+        fields={[]}
       />
       <ProviderCard
         orgSlug={orgSlug}
@@ -316,7 +301,7 @@ export function IntegrationsForm({
         description="Connect YouTube so we can verify creator channel activity."
         connectedDescription="YouTube connection is working. You can now connect creator channels."
         masked={youtube}
-        fields={[{ name: "apiKey", label: "API key", placeholder: "YouTube API key", type: "password" }]}
+        fields={[]}
       />
       <ProviderCard
         orgSlug={orgSlug}
@@ -325,10 +310,7 @@ export function IntegrationsForm({
         description="Connect Kick so we can verify activity on creator channels."
         connectedDescription="Kick connection is working. You can now connect creator channels."
         masked={kick}
-        fields={[
-          { name: "clientId", label: "Client ID", placeholder: "Kick Client ID" },
-          { name: "clientSecret", label: "Client Secret", placeholder: "••••••••••", type: "password" },
-        ]}
+        fields={[]}
       />
     </div>
   );

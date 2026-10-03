@@ -76,17 +76,15 @@ describe("integration-actions testProviderCredential OAuth Kick — RCCF-OAUTH-1
     expect(res.ok).toBe(true);
   });
 
-  it("OAuth unavailable → legacy credentials → legacy test", async () => {
+  it("OAuth unavailable → not_configured (legacy removed)", async () => {
     const { getValidAccessToken } = await import("@/server/credentials/token-service");
     vi.mocked(getValidAccessToken).mockResolvedValueOnce({ ok: false, reason: "not_configured" } as never);
     const { getProviderCredentialRow, decryptRow } = await import("@/server/credentials/repository");
     vi.mocked(getProviderCredentialRow).mockResolvedValueOnce({ id: "1", organization_id: "org-a", provider: "kick" } as never);
     vi.mocked(decryptRow).mockReturnValueOnce({ clientId: "legacyKickId", clientSecret: "legacyKickSecret" } as never);
-    const { testKickConnection } = await import("@/server/credentials/test-connection");
-    vi.mocked(testKickConnection).mockResolvedValueOnce({ ok: true } as never);
     const res = await testProviderCredential(fd({ orgSlug: "tag-esports", provider: "kick" }));
-    expect(res.ok).toBe(true);
-    expect(testKickConnection).toHaveBeenCalledWith("legacyKickId", "legacyKickSecret");
+    expect(res.ok).toBe(false);
+    expect(res.errorKind).toBe("not_configured");
   });
 
   it("Neither configured → not_configured", async () => {

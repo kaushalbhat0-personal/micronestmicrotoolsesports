@@ -4,9 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { upsertProviderCredential, updateLastTest, getProviderCredentialRow } from "@/server/credentials/repository";
+import { updateLastTest, getProviderCredentialRow } from "@/server/credentials/repository";
 import { decryptRow } from "@/server/credentials/repository";
-import { testTwitchConnection, testKickConnection, testYouTubeConnection } from "@/server/credentials/test-connection";
 import type { Provider } from "@/server/credentials/repository";
 import { AppError } from "@/lib/errors";
 import { getValidAccessToken } from "@/server/credentials/token-service";
@@ -25,16 +24,7 @@ export async function saveProviderCredential(formData: FormData): Promise<SaveRe
     return { ok: false, error: "Invalid provider" };
   }
 
-  const clientId = String(formData.get("clientId") ?? "").trim() || undefined;
-  const clientSecret = String(formData.get("clientSecret") ?? "").trim() || undefined;
-  const apiKey = String(formData.get("apiKey") ?? "").trim() || undefined;
-
-  // Validation: require appropriate fields, never trust orgId from form
-  if (provider === "twitch" || provider === "kick") {
-    if (!clientId || !clientSecret) return { ok: false, error: "Client ID and Secret required" };
-  }
-  if (provider === "youtube" && !apiKey) return { ok: false, error: "API Key required" };
-
+  // All providers are now OAuth-only — no manual persistence via this action.
   let ctx: Awaited<ReturnType<typeof requireOrganizationContext>>;
   try {
     ctx = await requireOrganizationContext(orgSlug);
@@ -49,29 +39,21 @@ export async function saveProviderCredential(formData: FormData): Promise<SaveRe
     return { ok: false, error: "We couldn't save your connection. Please try again." };
   }
 
-  const admin = createAdminClient();
-  const payload: { clientId?: string; clientSecret?: string; apiKey?: string } = {};
-  if (clientId !== undefined) payload.clientId = clientId;
-  if (clientSecret !== undefined) payload.clientSecret = clientSecret;
-  if (apiKey !== undefined) payload.apiKey = apiKey;
-
-  try {
-    await upsertProviderCredential(admin as never, ctx.organization.id, provider, payload);
-  } catch (e) {
-    if (isNextRedirect(e)) throw e;
-    // Never log payload (may contain secrets) — log only provider and org prefix
-    console.error("[saveProviderCredential persist failed]", provider, ctx.organization.id.slice(0, 8), e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200));
-    return { ok: false, error: "We couldn't save your connection. Please try again." };
+  // Customer manual credentials removed — OAuth-only for all providers.
+  const clientIdRaw = String(formData.get("clientId") ?? "").trim();
+  const clientSecretRaw = String(formData.get("clientSecret") ?? "").trim();
+  const apiKeyRaw = String(formData.get("apiKey") ?? "").trim();
+  if (clientIdRaw || clientSecretRaw || apiKeyRaw) {
+    return { ok: false, error: "Manual credentials are no longer supported. Please use Connect via OAuth." };
   }
 
-  // Revalidation is best-effort — persistence already succeeded, don't falsely report failure
-  try {
-    revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
-  } catch (e) {
-    if (isNextRedirect(e)) throw e;
-    console.warn("[saveProviderCredential revalidate failed]", e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200));
+  // No customer credential to persist — OAuth flow handles persistence via callback.
+  if (provider === "twitch" || provider === "kick" || provider === "youtube") {
+    return { ok: false, error: `Connect ${provider.charAt(0).toUpperCase() + provider.slice(1)} via OAuth. Manual entry is no longer supported.` };
   }
-  return { ok: true };
+
+  void ctx;
+  return { ok: false, error: "Invalid provider" };
 }
 
 export async function testProviderCredential(formData: FormData): Promise<{ ok: boolean; errorKind?: string; error?: string }> {
@@ -89,14 +71,12 @@ export async function testProviderCredential(formData: FormData): Promise<{ ok: 
   }
   const admin = createAdminClient();
   const row = await getProviderCredentialRow(admin as never, ctx.organization.id, provider);
-  const dec = decryptRow(row);
+  void decryptRow; void row;
   let result: { ok: boolean; errorKind?: string };
   if (provider === "twitch") {
-    // OAuth takes precedence over legacy
     const oauth = await getValidAccessToken(admin as never, ctx.organization.id, "twitch");
     if (oauth.ok) {
-      const clientId = process.env.TWITCH_CLIENT_ID;
-      if (!clientId) return { ok: false, errorKind: "not_configured" };
+      const clientId = process.env.TWITCH_CLIENT_ID ?? "oauth";
       try {
         const client = new TwitchClient(
           { clientId, clientSecret: process.env.TWITCH_CLIENT_SECRET ?? "oauth", userAccessToken: oauth.accessToken },
@@ -109,8 +89,6 @@ export async function testProviderCredential(formData: FormData): Promise<{ ok: 
         if (kind === "auth") result = { ok: false, errorKind: "auth" };
         else result = { ok: false, errorKind: kind };
       }
-    } else if (dec?.clientId && dec?.clientSecret) {
-      result = await testTwitchConnection(dec.clientId, dec.clientSecret);
     } else {
       return { ok: false, errorKind: "not_configured" };
     }
@@ -126,8 +104,6 @@ export async function testProviderCredential(formData: FormData): Promise<{ ok: 
         if (kind === "auth") result = { ok: false, errorKind: "auth" };
         else result = { ok: false, errorKind: kind };
       }
-    } else if (dec?.clientId && dec?.clientSecret) {
-      result = await testKickConnection(dec.clientId, dec.clientSecret);
     } else {
       return { ok: false, errorKind: "not_configured" };
     }
@@ -144,8 +120,6 @@ export async function testProviderCredential(formData: FormData): Promise<{ ok: 
         else if (kind === "quota_exceeded") result = { ok: false, errorKind: "quota_exceeded" };
         else result = { ok: false, errorKind: kind };
       }
-    } else if (dec?.apiKey) {
-      result = await testYouTubeConnection(dec.apiKey);
     } else {
       return { ok: false, errorKind: "not_configured" };
     }

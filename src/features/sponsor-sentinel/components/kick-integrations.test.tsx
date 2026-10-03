@@ -16,22 +16,19 @@ vi.mock("@/features/sponsor-sentinel/actions/channel-actions", () => ({
 }));
 
 describe("Kick integrations UI", () => {
-  it("Kick credentials fields render, no coming soon", () => {
+  it("Kick OAuth-only — no legacy fields, shows OAuth connect", () => {
     const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: false }} kick={{ configured: false }} />);
     expect(html).toContain("Kick");
-    expect(html).not.toContain("Kick connection is coming soon");
-    expect(html).not.toContain("We’re preparing the platform for Sponsor Sentinel.</p>"); // old kick empty text still exists but should not be the coming soon block alone
-    // Should have Client ID and Client Secret inputs for kick
-    expect(html).toContain("kick-clientId");
-    expect(html).toContain("kick-clientSecret");
-    expect(html).toContain("Save connection");
+    expect(html).toContain("Connect Kick");
+    expect(html).not.toContain("kick-clientId");
+    expect(html).not.toContain("kick-clientSecret");
+    expect(html).not.toContain('aria-label="Save Kick connection"');
   });
 
-  it("Kick no longer displays coming soon empty state when fields present", () => {
+  it("Kick OAuth card shows Connect without legacy form", () => {
     const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: false }} kick={{ configured: false }} />);
-    // The old fallback <p>coming soon</p> was inside fields.length===0 branch, now fields>0 so not rendered for kick
-    // Ensure Kick save button exists
-    expect(html).toContain('aria-label="Save Kick connection"');
+    expect(html).toContain('aria-label="Connect Kick"');
+    expect(html).toContain("Connect your Kick account via OAuth");
   });
 
   it("Kick channel connect form renders with a11y", () => {
@@ -47,11 +44,11 @@ describe("Kick integrations UI", () => {
     expect(html).toContain("Kick channel");
   });
 
-  it("Twitch/YouTube UI regression — still render", () => {
-    const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: true, clientIdMasked: "aa••••bb" }} youtube={{ configured: true, apiKeyMasked: "AI••••Pc" }} kick={{ configured: false }} />);
+  it("Twitch/YouTube UI regression — still render OAuth", () => {
+    const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: true, hasOAuth: true, externalAccountLogin: "twitchUser" }} youtube={{ configured: true, hasOAuth: true, externalAccountLogin: "@mystic" }} kick={{ configured: false }} />);
     expect(html).toContain("Twitch");
     expect(html).toContain("YouTube");
-    expect(html).toContain("aa••••bb");
-    expect(html).toContain("AI••••Pc");
+    expect(html).toContain("Connected as");
+    expect(html).toContain("twitchUser");
   });
 });

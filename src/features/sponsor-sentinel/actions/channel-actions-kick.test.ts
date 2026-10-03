@@ -25,6 +25,11 @@ vi.mock("@/server/credentials/resolver", () => ({
   resolveYouTubeCredentials: vi.fn(async () => null),
   resolveKickCredentials: (...args: unknown[]) => mockResolveKick(...args),
 }));
+const { mockGetValidAccessTokenKick } = vi.hoisted(() => ({ mockGetValidAccessTokenKick: vi.fn() }));
+vi.mock("@/server/credentials/token-service", async () => {
+  const actual = await vi.importActual("@/server/credentials/token-service") as Record<string, unknown>;
+  return { ...actual, getValidAccessToken: (...args: unknown[]) => (mockGetValidAccessTokenKick as (...a: unknown[]) => unknown)(...args) };
+});
 vi.mock("@/server/integrations/kick/client", async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
@@ -72,7 +77,7 @@ describe("connectKickChannelAction", () => {
     mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports" } });
     mockRequireEntitlement.mockResolvedValue({});
     mockCreateClient.mockResolvedValue({});
-    mockResolveKick.mockResolvedValue({ clientId: "cid", clientSecret: "csec", source: "organization" } as never);
+    mockGetValidAccessTokenKick.mockResolvedValue({ ok: true, accessToken: "kick-oauth", provider: "kick" } as never);
     mockListChannels.mockResolvedValue([]);
     mockResolveKickChannel.mockResolvedValue({
       platform: "kick",
@@ -151,9 +156,9 @@ describe("connectKickChannelAction", () => {
     expect((res as { success?: boolean }).success).toBe(true);
   });
 
-  it("Missing credentials returns safe error", async () => {
-    mockResolveKick.mockResolvedValueOnce(null);
+  it("Missing OAuth returns safe error", async () => {
+    mockGetValidAccessTokenKick.mockResolvedValueOnce({ ok: false, reason: "not_configured" } as never);
     const res = await connectKickChannelAction(fd({ orgSlug: "tag-esports", handle: "mykicktest" }));
-    expect((res as { error?: string }).error).toMatch(/Configure Kick credentials/);
+    expect((res as { error?: string }).error).toMatch(/Connect Kick via OAuth/);
   });
 });

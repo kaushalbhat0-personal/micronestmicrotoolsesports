@@ -12,11 +12,11 @@ export type ResolvedYouTubeCreds = { apiKey: string; source: "organization" | "e
 export type ResolvedKickCreds = { clientId: string; clientSecret: string; source: "organization" | "env" } | null;
 
 export async function resolveTwitchCredentials(supabase: SupabaseClient, organizationId: string): Promise<ResolvedTwitchCreds> {
-  const row = await getProviderCredentialRow(supabase, organizationId, "twitch");
-  const dec = decryptRow(row);
-  if (dec?.clientId && dec?.clientSecret) {
-    return { clientId: dec.clientId, clientSecret: dec.clientSecret, source: "organization" };
-  }
+  // Customer per-org clientId/secret removed — OAuth/app-token uses env only.
+  void getProviderCredentialRow;
+  void decryptRow;
+  void supabase;
+  void organizationId;
   const envId = process.env.TWITCH_CLIENT_ID;
   const envSecret = process.env.TWITCH_CLIENT_SECRET;
   if (envId && envSecret) return { clientId: envId, clientSecret: envSecret, source: "env" };
@@ -24,18 +24,22 @@ export async function resolveTwitchCredentials(supabase: SupabaseClient, organiz
 }
 
 export async function resolveYouTubeCredentials(supabase: SupabaseClient, organizationId: string): Promise<ResolvedYouTubeCreds> {
-  const row = await getProviderCredentialRow(supabase, organizationId, "youtube");
-  const dec = decryptRow(row);
-  if (dec?.apiKey) return { apiKey: dec.apiKey, source: "organization" };
+  // Customer per-org apiKey removed — OAuth-only. Only platform env fallback remains.
+  void getProviderCredentialRow;
+  void decryptRow;
+  void organizationId;
+  void supabase;
   const envKey = process.env.YOUTUBE_API_KEY;
   if (envKey) return { apiKey: envKey, source: "env" };
   return null;
 }
 
 export async function resolveKickCredentials(supabase: SupabaseClient, organizationId: string): Promise<ResolvedKickCreds> {
-  const row = await getProviderCredentialRow(supabase, organizationId, "kick");
-  const dec = decryptRow(row);
-  if (dec?.clientId && dec?.clientSecret) return { clientId: dec.clientId, clientSecret: dec.clientSecret, source: "organization" };
+  // Customer per-org clientId/secret removed — OAuth/app-token uses env only.
+  void getProviderCredentialRow;
+  void decryptRow;
+  void supabase;
+  void organizationId;
   const envId = process.env.KICK_CLIENT_ID;
   const envSecret = process.env.KICK_CLIENT_SECRET;
   if (envId && envSecret) return { clientId: envId, clientSecret: envSecret, source: "env" };

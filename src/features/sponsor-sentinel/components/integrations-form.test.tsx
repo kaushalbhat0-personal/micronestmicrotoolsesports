@@ -14,16 +14,16 @@ describe("IntegrationsForm", () => {
     const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: false }} kick={{ configured: false }} />);
     expect(html).toContain("YouTube");
     expect(html).toContain("isn’t connected");
-    expect(html).toContain("Add your YouTube API key");
-    expect(html).toContain("Save connection");
+    expect(html).toContain("Connect your YouTube account via OAuth");
+    expect(html).toContain("Connect YouTube");
   });
 
-  it("renders YouTube configured state with masked key", () => {
+  it("renders YouTube configured state with OAuth", () => {
     const html = renderToString(
-      <IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: true, apiKeyMasked: "AB••••CD", lastTestStatus: "success" }} kick={{ configured: false }} />
+      <IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: true, hasOAuth: true, externalAccountLogin: "@mystic", authorizedAt: "2026-10-02T00:00:00Z", lastTestStatus: "success" }} kick={{ configured: false }} />
     );
     expect(html).toContain("YouTube");
-    expect(html).toContain("AB••••CD");
+    expect(html).toContain("Connected as");
     expect(html).toContain("Connected ✓");
     expect(html).not.toContain("YouTube API key is invalid");
   });
@@ -35,19 +35,20 @@ describe("IntegrationsForm", () => {
     expect(html).toContain("Test: Failed");
   });
 
-  it("renders Kick credential fields", () => {
+  it("renders Kick OAuth-only — no legacy fields", () => {
     const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: false }} kick={{ configured: false }} />);
     expect(html).toContain("Kick");
-    expect(html).toContain("Kick Client ID");
-    expect(html).toContain("kick-clientId");
-    expect(html).toContain("kick-clientSecret");
-    expect(html).not.toContain("Kick connection is coming soon");
+    expect(html).toContain("Connect Kick");
+    expect(html).not.toContain("kick-clientId");
+    expect(html).not.toContain("kick-clientSecret");
+    expect(html).not.toContain('aria-label="Save Kick connection"');
   });
 
   it("does not expose secrets", () => {
-    const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: true, clientIdMasked: "12••••34" }} youtube={{ configured: true, apiKeyMasked: "AB••••CD" }} kick={{ configured: false }} />);
+    const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: true, hasOAuth: true, externalAccountLogin: "twitchUser" }} youtube={{ configured: true, hasOAuth: true, externalAccountLogin: "@mystic" }} kick={{ configured: false }} />);
     expect(html).not.toContain("secret");
-    expect(html).toContain("••••••••••••••••••");
+    expect(html).not.toContain("clientId");
+    expect(html).toContain("Connected as");
   });
 
   it("OAuth connected Twitch shows Connected as and Test available", () => {

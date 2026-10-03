@@ -26,6 +26,11 @@ vi.mock("@/server/credentials/resolver", () => ({
   resolveTwitchCredentials: (...args: unknown[]) => mockResolveTwitch(...args),
   resolveYouTubeCredentials: (...args: unknown[]) => mockResolveYouTube(...args),
 }));
+const { mockGetValidAccessTokenYouTube } = vi.hoisted(() => ({ mockGetValidAccessTokenYouTube: vi.fn() }));
+vi.mock("@/server/credentials/token-service", async () => {
+  const actual = await vi.importActual("@/server/credentials/token-service") as Record<string, unknown>;
+  return { ...actual, getValidAccessToken: (...args: unknown[]) => (mockGetValidAccessTokenYouTube as (...a: unknown[]) => unknown)(...args) };
+});
 vi.mock("@/server/integrations/twitch/client", async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
@@ -56,6 +61,7 @@ vi.mock("@/server/integrations/youtube/client", async (importOriginal) => {
     YouTubeClient: vi.fn(function (this: unknown, _cfg: unknown) {
       return this;
     }),
+    createYouTubeClient: vi.fn(() => null),
     YouTubeApiError: class extends Error {
       kind: string;
       status: number;
@@ -101,6 +107,7 @@ describe("channel-actions — connectTwitchChannelAction", () => {
     mockRequireEntitlement.mockResolvedValue({});
     mockCreateClient.mockResolvedValue({});
     mockListChannels.mockResolvedValue([]);
+    mockGetValidAccessTokenYouTube.mockResolvedValue({ ok: true, accessToken: "tw-oauth", provider: "twitch" } as never);
   });
 
   it("successful Twitch channel connection", async () => {
@@ -132,10 +139,10 @@ describe("channel-actions — connectTwitchChannelAction", () => {
     expect((result as {error?: string}).error).toMatch(/does not have access/);
   });
 
-  it("missing Twitch credentials", async () => {
-    mockResolveTwitch.mockResolvedValue(null);
+  it("missing Twitch OAuth connection", async () => {
+    mockGetValidAccessTokenYouTube.mockResolvedValueOnce({ ok: false, reason: "not_configured" } as never);
     const result = await connectTwitchChannelAction(fd({ orgSlug: "tag-esports", handle: "kaushaltag" }));
-    expect((result as {error?: string}).error).toMatch(/Configure Twitch credentials first/);
+    expect((result as {error?: string}).error).toMatch(/Connect Twitch via OAuth/);
     expect((result as {error?: string}).error).toMatch(/settings\/integrations/);
     expect(mockResolveChannel).not.toHaveBeenCalled();
   });
@@ -306,6 +313,7 @@ describe("channel-actions — connectYouTubeChannelAction", () => {
     mockRequireEntitlement.mockResolvedValue({});
     mockCreateClient.mockResolvedValue({});
     mockListChannels.mockResolvedValue([]);
+    mockGetValidAccessTokenYouTube.mockResolvedValue({ ok: true, accessToken: "yt-oauth-token", provider: "youtube" } as never);
   });
 
   it("successful YouTube channel connection", async () => {
@@ -365,10 +373,11 @@ describe("channel-actions — connectYouTubeChannelAction", () => {
     expect((result as {error?: string}).error).toMatch(/does not have access/);
   });
 
-  it("missing YouTube API key", async () => {
-    mockResolveYouTube.mockResolvedValue(null);
+  it("missing YouTube OAuth connection", async () => {
+    mockGetValidAccessTokenYouTube.mockResolvedValueOnce({ ok: false, reason: "not_configured" } as never);
+    // ensure platform fallback also null
     const result = await connectYouTubeChannelAction(fd({ orgSlug: "tag-esports", handle: "@GoogleDevelopers" }));
-    expect((result as {error?: string}).error).toMatch(/Configure your YouTube API key first/);
+    expect((result as {error?: string}).error).toMatch(/Connect YouTube via OAuth/);
     expect((result as {error?: string}).error).toMatch(/settings\/integrations/);
     expect(mockResolveYouTubeChannel).not.toHaveBeenCalled();
   });

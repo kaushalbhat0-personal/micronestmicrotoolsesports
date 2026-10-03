@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createClient } from "@/lib/supabase/server";
-import { resolveTwitchCredentials, resolveYouTubeCredentials, resolveKickCredentials } from "@/server/credentials/resolver";
 import { TwitchClient, TwitchApiError } from "@/server/integrations/twitch/client";
 import { TwitchProvider } from "@/server/integrations/twitch/provider";
 import { YouTubeClient, YouTubeApiError } from "@/server/integrations/youtube/client";
@@ -141,17 +140,27 @@ export async function connectTwitchChannelAction(formData: FormData): Promise<Ch
     }
     const handle = validation.normalized!;
 
-    // Resolve credentials — org DB first, env fallback
-    const creds = await resolveTwitchCredentials(supabase, ctx.organization.id);
-    if (!creds) {
+    // OAuth-only — customer Twitch credentials removed
+    let twitchClient: TwitchClient | null = null;
+    try {
+      const { getValidAccessToken } = await import("@/server/credentials/token-service");
+      const tok = await getValidAccessToken(supabase as never, ctx.organization.id, "twitch");
+      if (tok.ok) {
+        const cid = process.env.TWITCH_CLIENT_ID ?? "oauth";
+        const sec = process.env.TWITCH_CLIENT_SECRET ?? "oauth";
+        twitchClient = new TwitchClient({ clientId: cid, clientSecret: sec, userAccessToken: tok.accessToken });
+      }
+    } catch {
+      // ignore
+    }
+    if (!twitchClient) {
       return {
-        error: "Configure Twitch credentials first. Go to /dashboard/" + orgSlug + "/settings/integrations",
-        fieldErrors: { handle: ["Configure Twitch credentials first."] },
+        error: "Connect Twitch via OAuth first. Go to /dashboard/" + orgSlug + "/settings/integrations",
+        fieldErrors: { handle: ["Connect Twitch via OAuth first."] },
       };
     }
 
-    // Never log secrets
-    const client = new TwitchClient({ clientId: creds.clientId, clientSecret: creds.clientSecret });
+    const client = twitchClient;
     const provider = new TwitchProvider(client);
 
     let ref: Awaited<ReturnType<TwitchProvider["resolveChannel"]>>;
@@ -291,15 +300,27 @@ export async function connectYouTubeChannelAction(formData: FormData): Promise<C
     }
     const handle = validation.normalized!;
 
-    const creds = await resolveYouTubeCredentials(supabase, ctx.organization.id);
-    if (!creds) {
+    // YouTube is OAuth-only — customer apiKey removed. Use OAuth token or platform fallback.
+    let ytClient: YouTubeClient | null = null;
+    try {
+      const { getValidAccessToken } = await import("@/server/credentials/token-service");
+      const tok = await getValidAccessToken(supabase as never, ctx.organization.id, "youtube");
+      if (tok.ok) ytClient = new YouTubeClient({ accessToken: tok.accessToken });
+    } catch {
+      // ignore
+    }
+    if (!ytClient) {
+      const { createYouTubeClient } = await import("@/server/integrations/youtube/client");
+      ytClient = createYouTubeClient();
+    }
+    if (!ytClient) {
       return {
-        error: "Configure your YouTube API key first. Go to /dashboard/" + orgSlug + "/settings/integrations",
-        fieldErrors: { handle: ["Configure your YouTube API key first."] },
+        error: "Connect YouTube via OAuth first. Go to /dashboard/" + orgSlug + "/settings/integrations",
+        fieldErrors: { handle: ["Connect YouTube via OAuth first."] },
       };
     }
 
-    const client = new YouTubeClient({ apiKey: creds.apiKey });
+    const client = ytClient;
     const provider = new YouTubeProvider(client);
 
     let ref: Awaited<ReturnType<YouTubeProvider["resolveChannel"]>>;
@@ -433,15 +454,27 @@ export async function connectKickChannelAction(formData: FormData): Promise<Chan
     }
     const handle = validation.normalized!;
 
-    const creds = await resolveKickCredentials(supabase, ctx.organization.id);
-    if (!creds) {
+    // OAuth-only — customer Kick credentials removed
+    let kickClient: KickClient | null = null;
+    try {
+      const { getValidAccessToken } = await import("@/server/credentials/token-service");
+      const tok = await getValidAccessToken(supabase as never, ctx.organization.id, "kick");
+      if (tok.ok) {
+        const cid = process.env.KICK_CLIENT_ID ?? "oauth";
+        const sec = process.env.KICK_CLIENT_SECRET ?? "oauth";
+        kickClient = new KickClient({ clientId: cid, clientSecret: sec, userAccessToken: tok.accessToken });
+      }
+    } catch {
+      // ignore
+    }
+    if (!kickClient) {
       return {
-        error: "Configure Kick credentials first. Go to /dashboard/" + orgSlug + "/settings/integrations",
-        fieldErrors: { handle: ["Configure Kick credentials first."] },
+        error: "Connect Kick via OAuth first. Go to /dashboard/" + orgSlug + "/settings/integrations",
+        fieldErrors: { handle: ["Connect Kick via OAuth first."] },
       };
     }
 
-    const client = new KickClient({ clientId: creds.clientId, clientSecret: creds.clientSecret });
+    const client = kickClient;
     const provider = new KickProvider(client);
 
     let ref: Awaited<ReturnType<KickProvider["resolveChannel"]>>;

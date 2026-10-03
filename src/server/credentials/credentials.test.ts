@@ -145,15 +145,15 @@ describe("provider resolution", () => {
     delete process.env.YOUTUBE_API_KEY;
   });
 
-  it("organization credential selected when configured", async () => {
+  it("organization credential no longer used — env fallback (OAuth-only)", async () => {
     process.env.TWITCH_CLIENT_ID = "env-id";
     process.env.TWITCH_CLIENT_SECRET = "env-sec";
     const store = new Map<string, Record<string, unknown>>();
     const supabase = mockSupabaseForCreds(store);
     await upsertProviderCredential(supabase, "org-a", "twitch", { clientId: "org-id", clientSecret: "org-sec" });
     const res = await resolveTwitchCredentials(supabase, "org-a");
-    expect(res?.clientId).toBe("org-id");
-    expect(res?.source).toBe("organization");
+    expect(res?.clientId).toBe("env-id");
+    expect(res?.source).toBe("env");
   });
 
   it("environment fallback when org not configured", async () => {
