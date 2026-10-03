@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   },
   description: "Narrow, independently valuable microtools for esports organizations.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  verification: {
+    google: "Gl_7do3C6Uefr-BDyM411YJZpfo2D4vv1tG1PYaDvuo",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
