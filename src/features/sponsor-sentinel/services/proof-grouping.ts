@@ -109,7 +109,7 @@ export function groupProofByContent(
     const result: EvaluationResult = (evalMatch?.result as EvaluationResult | undefined) ?? "PENDING";
     const reason = evalMatch?.reason;
 
-    let group: MutableGroup | undefined = groupsByKey.get(key);
+    const group: MutableGroup | undefined = groupsByKey.get(key);
     if (!group) {
       const sourceUrlSet = new Set<string>();
       if (ev.source_url) sourceUrlSet.add(ev.source_url);

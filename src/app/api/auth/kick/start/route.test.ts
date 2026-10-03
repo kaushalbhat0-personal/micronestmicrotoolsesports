@@ -224,7 +224,8 @@ describe("GET /api/auth/kick/start", () => {
       return realGenerateState({ organizationId: typed.organizationId, userId: typed.userId, provider: typed.provider as never });
     }) as never);
     const req = new Request("https://example.com/api/auth/kick/start?orgSlug=tag-esports");
-    const res = await GET(req);
+    const _res = await GET(req);
+    void _res;
     expect(mockGenerateState).toHaveBeenCalledWith(expect.objectContaining({ provider: "kick" }));
     // also decode if real was used: ensure state payload provider is kick
     const calls = mockGenerateState.mock.calls as unknown[][];

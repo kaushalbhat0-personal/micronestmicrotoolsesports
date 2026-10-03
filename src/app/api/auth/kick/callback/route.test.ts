@@ -50,10 +50,12 @@ function makeAdminOrgMock(orgId: string, slug: string) {
 }
 
 function makeSupabaseConnectedChannelMock(existing: unknown) {
-  const updateMock = vi.fn().mockReturnThis();
+  const _updateMock = vi.fn().mockReturnThis();
+  void _updateMock;
   // chain: from().select().eq().eq().eq().maybeSingle()
   const maybeSingleMock = vi.fn(async () => ({ data: existing, error: null }));
-  const eqChain: Record<string, unknown> = {};
+  const _eqChain: Record<string, unknown> = {};
+  void _eqChain;
   const selectMock = vi.fn(() => ({
     eq: vi.fn(() => ({
       eq: vi.fn(() => ({

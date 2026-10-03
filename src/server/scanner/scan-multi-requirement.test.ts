@@ -130,7 +130,8 @@ function makeVideo(overrides: Partial<CanonicalVideo> & { title: string }): Cano
   } as CanonicalVideo;
 }
 
-function makeLive(overrides: Partial<CanonicalLiveStream>): CanonicalLiveStream {
+function _makeLive(overrides: Partial<CanonicalLiveStream>): CanonicalLiveStream {
+  void overrides;
   return {
     platform: "twitch" as Platform,
     externalStreamId: overrides.externalStreamId ?? "stream-1",
@@ -322,9 +323,9 @@ describe("multi-requirement sponsor tracking — regression lock", () => {
     const { evaluationStore } = setupMocks({ orgId: "org-a", campaignId: "camp-10", deliverables, channels: [{ platform: "twitch", external_channel_id: "twitch-123" }] });
     const provider = providerWithVideos([video], null);
     const res = await executeScan({ supabase, input: { organizationId: "org-a", campaignId: "camp-10" }, providers: { twitch: provider } });
-    // debug
+    // debug (only warn allowed)
     if (evaluationStore.length === 0) {
-      console.log("TC4 res", JSON.stringify(res, null, 2));
+      console.warn("TC4 res", JSON.stringify(res, null, 2));
     }
     expect(evaluationStore).toHaveLength(10);
     expect(res.evaluationCount).toBe(10);
