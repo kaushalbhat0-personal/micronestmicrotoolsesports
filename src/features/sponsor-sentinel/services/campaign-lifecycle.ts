@@ -79,3 +79,11 @@ export async function transitionCampaign(supabase: SupabaseClient, organizationI
   assertTransition(campaign.status as CampaignStatus, to);
   return campaignRepo.updateSponsorCampaign(supabase, campaignId, { status: to });
 }
+
+export async function completeCampaign(supabase: SupabaseClient, organizationId: string, campaignId: string) {
+  const campaign = await campaignRepo.findSponsorCampaignById(supabase, campaignId);
+  if (!campaign) throw notFoundError("Campaign not found");
+  if (campaign.organization_id !== organizationId) throw forbiddenError("Cross-organization access denied");
+  if (campaign.status !== "active") throw validationError(`Only tracking campaigns can be completed (current: ${campaign.status})`);
+  return campaignRepo.updateSponsorCampaign(supabase, campaignId, { status: "completed" as CampaignStatus });
+}

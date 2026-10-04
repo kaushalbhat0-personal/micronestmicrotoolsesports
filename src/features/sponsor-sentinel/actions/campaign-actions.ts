@@ -8,7 +8,7 @@ import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createCampaign } from "../services/campaign-service";
-import { activateCampaign } from "../services/campaign-lifecycle";
+import { activateCampaign, completeCampaign } from "../services/campaign-lifecycle";
 import { requestManualScan } from "../services/scan-action";
 import { AppError } from "@/lib/errors";
 import * as campaignRepo from "@/server/repositories/sponsor-campaigns";
@@ -92,6 +92,35 @@ export async function activateCampaignAction(formData: FormData): Promise<Action
       return { error: e.safeMessage };
     }
     console.error("[activateCampaignAction] unexpected", e);
+    return { error: "Something went wrong. Please try again." };
+  }
+  redirect(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${campaignId}` as never);
+}
+
+export async function completeCampaignAction(formData: FormData): Promise<ActionResult> {
+  const orgSlug = String(formData.get("orgSlug") ?? "");
+  const campaignId = String(formData.get("campaignId") ?? "");
+  if (!orgSlug || !campaignId) return { error: "Missing parameters" };
+  try {
+    const ctx = await requireOrganizationContext(orgSlug);
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+    const supabase = await createClient();
+    await completeCampaign(supabase, ctx.organization.id, campaignId);
+    revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${campaignId}`);
+    revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns`);
+    revalidatePath(`/dashboard/${orgSlug}`);
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+    if (e instanceof AppError) {
+      const isValidation = e.code === "VALIDATION_ERROR" || e.code === "ENTITLEMENT_REQUIRED" || e.code === "FORBIDDEN" || e.code === "NOT_FOUND";
+      if (isValidation) {
+        console.warn(`[AppError ${e.code}]`, e.safeMessage);
+        return { error: e.safeMessage };
+      }
+      console.warn(`[AppError ${e.code}]`, e.safeMessage);
+      return { error: e.safeMessage };
+    }
+    console.error("[completeCampaignAction] unexpected", e);
     return { error: "Something went wrong. Please try again." };
   }
   redirect(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${campaignId}` as never);

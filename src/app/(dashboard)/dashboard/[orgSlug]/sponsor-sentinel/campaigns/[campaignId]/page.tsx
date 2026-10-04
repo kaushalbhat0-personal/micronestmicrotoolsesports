@@ -18,6 +18,7 @@ import { DeliverableForm } from "@/features/sponsor-sentinel/components/delivera
 import { DeleteRequirementButton } from "@/features/sponsor-sentinel/components/delete-requirement-button";
 import { ActivateCampaignButton } from "@/features/sponsor-sentinel/components/activate-campaign-button";
 import { CheckNowButton } from "@/features/sponsor-sentinel/components/check-now-button";
+import { CompleteCampaignButton } from "@/features/sponsor-sentinel/components/complete-campaign-button";
 import { CampaignProofSection, CampaignProofSkeleton } from "@/features/sponsor-sentinel/components/campaign-proof-section";
 import { formatRequirementDescription } from "@/features/sponsor-sentinel/components/requirement-description";
 import { APP_TIMEZONE, formatDateTimeKolkata } from "@/lib/utils/format";
@@ -64,6 +65,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const isActive = campaign.status === "active";
   const isCompleted = campaign.status === "completed";
   const isArchived = campaign.status === "archived";
+  const isEnded = isActive && new Date(campaign.ends_at) < new Date();
   const activeRequirementCount = deliverables.filter((d) => d.status === "active").length;
   const isRecoverableTracking = isActive && activeRequirementCount === 0;
 
@@ -104,7 +106,12 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
               </Button>
             </Link>
             {isDraft ? <ActivateCampaignButton orgSlug={orgSlug} campaignId={campaignId} disabled={!!activationBlockedReason} disabledReason={activationBlockedReason ?? undefined} /> : null}
-            {isActive ? <CheckNowButton orgSlug={orgSlug} campaignId={campaignId} /> : null}
+            {isActive ? (
+              <>
+                <CompleteCampaignButton orgSlug={orgSlug} campaignId={campaignId} />
+                <CheckNowButton orgSlug={orgSlug} campaignId={campaignId} />
+              </>
+            ) : null}
           </div>
         }
       />
@@ -130,13 +137,19 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       ) : null}
 
       {isActive ? (
-        <div className="flex flex-col gap-2 rounded-[12px] border border-success/20 bg-success-soft p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-[12px] border border-success/20 bg-success-soft p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <StatusBadge status="active" />
               <span className="text-sm font-medium">Tracking</span>
+              {isEnded ? <Badge variant="warning">Window ended</Badge> : null}
             </div>
-            <p className="text-sm text-muted-foreground">Checks run automatically and on demand. Requirements are locked while tracking.</p>
+            <p className="text-sm text-muted-foreground">
+              {isEnded ? "Campaign window has ended — still tracking. Complete the campaign to stop checks." : "Checks run automatically and on demand. Requirements are locked while tracking."}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <CompleteCampaignButton orgSlug={orgSlug} campaignId={campaignId} />
           </div>
         </div>
       ) : null}
