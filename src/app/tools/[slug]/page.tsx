@@ -135,7 +135,36 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
             )}
           </section>
 
-          {/* Related */}
+          {/* Related knowledge — only for sponsorship-tracking cluster */}
+          {tool.slug === "sponsorship-tracking" && (
+            <section className="mt-10">
+              <h2 className="text-sm font-semibold">Learn more about sponsorships</h2>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Link href="/guides/esports-sponsorship-deliverables" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50 transition-colors">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Guide</p>
+                  <p className="mt-1 text-sm font-medium">Sponsorship Deliverables Checklist</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">What sponsors actually expect and how to make it measurable.</p>
+                </Link>
+                <Link href="/guides/proving-sponsored-content" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50 transition-colors">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Guide</p>
+                  <p className="mt-1 text-sm font-medium">How to Prove Sponsored Content</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">From requirement to proof — the workflow.</p>
+                </Link>
+                <Link href="/glossary/proof-of-performance" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50 transition-colors">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Glossary</p>
+                  <p className="mt-1 text-sm font-medium">Proof of Performance</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">What counts as proof for sponsors.</p>
+                </Link>
+                <Link href="/use-cases/esports-organizations" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50 transition-colors">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Use case</p>
+                  <p className="mt-1 text-sm font-medium">For Esports Organizations</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">Keep sponsorship campaigns auditable.</p>
+                </Link>
+              </div>
+            </section>
+          )}
+
+          {/* Related tools */}
           <section className="mt-10">
             <h2 className="text-sm font-semibold">Related tools</h2>
             <div className="mt-3 flex flex-wrap gap-3">

@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
+import { GUIDES } from "@/config/content/guides";
+import { GLOSSARY } from "@/config/content/glossary";
+import { USE_CASES } from "@/config/content/use-cases";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -9,6 +12,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "",
     "/tools",
     ...MARKETING_TOOLS.map((t) => `/tools/${t.slug}`),
+    "/guides",
+    ...GUIDES.map((g) => `/guides/${g.slug}`),
+    "/glossary",
+    ...GLOSSARY.map((g) => `/glossary/${g.slug}`),
+    "/use-cases",
+    ...USE_CASES.map((u) => `/use-cases/${u.slug}`),
     "/privacy",
     "/terms",
   ];
