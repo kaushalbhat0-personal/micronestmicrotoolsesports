@@ -1,6 +1,20 @@
 export const APP_TIMEZONE = "Asia/Kolkata" as const;
 
 /**
+ * Returns UTC ISO strings for start and end of "today" in APP_TIMEZONE (Asia/Kolkata).
+ * Kolkata is fixed UTC+5:30, no DST. Start is 00:00 IST, end is next 00:00 IST.
+ */
+export function getKolkataTodayRange(now = new Date()): { start: string; end: string } {
+  const kolkataDate = now.toLocaleDateString("en-CA", { timeZone: APP_TIMEZONE }); // YYYY-MM-DD
+  const start = new Date(`${kolkataDate}T00:00:00.000+05:30`).toISOString();
+  // next day
+  const nextDay = new Date(new Date(`${kolkataDate}T00:00:00.000+05:30`).getTime() + 24 * 60 * 60 * 1000);
+  const nextDateStr = nextDay.toLocaleDateString("en-CA", { timeZone: APP_TIMEZONE });
+  const end = new Date(`${nextDateStr}T00:00:00.000+05:30`).toISOString();
+  return { start, end };
+}
+
+/**
  * Authoritative date-time formatter — always Asia/Kolkata.
  * Use for all customer-facing timestamps. Stored UTC → display IST.
  * Never rely on browser local timezone.

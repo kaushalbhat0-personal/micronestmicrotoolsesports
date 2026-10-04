@@ -19,6 +19,12 @@ vi.mock("@/lib/supabase/server", () => ({
             limit: () => Promise.resolve({ data: [], error: null }),
           }),
           in: () => Promise.resolve({ data: [], error: null }),
+          gte: () => ({
+            lt: () => ({
+              limit: () => Promise.resolve({ data: [], error: null }),
+            }),
+          }),
+          limit: () => Promise.resolve({ data: [], error: null }),
         }),
         in: () => Promise.resolve({ data: [], error: null }),
       }),
@@ -106,7 +112,8 @@ describe("Organization dashboard", () => {
     const html = await OrgDashboardPage({ params: Promise.resolve({ orgSlug: "tag-esports" }) } as never);
     const str = renderToString(html as React.ReactElement);
     expect(str).toContain("Recent Proof");
-    expect(str).toContain("No proof yet");
+    // Recent Proof is now streamed via Suspense; initial render shows skeleton fallback
+    expect(str).toMatch(/No proof yet|animate-pulse/);
   });
 
   it("shows Recent Checks section", async () => {

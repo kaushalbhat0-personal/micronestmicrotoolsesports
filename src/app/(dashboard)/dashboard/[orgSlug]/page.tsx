@@ -11,6 +11,7 @@ import { listCampaigns } from "@/features/sponsor-sentinel/services/campaign-ser
 import { listConnectedChannelsByOrg } from "@/server/repositories/connected-channels";
 import { getScanHistory } from "@/features/sponsor-sentinel/services/scan-history";
 import { DashboardRecentProof, DashboardRecentProofSkeleton } from "@/features/sponsor-sentinel/components/dashboard-recent-proof";
+import { getKolkataTodayRange } from "@/lib/utils/format";
 import Link from "next/link";
 import type { Route } from "next";
 import { ShieldCheck, Tv, History, TriangleAlert, CheckCircle, ArrowRight, Sparkles, Clock3 } from "lucide-react";
@@ -37,7 +38,7 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
   const ctx = await requireOrganizationContext(orgSlug);
   const supabase = await createClient();
 
-  const [campaigns, channels, scanHistory, deliverables] = await Promise.all([
+  const [campaigns, channels, scanHistory, deliverables, proofTodayCount] = await Promise.all([
     listCampaigns(supabase, ctx.organization.id).catch(() => []),
     listConnectedChannelsByOrg(supabase, ctx.organization.id).catch(() => []),
     getScanHistory(supabase, ctx.organization.id).catch(() => ({ scans: [], total: 0 }) as never),
@@ -47,6 +48,23 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
         return (data ?? []) as unknown as Array<{ id: string; campaign_id: string; name: string; rule: unknown; status: string }>;
       } catch {
         return [] as Array<{ id: string; campaign_id: string; name: string; rule: unknown; status: string }>;
+      }
+    })(),
+    (async () => {
+      try {
+        const { start, end } = getKolkataTodayRange();
+        const { data } = await supabase
+          .from("evidence")
+          .select("external_content_id, created_at")
+          .eq("organization_id", ctx.organization.id)
+          .gte("created_at", start)
+          .lt("created_at", end)
+          .limit(100);
+        const rows = (data ?? []) as Array<{ external_content_id: string | null; created_at: string }>;
+        const unique = new Set(rows.map((r) => r.external_content_id).filter(Boolean) as string[]);
+        return unique.size;
+      } catch {
+        return 0;
       }
     })(),
   ]);
@@ -93,7 +111,7 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
 
   const heroMetrics = [
     { label: "Campaigns tracking", value: String(activeCampaigns.length), sub: `${campaigns.length} total`, icon: ShieldCheck },
-    { label: "Proof found today", value: String(scans.filter((s) => (s.evaluationSummary["PASS"] ?? 0) > 0).length), sub: scanHistory.total > 0 ? `${scanHistory.total} checks` : "No proof yet", icon: CheckCircle },
+    { label: "Proof found today", value: String(proofTodayCount), sub: proofTodayCount > 0 ? `${proofTodayCount} new content` : "No new proof today", icon: CheckCircle },
     { label: "Connected channels", value: String(connectedCount), sub: hasChannels ? "Ready" : "Not connected", icon: Tv },
   ];
 
