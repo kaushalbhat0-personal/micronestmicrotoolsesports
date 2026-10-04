@@ -26,7 +26,7 @@ export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: strin
     e.preventDefault();
     setMessage(null);
     if (!hasCredentials) {
-      setMessage("Configure your YouTube API key first.");
+      setMessage("Connect your YouTube account in Connections first.");
       setIsError(true);
       return;
     }
@@ -74,11 +74,11 @@ export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: strin
       {message ? (
         <p role={isError ? "alert" : "status"} className={`text-sm ${isError ? "text-destructive" : "text-green-600"}`}>
           {message}
-          {isError && message.includes("Configure your YouTube API key first") ? (
+          {isError && message.includes("Connect your YouTube account in Connections first") ? (
             <span>
               {" "}
-              <a href={`/dashboard/${orgSlug}/settings/integrations`} className="underline">
-                Go to integrations
+              <a href={`/dashboard/${orgSlug}/connections` as never} className="underline">
+                Go to Connections
               </a>
             </span>
           ) : null}

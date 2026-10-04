@@ -48,6 +48,7 @@ export function CompleteCampaignButton({
           setOpen(true);
         }}
         aria-label="Complete campaign"
+        className="min-h-[44px]"
       >
         Complete campaign
       </Button>

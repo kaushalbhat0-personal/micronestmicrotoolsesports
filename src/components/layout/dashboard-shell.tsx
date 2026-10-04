@@ -45,7 +45,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 function getBreadcrumbs(pathname: string, orgSlug?: string): BreadcrumbItem[] {
   if (!orgSlug) {
-    if (pathname.startsWith("/dashboard/organizations")) return [{ label: "Organizations", href: "/dashboard/organizations" as Route }];
+    if (pathname.startsWith("/dashboard/organizations")) return [{ label: "Workspaces", href: "/dashboard/organizations" as Route }];
     return [{ label: "Dashboard" }];
   }
   const base = `/dashboard/${orgSlug}` as Route;
@@ -203,12 +203,12 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
             href="/dashboard/organizations"
             onClick={() => setMobileOpen(false)}
             className={cn(
-              "flex items-center gap-2.5 rounded-[12px] px-3 py-2 text-sm border border-transparent",
+              "flex items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-sm border border-transparent min-h-[44px]",
               pathname === "/dashboard/organizations" ? "bg-[hsl(24_85%_52%_/_0.08)] text-foreground border-[hsl(24_85%_52%_/_0.12)]" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
             )}
           >
             <Building2 className="h-4 w-4" />
-            Organizations
+            Workspaces
           </Link>
         </div>
       </>
@@ -279,8 +279,8 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
         <header className="sticky top-0 z-30 flex h-[56px] items-center gap-3 border-b border-border bg-card px-4 md:px-6 lg:px-8">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <button aria-label="Open navigation" aria-expanded={mobileOpen} aria-controls="mobile-nav" className="inline-flex h-9 w-9 items-center justify-center rounded-[12px] border border-border bg-card text-foreground hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden">
-                <Menu className="h-4 w-4" />
+              <button aria-label="Open navigation" aria-expanded={mobileOpen} aria-controls="mobile-nav" className="inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-border bg-card text-foreground hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden">
+                <Menu className="h-5 w-5" />
               </button>
             </SheetTrigger>
             <SheetContent className="w-[300px] p-0" aria-describedby={undefined}>
@@ -350,7 +350,7 @@ function NavLink({
       aria-current={isActive ? "page" : undefined}
       onClick={onNavigate}
       className={cn(
-        "group flex items-center gap-2.5 rounded-[12px] px-3 py-2 text-sm font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "group flex items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-sm font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[44px]",
         isActive ? "bg-[hsl(24_85%_52%_/_0.08)] text-foreground border border-[hsl(24_85%_52%_/_0.12)]" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent",
         indent && "ml-0 text-[13px]"
       )}

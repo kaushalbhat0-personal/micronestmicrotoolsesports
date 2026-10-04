@@ -101,7 +101,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={campaign.status} />
             <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route}>
-              <Button variant="outline" size="sm" aria-label="Back to campaigns">
+              <Button variant="outline" size="sm" aria-label="Back to campaigns" className="min-h-[44px]">
                 Back to campaigns
               </Button>
             </Link>
@@ -171,7 +171,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
 
       {/* 3 — Requirements — with health */}
       <section className="space-y-3" aria-labelledby="requirements-heading">
-        <SectionHeader title="Requirements" description="What the sponsor requires. Each requirement shows its latest result and proof count (many-to-many)." />
+        <SectionHeader title="Requirements" description="What the sponsor requires." />
         {deliverables.length === 0 ? (
           <EmptyState
             title="No requirements yet"

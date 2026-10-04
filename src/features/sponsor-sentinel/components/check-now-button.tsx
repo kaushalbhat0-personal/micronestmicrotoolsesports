@@ -97,6 +97,7 @@ export function CheckNowButton({
         aria-label={pending ? "Checking" : "Check now"}
         aria-busy={pending}
         loading={pending}
+        className="min-h-[44px]"
       >
         {pending ? "Checking…" : "Check now"}
       </Button>

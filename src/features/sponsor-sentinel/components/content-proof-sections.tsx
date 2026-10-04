@@ -59,9 +59,9 @@ export function ContentProofSections({
             className="rounded-[16px] border border-border bg-card p-4"
             aria-label={`${platformLabel(group.platform)} content ${group.contentId} with ${group.requirements.length} requirements`}
           >
-            {/* Content header with thumbnail */}
+            {/* Content header with thumbnail — visible on mobile for creator preview */}
             <div className="flex gap-3">
-              <div className="hidden h-[68px] w-[120px] shrink-0 overflow-hidden rounded-[8px] border border-border bg-surface-muted sm:flex items-center justify-center">
+              <div className="flex h-[68px] w-[120px] shrink-0 overflow-hidden rounded-[8px] border border-border bg-surface-muted items-center justify-center">
                 {thumb ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" />

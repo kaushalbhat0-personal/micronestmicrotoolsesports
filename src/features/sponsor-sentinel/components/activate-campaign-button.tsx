@@ -50,6 +50,7 @@ export function ActivateCampaignButton({
           aria-label={pending ? "Starting" : "Start tracking"}
           aria-busy={pending}
           title={disabled ? disabledReason : undefined}
+          className="min-h-[44px]"
         >
           {pending ? "Starting…" : "Start tracking"}
         </Button>
