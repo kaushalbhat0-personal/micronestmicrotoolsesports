@@ -414,24 +414,47 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
     // Build evaluation inputs aligned to successfully inserted evidence
     // For batch success path, insertedEvidence length === pending length and order-aligned
     // For fallback path, we need to map via unique key (deliverable_id+source_id+observed_at)
+    // Normalize observed_at to ISO Z for key matching (DB returns +00:00, input is Z)
+    const normalizeTs = (ts: string) => {
+      const d = Date.parse(ts);
+      return Number.isNaN(d) ? ts : new Date(d).toISOString();
+    };
     const evidenceByKey = new Map<string, import("@/types/database").Evidence>();
     for (const ev of insertedEvidence) {
-      const key = `${ev.organization_id}|${ev.deliverable_id}|${ev.platform}|${ev.source}|${ev.source_id}|${ev.observed_at}`;
+      const key = `${ev.organization_id}|${ev.deliverable_id}|${ev.platform}|${ev.source}|${ev.source_id}|${normalizeTs(ev.observed_at)}`;
       evidenceByKey.set(key, ev);
     }
     const evaluationInputs: import("@/server/repositories/evaluations").CreateEvaluationInput[] = [];
-    for (const p of pending) {
-      const key = `${p.evidenceInput.organization_id}|${p.evidenceInput.deliverable_id}|${p.evidenceInput.platform}|${p.evidenceInput.source}|${p.evidenceInput.source_id}|${p.evidenceInput.observed_at}`;
-      const ev = evidenceByKey.get(key);
-      if (!ev) continue; // duplicate swallowed, no evaluation
-      evaluationInputs.push({
-        organization_id: organizationId,
-        evidence_id: ev.id,
-        deliverable_id: p.deliverable_id,
-        result: p.outcome.result,
-        reason: p.outcome.reason,
-        scan_id: scan.id,
-      });
+    // If batch succeeded with order preserved, use index mapping for speed; fallback to key mapping
+    const useIndexMapping = insertedEvidence.length === pending.length;
+    if (useIndexMapping) {
+      for (let i = 0; i < pending.length; i++) {
+        const p = pending[i] as (typeof pending)[number];
+        const ev = insertedEvidence[i] as import("@/types/database").Evidence;
+        if (!p || !ev) continue;
+        evaluationInputs.push({
+          organization_id: organizationId,
+          evidence_id: ev.id,
+          deliverable_id: p.deliverable_id,
+          result: p.outcome.result,
+          reason: p.outcome.reason,
+          scan_id: scan.id,
+        });
+      }
+    } else {
+      for (const p of pending) {
+        const key = `${p.evidenceInput.organization_id}|${p.evidenceInput.deliverable_id}|${p.evidenceInput.platform}|${p.evidenceInput.source}|${p.evidenceInput.source_id}|${normalizeTs(p.evidenceInput.observed_at)}`;
+        const ev = evidenceByKey.get(key);
+        if (!ev) continue; // duplicate swallowed, no evaluation
+        evaluationInputs.push({
+          organization_id: organizationId,
+          evidence_id: ev.id,
+          deliverable_id: p.deliverable_id,
+          result: p.outcome.result,
+          reason: p.outcome.reason,
+          scan_id: scan.id,
+        });
+      }
     }
 
     if (evaluationInputs.length > 0) {
