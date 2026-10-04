@@ -4,9 +4,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getProviderCredentialRow, toMaskedView } from "@/server/credentials/repository";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { IntegrationsForm } from "@/features/sponsor-sentinel/components/integrations-form";
 import Link from "next/link";
 import type { Route } from "next";
+import { Plug, ShieldCheck, Info } from "lucide-react";
 
 export default async function ConnectionsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
@@ -24,34 +27,96 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ or
   const youtube = toMaskedView(youtubeRow);
   const kick = toMaskedView(kickRow);
 
+  const platforms = [
+    {
+      key: "youtube" as const,
+      name: "YouTube",
+      icon: "bg-[hsl(0_72%_51%)]",
+      desc: "Connect YouTube to discover creator videos and verify sponsorship requirements. Videos and channel metadata.",
+      note: null as string | null,
+      masked: youtube,
+    },
+    {
+      key: "twitch" as const,
+      name: "Twitch",
+      icon: "bg-[hsl(264_35%_48%)]",
+      desc: "Connect Twitch to verify sponsored livestream and VOD content. Live and past broadcasts.",
+      note: null as string | null,
+      masked: twitch,
+    },
+    {
+      key: "kick" as const,
+      name: "Kick",
+      icon: "bg-[hsl(142_40%_42%)]",
+      desc: "Connect Kick to support sponsored content where supported. Live and channel verification.",
+      note: "Some content types may not be supported yet — Kick VOD is not available in this MVP.",
+      masked: kick,
+    },
+  ];
+
+  const allConnected = platforms.every((p) => p.masked.configured);
+
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Connections"
-        description={`Which platforms are connected for ${ctx.organization.name}? We use these to verify creator content — not to post or manage accounts.`}
+        title="Platform Connections"
+        description={`Which platforms are connected for ${ctx.organization.name}? Authorize once per platform via OAuth — tokens are encrypted and tenant-bound.`}
       />
+
       <div className="rounded-[12px] border border-border bg-surface-muted/40 p-4 text-sm">
-        <p className="font-medium">How it works</p>
+        <p className="font-medium flex items-center gap-2">
+          <Plug className="h-4 w-4 text-muted-foreground" /> How it works
+        </p>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
-          <li>Connect YouTube, Twitch or Kick via OAuth — your tokens are encrypted and tenant-bound.</li>
+          <li>Authorize YouTube, Twitch or Kick via OAuth — one click, no manual keys.</li>
           <li>
-            Then add creator channels in{" "}
+            Add creator channels in{" "}
             <Link href={`/dashboard/${orgSlug}/channels` as Route} className="text-primary underline">
               Channels
             </Link>
-            — we verify they exist.
+            — we verify they exist with the platform.
           </li>
-          <li>Create a campaign and start tracking — campaigns check all connected channels for proof.</li>
+          <li>
+            Sponsorship Tracking then uses all channels in{" "}
+            <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route} className="text-primary underline">
+              Campaigns
+            </Link>{" "}
+            to check for proof.
+          </li>
         </ol>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-3">
+        {platforms.map((p) => (
+          <Card key={p.key} variant="default" className="p-4">
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${p.icon}`} aria-hidden />
+              <span className="text-sm font-medium">{p.name}</span>
+              <Badge variant={p.masked.configured ? "success" : "secondary"} className="ml-auto text-[11px]">
+                {p.masked.configured ? (p.masked.lastTestStatus === "success" ? "Connected" : "Connected") : "Not connected"}
+              </Badge>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{p.desc}</p>
+            {p.note ? <p className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1"><Info className="h-3 w-3" />{p.note}</p> : null}
+          </Card>
+        ))}
+      </div>
+
+      {allConnected ? (
+        <div className="rounded-[12px] border border-success/20 bg-success-soft p-3 flex items-center gap-2 text-sm">
+          <ShieldCheck className="h-4 w-4 text-success" />
+          <span className="font-medium">All platforms connected</span>
+          <span className="text-muted-foreground">— your workspace can track creators on YouTube, Twitch and Kick.</span>
+        </div>
+      ) : null}
+
       <section className="space-y-4">
         <SectionHeader
-          title="Platform connections"
-          description="OAuth-first platform authorization. No manual API keys — connect with one click, we store encrypted tokens."
+          title="Manage connections"
+          description="OAuth-first — connect with one click, we store encrypted tokens. No manual API keys. Scopes are read-only for channel verification."
         />
         <IntegrationsForm orgSlug={orgSlug} twitch={twitch} youtube={youtube} kick={kick} />
-        <p className="text-xs text-muted-foreground">Your workspace credentials are used first, then platform defaults if needed.</p>
+        <p className="text-xs text-muted-foreground">Tokens are encrypted at rest and never exposed to the browser. Re-authorize if a connection expires or is revoked.</p>
       </section>
     </div>
   );
