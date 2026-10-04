@@ -21,6 +21,7 @@ export interface WorkspaceTool {
 
 const CUSTOMER_NAMES: Record<string, string> = {
   "sponsor-sentinel": "Sponsorship Tracking",
+  "prize-splitter": "Prize Pool Splitter",
 };
 
 function customerName(cfg: ToolConfig): string {

@@ -31,8 +31,8 @@ export const TOOLS: ToolConfig[] = [
   },
   {
     slug: "prize-splitter",
-    name: "Prize Splitter",
-    description: "Prize pool splitting & escrow",
+    name: "Prize Pool Splitter",
+    description: "Split a prize pool in seconds — deterministic payouts",
     href: "/dashboard/prize-splitter",
     icon: "Split",
     comingSoon: true,
