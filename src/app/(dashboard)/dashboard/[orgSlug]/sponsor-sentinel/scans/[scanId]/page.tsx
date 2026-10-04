@@ -53,7 +53,7 @@ export default async function ScanDetailPage({
 
   return (
     <div className="space-y-8">
-      <PageHeader title={campaignName ?? "Check"} description={`${scan.platform} · ${scan.status} · ${formatDateTime(scan.started_at)}`} />
+      <PageHeader title={campaignName ?? "Check"} description={`${scan.platform} · ${formatDateTime(scan.started_at)}`} />
 
       <Card variant="default" className="overflow-hidden">
         <CardHeader className="pb-3">
@@ -65,7 +65,8 @@ export default async function ScanDetailPage({
             <span className="text-xs font-normal text-muted-foreground ml-auto">{formatDateTime(scan.started_at)} → {formatDateTime(scan.completed_at) ?? "—"}</span>
           </CardTitle>
           <CardDescription>
-            Campaign {campaignName ?? "Campaign"} • {evidence.length} proof items • {evaluations.length} results • {Object.entries(evaluationSummary).map(([k, v]) => `${k}:${v}`).join(" ") || "No results"}
+            Campaign {campaignName ?? "Campaign"} • {evidence.length} proof items • {evaluations.length} results
+            {Object.keys(evaluationSummary).length > 0 ? ` • ${Object.entries(evaluationSummary).map(([k, v]) => `${k === "PASS" ? "Confirmed" : k === "FAIL" ? "Not found" : k === "NOT_VERIFIABLE" ? "Needs review" : k === "NOT_SUPPORTED" ? "Not applicable" : k === "PENDING" ? "Checking" : k}:${v}`).join(" ")}` : ""}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
@@ -82,7 +83,7 @@ export default async function ScanDetailPage({
       </Card>
 
       <section className="space-y-3" aria-labelledby="results-heading">
-        <SectionHeader title="Requirement Results" description="Each requirement evaluated against all eligible content (content × requirements). Reason explains why." />
+        <SectionHeader title="Requirement Results" description="See how each requirement was verified against eligible content." />
         {evaluations.length === 0 ? (
           <Card variant="muted" className="p-6 text-center">
             <p className="text-sm font-medium">No results yet</p>
@@ -109,7 +110,7 @@ export default async function ScanDetailPage({
                   </p>
                   <div className="flex items-center gap-2 pt-1">
                     <span className="text-xs rounded-full bg-surface-muted px-2.5 py-1 text-muted-foreground">Proof: {proofCount}</span>
-                    <span className="text-xs text-muted-foreground">{relatedEvals.length} evaluations</span>
+                    <span className="text-xs text-muted-foreground">{relatedEvals.length} results</span>
                   </div>
                 </div>
               );
@@ -119,7 +120,7 @@ export default async function ScanDetailPage({
       </section>
 
       <section className="space-y-3" aria-labelledby="proof-heading">
-        <SectionHeader title={`Proof — ${String(evidence.length)} items`} description="Many-to-many · One content item appears once with all requirements it satisfies. Thumbnails from stored content ID (no provider call)." />
+        <SectionHeader title={`Proof — ${String(evidence.length)} items`} description="Each piece of content is shown once, with the requirements it satisfies." />
         <ContentProofSections evidence={evidence} evaluations={evaluations} deliverableMap={detail.deliverableMap} />
       </section>
     </div>

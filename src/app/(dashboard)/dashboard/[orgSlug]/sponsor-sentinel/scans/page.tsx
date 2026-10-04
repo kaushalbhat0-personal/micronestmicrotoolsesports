@@ -43,7 +43,7 @@ export default async function ScanHistoryPage({ params }: { params: Promise<{ or
           <Card>
             <CardContent className="pt-6">
               <ScanHistoryTable items={scans} orgSlug={orgSlug} />
-              <p className="mt-4 text-xs text-muted-foreground">Checks are read-only. Proof counts are per check (content × requirements).</p>
+              <p className="mt-4 text-xs text-muted-foreground">Checks are read-only. Each check shows proof grouped by content.</p>
             </CardContent>
           </Card>
         </div>

@@ -114,9 +114,12 @@ export function ScanHistoryTable({ items, orgSlug }: { items: readonly ScanHisto
               <span className="rounded-full bg-surface-muted px-2.5 py-1 text-muted-foreground">{evidenceCount} proof</span>
               {Object.keys(evaluationSummary).length > 0 && (
                 <span className="flex gap-1">
-                  {Object.entries(evaluationSummary).map(([k, v]) => (
-                    <Badge key={k} variant="secondary" className="text-[10px]">{k}:{v}</Badge>
-                  ))}
+                  {Object.entries(evaluationSummary).map(([k, v]) => {
+                    const label = k === "PASS" ? "Confirmed" : k === "FAIL" ? "Not found" : k === "NOT_VERIFIABLE" ? "Review" : k === "NOT_SUPPORTED" ? "N/A" : k === "PENDING" ? "Checking" : k;
+                    return (
+                      <Badge key={k} variant="secondary" className="text-[10px]">{label}:{v}</Badge>
+                    );
+                  })}
                 </span>
               )}
             </div>

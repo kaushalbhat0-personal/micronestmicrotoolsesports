@@ -17,7 +17,7 @@ export function CreateOrgForm({ action }: { action: (fd: FormData) => Promise<vo
     try {
       await action(fd);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to create organization";
+      const msg = e instanceof Error ? e.message : "Failed to create workspace";
       if (msg.includes("NEXT_REDIRECT")) throw e;
       setError(msg);
       setPending(false);
@@ -26,10 +26,10 @@ export function CreateOrgForm({ action }: { action: (fd: FormData) => Promise<vo
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Create organization" description="Create a new organization. You will be the owner. Slug is URL-friendly and must be unique." />
+      <PageHeader title="Create workspace" description="Create a new workspace. You will be the owner. Slug is URL-friendly and must be unique." />
       <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle className="text-base">Organization details</CardTitle>
+          <CardTitle className="text-base">Workspace details</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={handle} className="space-y-4">
@@ -47,8 +47,8 @@ export function CreateOrgForm({ action }: { action: (fd: FormData) => Promise<vo
                 {error}
               </p>
             ) : null}
-            <Button type="submit" disabled={pending} loading={pending} aria-busy={pending} aria-label={pending ? "Creating" : "Create organization"}>
-              {pending ? "Creating…" : "Create organization"}
+            <Button type="submit" disabled={pending} loading={pending} aria-busy={pending} aria-label={pending ? "Creating" : "Create workspace"}>
+              {pending ? "Creating…" : "Create workspace"}
             </Button>
           </form>
         </CardContent>

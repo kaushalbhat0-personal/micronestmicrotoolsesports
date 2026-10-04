@@ -13,11 +13,11 @@ export default async function OrganizationsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Organizations"
-        description="All organizations you belong to. Select one to enter its dashboard."
+        title="Workspaces"
+        description="All workspaces you belong to. Select one to enter its dashboard."
         action={
           <Link href="/dashboard/organizations/new" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
-            Create organization
+            Create workspace
           </Link>
         }
       />
@@ -25,11 +25,11 @@ export default async function OrganizationsPage() {
       {memberships.length === 0 ? (
         <EmptyState
           icon={<Building2 className="h-8 w-8" />}
-          title="No organizations"
-          description="Create your first organization to get started. You can belong to many orgs from one account."
+          title="No workspaces"
+          description="Create your first workspace to get started. You can belong to many workspaces from one account."
           action={
             <Link href="/dashboard/organizations/new" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
-              Create organization
+              Create workspace
             </Link>
           }
         />

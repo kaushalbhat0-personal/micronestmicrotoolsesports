@@ -55,7 +55,7 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ or
     <div className="space-y-8">
       <PageHeader
         title="Platform Connections"
-        description={`Which platforms are connected for ${ctx.organization.name}? Authorize once per platform via OAuth — tokens are encrypted and tenant-bound.`}
+        description={`Which platforms are connected for ${ctx.organization.name}? Authorize once per platform — tokens are securely stored for your workspace.`}
       />
 
       <div className="rounded-[12px] border border-border bg-surface-muted/40 p-4 text-sm">
@@ -108,10 +108,9 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ or
       <section className="space-y-4">
         <SectionHeader
           title="Manage connections"
-          description="OAuth-first — connect with one click, we store encrypted tokens. No manual API keys. Scopes are read-only for channel verification."
+          description="Connect with one click — we securely store your platform account connection. No manual keys needed."
         />
-        <IntegrationsForm orgSlug={orgSlug} twitch={twitch} youtube={youtube} kick={kick} />
-        <p className="text-xs text-muted-foreground">Tokens are encrypted at rest and never exposed to the browser. Re-authorize if a connection expires or is revoked.</p>
+        <p className="text-xs text-muted-foreground">Connections are securely stored and never exposed. Re-connect if a platform account expires or is revoked.</p>
       </section>
     </div>
   );

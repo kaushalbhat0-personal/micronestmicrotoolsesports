@@ -79,10 +79,10 @@ function ProviderCard({
         setIsError(false);
       } else {
         const kind = res.errorKind ?? "unknown";
-        let friendly = "We couldn't connect. Check your credentials.";
-        if (kind === "auth") friendly = provider === "youtube" ? "We couldn't connect to YouTube. Reconnect via OAuth and ensure the YouTube Data API is enabled." : "We couldn't connect. Check your Client ID and Secret.";
-        else if (kind === "quota_exceeded") friendly = "YouTube's daily API limit has been reached. Try again later.";
-        else if (kind === "not_configured") friendly = provider === "youtube" ? "Connect YouTube via OAuth to enable this feature." : "Add your credentials first.";
+        let friendly = "We couldn't connect. Please try again.";
+        if (kind === "auth") friendly = provider === "youtube" ? "We couldn't connect to YouTube. Please reconnect your YouTube account and ensure it is properly connected." : "We couldn't connect. Please reconnect your platform account and try again.";
+        else if (kind === "quota_exceeded") friendly = "YouTube's daily limit has been reached. Please try again later.";
+        else if (kind === "not_configured") friendly = provider === "youtube" ? "Connect your YouTube account to enable this feature." : "Connect your platform account to enable this feature.";
         else if (res.error) friendly = res.error;
         setMessage(friendly);
         setIsError(true);
@@ -249,7 +249,7 @@ function ProviderCard({
             </div>
           </form>
         ) : provider === "kick" ? (
-          <p className="text-sm text-muted-foreground">Kick connection is coming soon. We’re preparing the platform for Sponsor Sentinel.</p>
+          <p className="text-sm text-muted-foreground">Kick connection is coming soon. We’re preparing this platform for Sponsorship Tracking.</p>
         ) : null}
 
         {isConfigured ? (
