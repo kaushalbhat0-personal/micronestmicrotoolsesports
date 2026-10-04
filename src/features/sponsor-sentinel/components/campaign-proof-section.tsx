@@ -2,7 +2,6 @@ import * as React from "react";
 import { createClient } from "@/lib/supabase/server";
 import { listEvidenceByScan } from "@/server/repositories/evidence";
 import { listEvaluationsByScan } from "@/server/repositories/evaluations";
-import { groupProofByContent } from "@/features/sponsor-sentinel/services/proof-grouping";
 import { ContentProofSections } from "./content-proof-sections";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent } from "@/components/ui/card";

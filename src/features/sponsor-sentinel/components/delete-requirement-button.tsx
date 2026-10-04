@@ -28,7 +28,7 @@ export function DeleteRequirementButton({
     fd.set("campaignId", campaignId);
     fd.set("deliverableId", deliverableId);
     try {
-      const res = (await deleteDeliverableAction(fd as unknown as FormData)) as unknown as void;
+      await deleteDeliverableAction(fd as unknown as FormData);
       // redirect will throw NEXT_REDIRECT
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";

@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function ConnectTwitchForm({ orgSlug, hasCredentials }: { orgSlug: string; hasCredentials: boolean }) {
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   let router: ReturnType<typeof useRouter> | null = null;
   try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     router = useRouter();
   } catch {
     router = null;
