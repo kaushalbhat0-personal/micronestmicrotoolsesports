@@ -54,8 +54,10 @@ export async function persistWebhookEventIdempotent(
     const event = await createWebhookEvent(supabase, input);
     return { status: "new", event };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const isDuplicate = msg.includes("duplicate") || msg.includes("unique") || msg.includes("violates unique constraint") || msg.includes("already exists");
+    const err = e as { code?: string; message?: string; details?: string; hint?: string };
+    const msg = err?.message ?? (e instanceof Error ? e.message : String(e));
+    const code = err?.code;
+    const isDuplicate = code === "23505" || msg.includes("duplicate") || msg.includes("unique") || msg.includes("violates unique constraint") || msg.includes("already exists") || String((e as unknown as { details?: string })?.details ?? "").includes("duplicate");
     if (isDuplicate) {
       // Try to fetch existing for caller convenience (best effort, ignore mock limitations)
       try {
