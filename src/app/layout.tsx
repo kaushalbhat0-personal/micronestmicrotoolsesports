@@ -23,13 +23,26 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: {
-    default: "MicroNest — Esports Micro-SaaS",
+    default: "MicroNest — Focused Tools for the Business of Esports",
     template: "%s | MicroNest",
   },
-  description: "Narrow, independently valuable microtools for esports organizations.",
+  description:
+    "Sponsorships. Scrims. Prizes. Content. Rosters. A growing collection of focused tools for the business of esports.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
   verification: {
     google: "Gl_7do3C6Uefr-BDyM411YJZpfo2D4vv1tG1PYaDvuo",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "MicroNest",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 

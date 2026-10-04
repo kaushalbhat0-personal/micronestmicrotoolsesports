@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/get-user";
 import { getUserOrganizations } from "@/lib/auth/require-membership";
@@ -5,6 +6,10 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { TOOLS } from "@/config/app/tools";
 import { getAccessibleToolSlugs } from "@/lib/auth/require-entitlement";
 import { toWorkspaceTools } from "@/server/services/workspace-tools";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
