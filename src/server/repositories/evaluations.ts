@@ -34,6 +34,26 @@ export async function createEvaluation(
   return data as Evaluation;
 }
 
+export async function createEvaluationsBatch(
+  supabase: SupabaseClient,
+  inputs: readonly CreateEvaluationInput[],
+): Promise<Evaluation[]> {
+  if (inputs.length === 0) return [];
+  const rows = inputs.map((input) => ({
+    organization_id: input.organization_id,
+    evidence_id: input.evidence_id,
+    deliverable_id: input.deliverable_id,
+    result: input.result,
+    reason: input.reason,
+    evaluated_at: input.evaluated_at ?? new Date().toISOString(),
+    evaluator_version: input.evaluator_version ?? "1",
+    scan_id: input.scan_id ?? null,
+  }));
+  const { data, error } = await supabase.from("evaluations").insert(rows).select("*");
+  if (error) throw error;
+  return (data ?? []) as Evaluation[];
+}
+
 export async function findEvaluationById(
   supabase: SupabaseClient,
   id: string,

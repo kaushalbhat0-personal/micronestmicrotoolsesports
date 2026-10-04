@@ -50,6 +50,34 @@ export async function createEvidence(
   return data as Evidence;
 }
 
+export async function createEvidenceBatch(
+  supabase: SupabaseClient,
+  inputs: readonly CreateEvidenceInput[],
+): Promise<Evidence[]> {
+  if (inputs.length === 0) return [];
+  const rows = inputs.map((input) => ({
+    organization_id: input.organization_id,
+    campaign_id: input.campaign_id,
+    deliverable_id: input.deliverable_id,
+    platform: input.platform,
+    external_channel_id: input.external_channel_id,
+    external_content_id: input.external_content_id ?? null,
+    evidence_type: input.evidence_type,
+    source: input.source,
+    source_id: input.source_id,
+    source_url: input.source_url ?? null,
+    observed_at: input.observed_at,
+    observed_value: input.observed_value,
+    normalized_value: input.normalized_value,
+    raw_ref: input.raw_ref ?? null,
+    scanner_version: input.scanner_version,
+    scan_id: input.scan_id ?? null,
+  }));
+  const { data, error } = await supabase.from("evidence").insert(rows).select("*");
+  if (error) throw error;
+  return (data ?? []) as Evidence[];
+}
+
 export async function findEvidenceById(
   supabase: SupabaseClient,
   id: string,

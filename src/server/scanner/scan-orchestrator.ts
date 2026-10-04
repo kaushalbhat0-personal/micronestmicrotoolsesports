@@ -85,7 +85,15 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
   let successPlatforms = 0;
   let failedPlatforms = 0;
 
-  // ─ For each channel: FETCH → NORMALIZE → EVALUATE → PERSIST
+  // Batch collection: evaluate → build rows in memory → batch insert (free-infra optimization)
+  type PendingItem = {
+    evidenceInput: import("@/server/repositories/evidence").CreateEvidenceInput;
+    outcome: { result: import("@/types/database").EvaluationResult; reason: string };
+    deliverable_id: string;
+  };
+  const pending: PendingItem[] = [];
+
+  // ─ For each channel: FETCH → NORMALIZE → EVALUATE → COLLECT
   for (const channel of channels) {
     const platform = channel.platform as Platform;
     const caps = getCapabilities(platform);
@@ -189,8 +197,8 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
           const evidenceType = "video";
           const externalContentId = (observation.data as CanonicalVideo).externalVideoId;
           const normalized = normalizeText(titleForEvidence);
-          try {
-            const ev = await evidenceRepo.createEvidence(supabase, {
+          pending.push({
+            evidenceInput: {
               organization_id: organizationId,
               campaign_id: campaignId,
               deliverable_id: deliverable.id,
@@ -207,26 +215,10 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
               raw_ref: { externalId: externalContentId, url: sourceId, platform },
               scanner_version: scannerVersion,
               scan_id: scan.id,
-            });
-            evidenceCount++;
-            evidencePlatforms.add(platform);
-            await evaluationRepo.createEvaluation(supabase, {
-              organization_id: organizationId,
-              evidence_id: ev.id,
-              deliverable_id: deliverable.id,
-              result: outcome.result,
-              reason: outcome.reason,
-              evaluator_version: "1",
-              scan_id: scan.id,
-            });
-            evaluationCount++;
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e);
-            if (msg.includes("duplicate") || msg.includes("unique") || msg.includes("violates unique constraint")) {
-              continue;
-            }
-            stageErrors.push({ stage: "PERSIST_EVIDENCE", platform, message: msg });
-          }
+            },
+            outcome: { result: outcome.result as import("@/types/database").EvaluationResult, reason: outcome.reason },
+            deliverable_id: deliverable.id,
+          });
         }
         void fetchError;
         continue;
@@ -273,12 +265,12 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
 
         if (candOutcome.result !== "PASS") continue;
         hasPass = true;
-        // Persist evidence/evaluation for this PASS candidate
+        // Collect evidence/evaluation for batch insert
         const evidenceType = obsKind === "live" ? "live_stream" : "video";
         const externalContentId = obsKind === "live" ? (obsData as CanonicalLiveStream).externalStreamId : (obsData as CanonicalVideo).externalVideoId;
         const normalized = normalizeText(candTitle);
-        try {
-          const ev = await evidenceRepo.createEvidence(supabase, {
+        pending.push({
+          evidenceInput: {
             organization_id: organizationId,
             campaign_id: campaignId,
             deliverable_id: deliverable.id,
@@ -295,26 +287,10 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
             raw_ref: { externalId: externalContentId, url: candSourceId, platform },
             scanner_version: scannerVersion,
             scan_id: scan.id,
-          });
-          evidenceCount++;
-          evidencePlatforms.add(platform);
-          await evaluationRepo.createEvaluation(supabase, {
-            organization_id: organizationId,
-            evidence_id: ev.id,
-            deliverable_id: deliverable.id,
-            result: candOutcome.result,
-            reason: candOutcome.reason,
-            evaluator_version: "1",
-            scan_id: scan.id,
-          });
-          evaluationCount++;
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          if (msg.includes("duplicate") || msg.includes("unique") || msg.includes("violates unique constraint")) {
-            continue;
-          }
-          stageErrors.push({ stage: "PERSIST_EVIDENCE", platform, message: msg });
-        }
+          },
+          outcome: { result: candOutcome.result as import("@/types/database").EvaluationResult, reason: candOutcome.reason },
+          deliverable_id: deliverable.id,
+        });
       }
       if (hasPass) {
         void fetchError;
@@ -352,8 +328,8 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
         const evidenceType = fbKind === "live" ? "live_stream" : "video";
         const externalContentId = fbKind === "live" ? (fbData as CanonicalLiveStream).externalStreamId : (fbData as CanonicalVideo).externalVideoId;
         const normalized = normalizeText(fbTitle);
-        try {
-          const ev = await evidenceRepo.createEvidence(supabase, {
+        pending.push({
+          evidenceInput: {
             organization_id: organizationId,
             campaign_id: campaignId,
             deliverable_id: deliverable.id,
@@ -370,27 +346,124 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
             raw_ref: { externalId: externalContentId, url: fbSourceId, platform },
             scanner_version: scannerVersion,
             scan_id: scan.id,
-          });
-          evidenceCount++;
-          evidencePlatforms.add(platform);
-          await evaluationRepo.createEvaluation(supabase, {
-            organization_id: organizationId,
-            evidence_id: ev.id,
-            deliverable_id: deliverable.id,
-            result: fbOutcome.result,
-            reason: fbOutcome.reason,
-            evaluator_version: "1",
-            scan_id: scan.id,
-          });
-          evaluationCount++;
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          if (!msg.includes("duplicate") && !msg.includes("unique") && !msg.includes("violates unique constraint")) {
-            stageErrors.push({ stage: "PERSIST_EVIDENCE", platform, message: msg });
+          },
+          outcome: { result: fbOutcome.result as import("@/types/database").EvaluationResult, reason: fbOutcome.reason },
+          deliverable_id: deliverable.id,
+        });
+      }
+      void fetchError;
+    }
+  }
+
+  // ─ BATCH PERSIST: evidence[] → evaluations[] (2 round trips, fallback per-row on error preserves idempotency)
+  if (pending.length > 0) {
+    let insertedEvidence: import("@/types/database").Evidence[] = [];
+    let batchSucceeded = false;
+    try {
+      const batchResult = await evidenceRepo.createEvidenceBatch(
+        supabase,
+        pending.map((p) => p.evidenceInput),
+      );
+      // Supabase batch returns array in insertion order; handle stub returning empty/single
+      if (Array.isArray(batchResult) && batchResult.length > 0) {
+        insertedEvidence = batchResult as import("@/types/database").Evidence[];
+        batchSucceeded = insertedEvidence.length === pending.length;
+        // If batch returned partial (e.g., stub), treat as not fully succeeded and fallback for missing
+        if (batchSucceeded) {
+          for (const ev of insertedEvidence) evidencePlatforms.add(ev.platform as Platform);
+          evidenceCount = insertedEvidence.length;
+        }
+      }
+      if (!batchSucceeded) throw new Error("batch incomplete, fallback per-row");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const isDuplicate = msg.includes("duplicate") || msg.includes("unique") || msg.includes("violates unique constraint");
+      if (!isDuplicate && batchSucceeded) {
+        // Real non-duplicate batch error already handled above; don't double push
+      } else if (!isDuplicate) {
+        // Batch incomplete or error — fallback per-row without pushing stage error yet
+      }
+      if (!batchSucceeded) {
+        // Fallback per-row to preserve duplicate-swallowing and partial success semantics
+        insertedEvidence = [];
+        // Clear any partial batch evidencePlatforms added above before fallback
+        // (if batch partially succeeded, keep those, but our batchSucceeded false means none kept)
+        if (insertedEvidence.length === 0) evidencePlatforms.clear();
+        for (const p of pending) {
+          try {
+            const ev = await evidenceRepo.createEvidence(supabase, p.evidenceInput);
+            insertedEvidence.push(ev as import("@/types/database").Evidence);
+            evidencePlatforms.add(p.evidenceInput.platform as Platform);
+          } catch (inner) {
+            const imsg = inner instanceof Error ? inner.message : String(inner);
+            if (imsg.includes("duplicate") || imsg.includes("unique") || imsg.includes("violates unique constraint")) {
+              continue;
+            }
+            stageErrors.push({ stage: "PERSIST_EVIDENCE", platform: p.evidenceInput.platform as Platform, message: imsg });
+          }
+        }
+        evidenceCount = insertedEvidence.length;
+        if (evidenceCount === 0 && pending.length > 0 && !isDuplicate) {
+          // Only push batch error if fallback also produced nothing and it's not duplicate case
+          const batchMsg = msg.includes("batch incomplete") ? "batch insert incomplete" : msg;
+          stageErrors.push({ stage: "PERSIST_EVIDENCE", message: batchMsg });
+        }
+      }
+    }
+
+    // Build evaluation inputs aligned to successfully inserted evidence
+    // For batch success path, insertedEvidence length === pending length and order-aligned
+    // For fallback path, we need to map via unique key (deliverable_id+source_id+observed_at)
+    const evidenceByKey = new Map<string, import("@/types/database").Evidence>();
+    for (const ev of insertedEvidence) {
+      const key = `${ev.organization_id}|${ev.deliverable_id}|${ev.platform}|${ev.source}|${ev.source_id}|${ev.observed_at}`;
+      evidenceByKey.set(key, ev);
+    }
+    const evaluationInputs: import("@/server/repositories/evaluations").CreateEvaluationInput[] = [];
+    for (const p of pending) {
+      const key = `${p.evidenceInput.organization_id}|${p.evidenceInput.deliverable_id}|${p.evidenceInput.platform}|${p.evidenceInput.source}|${p.evidenceInput.source_id}|${p.evidenceInput.observed_at}`;
+      const ev = evidenceByKey.get(key);
+      if (!ev) continue; // duplicate swallowed, no evaluation
+      evaluationInputs.push({
+        organization_id: organizationId,
+        evidence_id: ev.id,
+        deliverable_id: p.deliverable_id,
+        result: p.outcome.result,
+        reason: p.outcome.reason,
+        scan_id: scan.id,
+      });
+    }
+
+    if (evaluationInputs.length > 0) {
+      let evalBatchSucceeded = false;
+      try {
+        const insertedEvals = await evaluationRepo.createEvaluationsBatch(supabase, evaluationInputs);
+        if (Array.isArray(insertedEvals) && insertedEvals.length > 0) {
+          evalBatchSucceeded = insertedEvals.length === evaluationInputs.length;
+          if (evalBatchSucceeded) evaluationCount = insertedEvals.length;
+          else throw new Error("eval batch incomplete");
+        } else {
+          throw new Error("eval batch incomplete");
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!evalBatchSucceeded) {
+          // Fallback per-row for evaluations (no unique, but preserve partial on transient failure)
+          evaluationCount = 0;
+          for (const inp of evaluationInputs) {
+            try {
+              await evaluationRepo.createEvaluation(supabase, inp);
+              evaluationCount++;
+            } catch (inner) {
+              const imsg = inner instanceof Error ? inner.message : String(inner);
+              stageErrors.push({ stage: "PERSIST_EVIDENCE", message: imsg });
+            }
+          }
+          if (evaluationCount === 0 && evaluationInputs.length > 0 && !msg.includes("duplicate")) {
+            stageErrors.push({ stage: "PERSIST_EVIDENCE", message: msg });
           }
         }
       }
-      void fetchError;
     }
   }
 
