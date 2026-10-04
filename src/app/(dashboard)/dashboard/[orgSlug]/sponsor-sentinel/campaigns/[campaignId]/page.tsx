@@ -16,7 +16,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DeliverableForm } from "@/features/sponsor-sentinel/components/deliverable-form";
-import { deleteDeliverableAction } from "@/features/sponsor-sentinel/actions/deliverable-actions";
+import { DeleteRequirementButton } from "@/features/sponsor-sentinel/components/delete-requirement-button";
 import { ActivateCampaignButton } from "@/features/sponsor-sentinel/components/activate-campaign-button";
 import { CheckNowButton } from "@/features/sponsor-sentinel/components/check-now-button";
 import { ContentProofSections } from "@/features/sponsor-sentinel/components/content-proof-sections";
@@ -49,14 +49,14 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
   const supabase = await createClient();
 
-  const [campaign, deliverables, channels] = await Promise.all([
+  const [campaign, deliverables, channels, campaignScans] = await Promise.all([
     getCampaign(supabase, ctx.organization.id, campaignId),
     listDeliverablesByCampaign(supabase, campaignId),
     listConnectedChannelsByOrg(supabase, ctx.organization.id),
+    listScansByCampaign(supabase, ctx.organization.id, campaignId, 5),
   ]);
   const usableChannels = channels.filter((c) => c.connection_status === "connected");
 
-  const campaignScans = await listScansByCampaign(supabase, ctx.organization.id, campaignId, 5);
   const latestScan = campaignScans[0] ?? null;
 
   let evidence: Awaited<ReturnType<typeof listEvidenceByScan>> = [];
@@ -212,14 +212,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                         Locked
                       </span>
                     ) : (
-                      <form action={deleteDeliverableAction}>
-                        <input type="hidden" name="orgSlug" value={orgSlug} />
-                        <input type="hidden" name="campaignId" value={campaignId} />
-                        <input type="hidden" name="deliverableId" value={d.id} />
-                        <Button type="submit" variant="ghost" size="sm" aria-label={`Remove requirement ${d.name}`}>
-                          Remove
-                        </Button>
-                      </form>
+                      <DeleteRequirementButton orgSlug={orgSlug} campaignId={campaignId} deliverableId={d.id} name={d.name} />
                     )}
                   </div>
                 </li>

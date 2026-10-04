@@ -26,6 +26,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { Route } from "next";
+import { NavigationProgress } from "@/components/ui/navigation-progress";
 import type { WorkspaceTool } from "@/server/services/workspace-tools";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -255,6 +256,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
 
   return (
     <div className="flex min-h-screen bg-background">
+      <NavigationProgress />
       <aside className="hidden w-[272px] shrink-0 border-r border-border bg-card lg:flex lg:flex-col">
         <div className="sticky top-0 flex h-full flex-col">
           <div className="flex h-[56px] items-center gap-2 border-b border-border px-4">

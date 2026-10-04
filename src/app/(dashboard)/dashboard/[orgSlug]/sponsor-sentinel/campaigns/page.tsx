@@ -18,21 +18,20 @@ export default async function CampaignsPage({ params }: { params: Promise<{ orgS
   const ctx = await requireOrganizationContext(orgSlug);
   await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
   const supabase = await createClient();
-  const [campaigns, scanHistory] = await Promise.all([
+  const [campaigns, scanHistory, reqCounts] = await Promise.all([
     listCampaigns(supabase, ctx.organization.id),
     getScanHistory(supabase, ctx.organization.id).catch(() => ({ scans: [], total: 0 }) as never),
+    (async () => {
+      const m = new Map<string, number>();
+      try {
+        const { data } = await supabase.from("deliverables").select("campaign_id").eq("organization_id", ctx.organization.id);
+        for (const r of (data ?? []) as Array<{ campaign_id: string }>) {
+          m.set(r.campaign_id, (m.get(r.campaign_id) ?? 0) + 1);
+        }
+      } catch {}
+      return m;
+    })(),
   ]);
-
-  // Requirement counts per campaign
-  let reqCounts = new Map<string, number>();
-  try {
-    const { data } = await supabase.from("deliverables").select("campaign_id").eq("organization_id", ctx.organization.id);
-    for (const r of (data ?? []) as Array<{ campaign_id: string }>) {
-      reqCounts.set(r.campaign_id, (reqCounts.get(r.campaign_id) ?? 0) + 1);
-    }
-  } catch {
-    reqCounts = new Map();
-  }
   const scanByCampaign = new Map<string, (typeof scanHistory.scans)[number]>();
   for (const item of scanHistory.scans) {
     if (!scanByCampaign.has(item.scan.campaign_id)) scanByCampaign.set(item.scan.campaign_id, item);

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useTransition, useState } from "react";
+import { useRouter } from "next/navigation";
 import { disconnectChannelAction } from "@/features/sponsor-sentinel/actions/channel-actions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import type { ConnectedChannel } from "@/types/database";
 
 export function ConnectedChannelsList({ orgSlug, channels }: { orgSlug: string; channels: ConnectedChannel[] }) {
+  let router: ReturnType<typeof useRouter> | null = null;
+  try {
+    router = useRouter();
+  } catch {
+    router = null;
+  }
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -28,7 +35,10 @@ export function ConnectedChannelsList({ orgSlug, channels }: { orgSlug: string; 
         setPendingId(null);
         setConfirmId(null);
       } else {
-        window.location.reload();
+        setPendingId(null);
+        setConfirmId(null);
+        if (router) router.refresh();
+        else if (typeof window !== "undefined") window.location.reload();
       }
     });
   }
@@ -82,6 +92,7 @@ export function ConnectedChannelsList({ orgSlug, channels }: { orgSlug: string; 
               variant="ghost"
               size="sm"
               disabled={pendingId === ch.id}
+              aria-busy={pendingId === ch.id}
               onClick={() => setConfirmId(ch.id)}
               aria-label={`Disconnect ${ch.platform} ${ch.external_handle}`}
             >
@@ -110,6 +121,8 @@ export function ConnectedChannelsList({ orgSlug, channels }: { orgSlug: string; 
               variant="destructive"
               size="sm"
               disabled={pendingId === channelToConfirm?.id}
+              loading={pendingId === channelToConfirm?.id}
+              aria-busy={pendingId === channelToConfirm?.id}
               onClick={() => channelToConfirm && handleDisconnect(channelToConfirm.id)}
             >
               {pendingId === channelToConfirm?.id ? "Disconnecting…" : "Disconnect channel"}

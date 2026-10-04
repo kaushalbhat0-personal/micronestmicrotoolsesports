@@ -2,12 +2,19 @@
 
 import * as React from "react";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { connectYouTubeChannelAction } from "@/features/sponsor-sentinel/actions/channel-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: string; hasCredentials: boolean }) {
+  let router: ReturnType<typeof useRouter> | null = null;
+  try {
+    router = useRouter();
+  } catch {
+    router = null;
+  }
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
@@ -39,8 +46,8 @@ export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: strin
         setMessage("YouTube channel connected ✓");
         setIsError(false);
         setHandle("");
-        // Revalidation will happen server-side; reload to show updated list
-        window.location.reload();
+        if (router) router.refresh();
+        else if (typeof window !== "undefined") window.location.reload();
       }
     });
   }
@@ -59,7 +66,7 @@ export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: strin
         />
         <p className="text-xs text-muted-foreground">Enter handle with or without @. Do not enter a URL.</p>
       </div>
-      <Button type="submit" disabled={pending} aria-label="Connect YouTube">
+      <Button type="submit" disabled={pending} loading={pending} aria-busy={pending} aria-label={pending ? "Connecting" : "Connect YouTube"}>
         {pending ? "Connecting…" : "Connect YouTube"}
       </Button>
       {message ? (

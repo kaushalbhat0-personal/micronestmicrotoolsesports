@@ -2,12 +2,19 @@
 
 import * as React from "react";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { connectTwitchChannelAction } from "@/features/sponsor-sentinel/actions/channel-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function ConnectTwitchForm({ orgSlug, hasCredentials }: { orgSlug: string; hasCredentials: boolean }) {
+  let router: ReturnType<typeof useRouter> | null = null;
+  try {
+    router = useRouter();
+  } catch {
+    router = null;
+  }
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
@@ -39,7 +46,8 @@ export function ConnectTwitchForm({ orgSlug, hasCredentials }: { orgSlug: string
         setMessage("Twitch channel connected ✓");
         setIsError(false);
         setHandle("");
-        window.location.reload();
+        if (router) router.refresh();
+        else if (typeof window !== "undefined") window.location.reload();
       }
     });
   }
@@ -58,7 +66,7 @@ export function ConnectTwitchForm({ orgSlug, hasCredentials }: { orgSlug: string
         />
         <p className="text-xs text-muted-foreground">Enter the Twitch login, e.g., creator handle. Do not enter a URL.</p>
       </div>
-      <Button type="submit" disabled={pending} aria-label="Connect Twitch">
+      <Button type="submit" disabled={pending} loading={pending} aria-busy={pending} aria-label={pending ? "Connecting" : "Connect Twitch"}>
         {pending ? "Connecting…" : "Connect Twitch"}
       </Button>
       {message ? (

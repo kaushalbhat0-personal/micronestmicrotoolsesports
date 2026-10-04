@@ -44,25 +44,24 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
   const ctx = await requireOrganizationContext(orgSlug);
   const supabase = await createClient();
 
-  const [campaigns, channels, scanHistory] = await Promise.all([
+  const [campaigns, channels, scanHistory, deliverables] = await Promise.all([
     listCampaigns(supabase, ctx.organization.id).catch(() => []),
     listConnectedChannelsByOrg(supabase, ctx.organization.id).catch(() => []),
     getScanHistory(supabase, ctx.organization.id).catch(() => ({ scans: [], total: 0 }) as never),
+    (async () => {
+      try {
+        const { data } = await supabase.from("deliverables").select("id, campaign_id, name, rule, status").eq("organization_id", ctx.organization.id);
+        return (data ?? []) as unknown as Array<{ id: string; campaign_id: string; name: string; rule: unknown; status: string }>;
+      } catch {
+        return [] as Array<{ id: string; campaign_id: string; name: string; rule: unknown; status: string }>;
+      }
+    })(),
   ]);
 
   const connectedCount = channels.filter((c) => c.connection_status === "connected").length;
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
   const hasCampaigns = campaigns.length > 0;
   const hasChannels = connectedCount > 0;
-
-  // Deliverables for attention + proof mapping
-  let deliverables: Array<{ id: string; campaign_id: string; name: string; rule: unknown; status: string }> = [];
-  try {
-    const { data } = await supabase.from("deliverables").select("id, campaign_id, name, rule, status").eq("organization_id", ctx.organization.id);
-    deliverables = (data ?? []) as never;
-  } catch {
-    deliverables = [];
-  }
   const deliverablesByCampaign = new Map<string, typeof deliverables>();
   for (const d of deliverables) {
     const arr = deliverablesByCampaign.get(d.campaign_id) ?? [];

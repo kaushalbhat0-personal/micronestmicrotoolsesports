@@ -21,9 +21,9 @@ export interface ReadinessCardProps extends React.HTMLAttributes<HTMLDivElement>
 function itemIcon(status: ReadinessItemStatus) {
   switch (status) {
     case "complete":
-      return <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] leading-none text-white">✓</span>;
+      return <span className="flex h-5 w-5 items-center justify-center rounded-full bg-success text-[10px] leading-none text-success-foreground">✓</span>;
     case "warning":
-      return <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] leading-none text-white">⚠</span>;
+      return <span className="flex h-5 w-5 items-center justify-center rounded-full bg-warning text-[10px] leading-none text-warning-foreground">⚠</span>;
     case "blocked":
       return <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] leading-none text-destructive-foreground">×</span>;
   }
@@ -41,7 +41,7 @@ export function ReadinessCard({ title, description, items, action, className, ..
     <Card
       className={cn(
         "overflow-hidden",
-        ready ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20" : "border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20",
+        ready ? "border-success/20 bg-success-soft" : "border-warning/20 bg-warning-soft",
         className
       )}
       {...props}
@@ -50,7 +50,7 @@ export function ReadinessCard({ title, description, items, action, className, ..
         <div className="flex items-start justify-between gap-4">
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
-              <span className={cn("flex h-6 w-6 items-center justify-center rounded-full text-xs", ready ? "bg-emerald-500 text-white" : "bg-amber-500 text-white")}>
+              <span className={cn("flex h-6 w-6 items-center justify-center rounded-full text-xs", ready ? "bg-success text-success-foreground" : "bg-warning text-warning-foreground")}>
                 {ready ? "✓" : "!"}
               </span>
               {title}

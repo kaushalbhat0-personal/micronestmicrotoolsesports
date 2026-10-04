@@ -214,8 +214,8 @@ function ProviderCard({
             <form action={handleDelete} className="pt-2">
               <input type="hidden" name="orgSlug" value={orgSlug} />
               <input type="hidden" name="provider" value={provider} />
-              <Button type="submit" variant="ghost" size="sm" disabled={pending || isTesting} aria-label={`Remove ${title} connection`}>
-                Remove connection
+              <Button type="submit" variant="ghost" size="sm" disabled={pending || isTesting} loading={pending} aria-busy={pending} aria-label={`Remove ${title} connection`}>
+                {pending ? "Removing…" : "Remove connection"}
               </Button>
             </form>
           </div>
@@ -243,7 +243,7 @@ function ProviderCard({
               </div>
             ))}
             <div className="flex gap-2">
-              <Button type="submit" disabled={pending || isTesting} aria-label={`Save ${title} connection`}>
+              <Button type="submit" disabled={pending || isTesting} loading={pending} aria-busy={pending} aria-label={pending ? "Saving" : `Save ${title} connection`}>
                 {pending ? "Saving…" : isConfigured ? "Update connection" : "Save connection"}
               </Button>
             </div>
@@ -256,7 +256,7 @@ function ProviderCard({
           <form action={handleTest}>
             <input type="hidden" name="orgSlug" value={orgSlug} />
             <input type="hidden" name="provider" value={provider} />
-            <Button type="submit" variant="outline" size="sm" disabled={pending || isTesting} aria-label={`Test ${title} connection`}>
+            <Button type="submit" variant="outline" size="sm" disabled={pending || isTesting} loading={isTesting} aria-busy={isTesting} aria-label={isTesting ? "Testing" : `Test ${title} connection`}>
               {isTesting ? "Testing…" : testStatus === "success" ? "Test again" : "Test connection"}
             </Button>
           </form>

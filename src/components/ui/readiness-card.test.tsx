@@ -21,7 +21,7 @@ describe("ReadinessCard", () => {
     expect(html).toContain("3 of 3 ready");
     expect(html).toContain("Ready");
     expect(html).toContain("Start tracking");
-    expect(html).toContain("border-emerald-200");
+    expect(html).toContain("border-success/20");
   });
 
   it("renders one blocked item (needs setup)", () => {
@@ -39,7 +39,7 @@ describe("ReadinessCard", () => {
     expect(html).toContain("Creator channel not connected");
     expect(html).toContain("Needs setup");
     expect(html).toContain("Connect a channel");
-    expect(html).toContain("border-amber-200");
+    expect(html).toContain("border-warning/20");
     expect(html).toContain("×");
   });
 

@@ -96,7 +96,7 @@ export function CampaignCreateForm({ orgSlug }: { orgSlug: string }) {
           {error}
         </p>
       ) : null}
-      <Button type="submit" disabled={pending} aria-label="Create campaign">
+      <Button type="submit" disabled={pending} loading={pending} aria-busy={pending} aria-label={pending ? "Creating" : "Create campaign"}>
         {pending ? "Creating…" : "Create draft campaign"}
       </Button>
     </form>

@@ -46,7 +46,9 @@ export function ActivateCampaignButton({
           type="submit"
           size="sm"
           disabled={disabled || pending}
-          aria-label="Start tracking"
+          loading={pending}
+          aria-label={pending ? "Starting" : "Start tracking"}
+          aria-busy={pending}
           title={disabled ? disabledReason : undefined}
         >
           {pending ? "Starting…" : "Start tracking"}
