@@ -31,6 +31,23 @@ export async function handleSentinelWebhookEvent(
   if (category === "UNSUPPORTED") return { status: "UNSUPPORTED", category, reason: "event type not supported for Sentinel" };
   if (category === "IGNORED") return { status: "IGNORED", category, reason: "ignored" };
 
+  // Targeted YouTube WebSub: single video → campaigns → 1×N evaluation, no full historical scan
+  if (event.provider === "youtube" && category === "CONTENT_PUBLISHED" && event.externalContentId && event.externalChannelId) {
+    try {
+      const { executeTargetedYouTubeScan } = await import("@/server/scanner/scan-targeted-youtube");
+      const targeted = await executeTargetedYouTubeScan(supabase, event);
+      if (targeted.succeeded > 0) {
+        return { status: "SCAN_COMPLETED", category, campaignIds: [], scanIds: targeted.scanIds };
+      }
+      if (targeted.attempted === 0) return { status: "NO_CAMPAIGN", category, reason: "no eligible campaign for video timeframe/channel" };
+      return { status: "NO_ACTION", category, reason: "targeted skipped (already running or no eligible campaign)" };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Fall through to full scan on targeted failure
+      console.warn(JSON.stringify({ event: "targeted_youtube_fallback", error: msg.slice(0, 200) }));
+    }
+  }
+
   const organizationId = await resolveOrganizationIdForEvent(supabase, event);
   if (!organizationId) return { status: "IGNORED", category, reason: "no organization for channel" };
 
