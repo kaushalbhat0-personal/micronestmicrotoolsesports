@@ -18,6 +18,28 @@ import { createProviderRegistry, type ProviderRegistryOptions } from "@/server/i
 import type { LiveStateProvider, VideoEvidenceProvider } from "@/features/sponsor-sentinel/types/provider";
 
 const SCANNER_VERSION = "sentinel-mock-1";
+const PROVIDER_CONCURRENCY = 3;
+
+async function runWithConcurrency<T, R>(items: readonly T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  if (items.length === 0) return [];
+  if (limit <= 1) {
+    const out: R[] = [];
+    for (let i = 0; i < items.length; i++) out.push(await fn(items[i] as T, i));
+    return out;
+  }
+  const results: R[] = new Array(items.length) as R[];
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (true) {
+      const idx = next++;
+      if (idx >= items.length) return;
+      results[idx] = await fn(items[idx] as T, idx);
+    }
+  }
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
 
 export interface ScannerDeps {
   supabase: SupabaseClient;
@@ -103,30 +125,32 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
   };
   const pending: PendingItem[] = [];
 
-  // ─ For each channel: FETCH → NORMALIZE → EVALUATE → COLLECT
-  for (const channel of channels) {
+  // ─ For each channel: FETCH → NORMALIZE → EVALUATE → COLLECT (bounded concurrency)
+  const channelFetchResults = await runWithConcurrency(channels, PROVIDER_CONCURRENCY, async (channel) => {
     const platform = channel.platform as Platform;
     const caps = getCapabilities(platform);
-
-    // Budget check before fetch
     const budget = budgets?.[platform];
+    // Atomic budget check+consume for live
     if (budget) {
-      const check = budget.canConsume(1);
-      if (!check.allowed) {
-        stageErrors.push({ stage: "FETCH", platform, message: budgetExceededError(check.reason ?? "budget exceeded").message });
-        failedPlatforms++;
-        continue;
+      const chk = (budget as unknown as { tryConsume?: (c: number) => { allowed: boolean; reason: string | null } }).tryConsume
+        ? (budget as unknown as { tryConsume: (c: number) => { allowed: boolean; reason: string | null } }).tryConsume(1)
+        : budget.canConsume(1);
+      if (!chk.allowed) {
+        return { pending: [] as PendingItem[], stageErrors: [{ stage: "FETCH" as const, platform, message: budgetExceededError(chk.reason ?? "budget exceeded").message }], success: false, failed: true, fetchedLive: null as CanonicalLiveStream | null, fetchedVideos: [] as readonly CanonicalVideo[], platform, channel };
       }
+      // For tryConsume case, already consumed; for canConsume case, consume separately
+      if (!(budget as unknown as { tryConsume?: unknown }).tryConsume) budget.consume(1);
     }
 
     let fetchedLive: CanonicalLiveStream | null = null;
     let fetchedVideos: readonly CanonicalVideo[] = [];
     let fetchError: string | null = null;
+    let success = false;
+    let failed = false;
+    const localStageErrors: { stage: ScanStage; platform?: Platform; message: string }[] = [];
 
-    // FETCH
     try {
       const provider = providers[platform];
-      // Live
       try {
         fetchedLive = await provider.getLiveState({
           platform,
@@ -140,20 +164,19 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
         if (msg.includes("budget")) throw budgetExceededError(msg);
         throw providerError(msg, e);
       }
-      // Budget consume for live
-      if (budget) budget.consume(1);
+      // Live already consumed atomically above; no second consume
 
-      // Videos if needed (check if any deliverable needs video)
       const needsVideo = deliverables.some((d) => {
         const rule = d.rule as { type: string };
         return rule.type === "minimum_duration" || rule.type === "required_vod_exists" || platform === "twitch" || platform === "youtube";
       });
-      // Also Kick has no vod, but we still call to get empty
       if (needsVideo || caps.vodExistence) {
-        // Check budget again before videos
         if (budget) {
-          const cc = budget.canConsume(1);
-          if (!cc.allowed) throw budgetExceededError(cc.reason ?? "budget exceeded");
+          const chk2 = (budget as unknown as { tryConsume?: (c: number) => { allowed: boolean; reason: string | null } }).tryConsume
+            ? (budget as unknown as { tryConsume: (c: number) => { allowed: boolean; reason: string | null } }).tryConsume(1)
+            : budget.canConsume(1);
+          if (!chk2.allowed) throw budgetExceededError(chk2.reason ?? "budget exceeded");
+          if (!(budget as unknown as { tryConsume?: unknown }).tryConsume) budget.consume(1);
         }
         fetchedVideos = await provider.listVideos(
           {
@@ -165,49 +188,106 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
           },
           { from: campaign.starts_at, to: campaign.ends_at },
         );
-        if (budget) budget.consume(1);
       }
-      successPlatforms++;
+      success = true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       fetchError = msg;
-      stageErrors.push({ stage: "FETCH", platform, message: msg });
-      failedPlatforms++;
-      continue;
+      localStageErrors.push({ stage: "FETCH", platform, message: msg });
+      failed = true;
     }
-
-    // NORMALIZE is already canonical from mock; validate shape
-    // EVALUATE + PERSIST per deliverable — Cartesian: every candidate × every deliverable (bounded: YouTube ≤25, Twitch ≤20, Kick live-only)
-    for (const deliverable of deliverables) {
-      const rule = deliverable.rule as import("@/features/sponsor-sentinel/schemas/rules").DeliverableRule;
-      const needsVideo = rule.type === "minimum_duration" || rule.type === "required_vod_exists";
-
-      if (needsVideo) {
-        // Preserve existing single-video semantics for duration/VOD existence
-        let observation: { kind: "video"; data: CanonicalVideo | null } | { kind: "none" } = { kind: "none" };
-        let source: string = "get_streams";
-        let sourceId: string = "none";
-        let observedAt: string = new Date().toISOString();
-        let titleForEvidence: string = "";
-        const vid = fetchedVideos[0] ?? null;
-        observation = vid ? { kind: "video", data: vid } : { kind: "none" };
-        source = platform === "twitch" ? "get_videos" : platform === "youtube" ? "youtube_videos_list" : "get_videos";
-        sourceId = vid?.externalVideoId ?? "none";
-        observedAt = vid?.observedAt ?? new Date().toISOString();
-        titleForEvidence = vid?.title ?? "";
-
-        let outcome;
-        try {
-          outcome = evaluateRule(rule, platform, observation as never);
-        } catch (e) {
-          stageErrors.push({ stage: "EVALUATE", platform, message: e instanceof Error ? e.message : String(e) });
+    void fetchError;
+    // Build pending for this channel
+    const channelPending: PendingItem[] = [];
+    if (!failed) {
+      for (const deliverable of deliverables) {
+        const rule = deliverable.rule as import("@/features/sponsor-sentinel/schemas/rules").DeliverableRule;
+        const needsVideo = rule.type === "minimum_duration" || rule.type === "required_vod_exists";
+        if (needsVideo) {
+          let observation: { kind: "video"; data: CanonicalVideo | null } | { kind: "none" } = { kind: "none" };
+          let source: string = "get_streams";
+          let sourceId: string = "none";
+          let observedAt: string = new Date().toISOString();
+          let titleForEvidence: string = "";
+          const vid = fetchedVideos[0] ?? null;
+          observation = vid ? { kind: "video", data: vid } : { kind: "none" };
+          source = platform === "twitch" ? "get_videos" : platform === "youtube" ? "youtube_videos_list" : "get_videos";
+          sourceId = vid?.externalVideoId ?? "none";
+          observedAt = vid?.observedAt ?? new Date().toISOString();
+          titleForEvidence = vid?.title ?? "";
+          let outcome;
+          try {
+            outcome = evaluateRule(rule, platform, observation as never);
+          } catch (e) {
+            localStageErrors.push({ stage: "EVALUATE", platform, message: e instanceof Error ? e.message : String(e) });
+            continue;
+          }
+          if (observation.kind !== "none" && observation.data !== null) {
+            const evidenceType = "video";
+            const externalContentId = (observation.data as CanonicalVideo).externalVideoId;
+            const normalized = normalizeText(titleForEvidence);
+            channelPending.push({
+              evidenceInput: {
+                organization_id: organizationId,
+                campaign_id: campaignId,
+                deliverable_id: deliverable.id,
+                platform,
+                external_channel_id: channel.external_channel_id,
+                external_content_id: externalContentId,
+                evidence_type: evidenceType,
+                source: source as never,
+                source_id: sourceId,
+                source_url: (observation.data as CanonicalVideo).canonicalUrl,
+                observed_at: observedAt,
+                observed_value: titleForEvidence,
+                normalized_value: normalized,
+                raw_ref: { externalId: externalContentId, url: sourceId, platform },
+                scanner_version: scannerVersion,
+                scan_id: scan.id,
+              },
+              outcome: { result: outcome.result as import("@/types/database").EvaluationResult, reason: outcome.reason },
+              deliverable_id: deliverable.id,
+            });
+          }
           continue;
         }
-        if (observation.kind !== "none" && observation.data !== null) {
-          const evidenceType = "video";
-          const externalContentId = (observation.data as CanonicalVideo).externalVideoId;
-          const normalized = normalizeText(titleForEvidence);
-          pending.push({
+        const candidates: Array<{ kind: "live"; data: CanonicalLiveStream } | { kind: "video"; data: CanonicalVideo }> = [];
+        if (fetchedLive) candidates.push({ kind: "live", data: fetchedLive });
+        for (const v of fetchedVideos) candidates.push({ kind: "video", data: v });
+        if (candidates.length === 0) continue;
+        let hasPass = false;
+        for (const cand of candidates) {
+          const obsKind = cand.kind;
+          const obsData = cand.data as CanonicalLiveStream | CanonicalVideo;
+          let candSource: string;
+          let candSourceId: string;
+          let candObservedAt: string;
+          let candTitle: string;
+          if (obsKind === "live") {
+            candSource = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
+            candSourceId = (obsData as CanonicalLiveStream).externalStreamId;
+            candObservedAt = (obsData as CanonicalLiveStream).observedAt;
+            candTitle = (obsData as CanonicalLiveStream).title;
+          } else {
+            candSource = platform === "youtube" ? "youtube_videos_list" : "get_videos";
+            candSourceId = (obsData as CanonicalVideo).externalVideoId;
+            candObservedAt = (obsData as CanonicalVideo).observedAt;
+            candTitle = (obsData as CanonicalVideo).title;
+          }
+          let candOutcome;
+          try {
+            const candObs = obsKind === "live" ? ({ kind: "live", data: obsData } as const) : ({ kind: "video", data: obsData } as const);
+            candOutcome = evaluateRule(rule, platform, candObs as never);
+          } catch (e) {
+            localStageErrors.push({ stage: "EVALUATE", platform, message: e instanceof Error ? e.message : String(e) });
+            continue;
+          }
+          if (candOutcome.result !== "PASS") continue;
+          hasPass = true;
+          const evidenceType = obsKind === "live" ? "live_stream" : "video";
+          const externalContentId = obsKind === "live" ? (obsData as CanonicalLiveStream).externalStreamId : (obsData as CanonicalVideo).externalVideoId;
+          const normalized = normalizeText(candTitle);
+          channelPending.push({
             evidenceInput: {
               organization_id: organizationId,
               campaign_id: campaignId,
@@ -216,153 +296,85 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
               external_channel_id: channel.external_channel_id,
               external_content_id: externalContentId,
               evidence_type: evidenceType,
-              source: source as never,
-              source_id: sourceId,
-              source_url: (observation.data as CanonicalVideo).canonicalUrl,
-              observed_at: observedAt,
-              observed_value: titleForEvidence,
+              source: candSource as never,
+              source_id: candSourceId,
+              source_url: obsKind === "live" ? (obsData as CanonicalLiveStream).canonicalUrl : (obsData as CanonicalVideo).canonicalUrl,
+              observed_at: candObservedAt,
+              observed_value: candTitle,
               normalized_value: normalized,
-              raw_ref: { externalId: externalContentId, url: sourceId, platform },
+              raw_ref: { externalId: externalContentId, url: candSourceId, platform },
               scanner_version: scannerVersion,
               scan_id: scan.id,
             },
-            outcome: { result: outcome.result as import("@/types/database").EvaluationResult, reason: outcome.reason },
+            outcome: { result: candOutcome.result as import("@/types/database").EvaluationResult, reason: candOutcome.reason },
             deliverable_id: deliverable.id,
           });
         }
-        void fetchError;
-        continue;
-      }
-
-      // Content rules — Cartesian product: every candidate × this deliverable
-      const candidates: Array<{ kind: "live"; data: CanonicalLiveStream } | { kind: "video"; data: CanonicalVideo }> = [];
-      if (fetchedLive) candidates.push({ kind: "live", data: fetchedLive });
-      for (const v of fetchedVideos) candidates.push({ kind: "video", data: v });
-
-      if (candidates.length === 0) {
-        // No observable content — prior behavior persisted nothing (PENDING via missing evidence)
-        continue;
-      }
-
-      let hasPass = false;
-      for (const cand of candidates) {
-        const obsKind = cand.kind;
-        const obsData = cand.data as CanonicalLiveStream | CanonicalVideo;
-        let candSource: string;
-        let candSourceId: string;
-        let candObservedAt: string;
-        let candTitle: string;
-        if (obsKind === "live") {
-          candSource = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
-          candSourceId = (obsData as CanonicalLiveStream).externalStreamId;
-          candObservedAt = (obsData as CanonicalLiveStream).observedAt;
-          candTitle = (obsData as CanonicalLiveStream).title;
-        } else {
-          candSource = platform === "youtube" ? "youtube_videos_list" : "get_videos";
-          candSourceId = (obsData as CanonicalVideo).externalVideoId;
-          candObservedAt = (obsData as CanonicalVideo).observedAt;
-          candTitle = (obsData as CanonicalVideo).title;
-        }
-
-        let candOutcome;
-        try {
-          const candObs = obsKind === "live" ? ({ kind: "live", data: obsData } as const) : ({ kind: "video", data: obsData } as const);
-          candOutcome = evaluateRule(rule, platform, candObs as never);
-        } catch (e) {
-          stageErrors.push({ stage: "EVALUATE", platform, message: e instanceof Error ? e.message : String(e) });
-          continue;
-        }
-
-        if (candOutcome.result !== "PASS") continue;
-        hasPass = true;
-        // Collect evidence/evaluation for batch insert
-        const evidenceType = obsKind === "live" ? "live_stream" : "video";
-        const externalContentId = obsKind === "live" ? (obsData as CanonicalLiveStream).externalStreamId : (obsData as CanonicalVideo).externalVideoId;
-        const normalized = normalizeText(candTitle);
-        pending.push({
-          evidenceInput: {
-            organization_id: organizationId,
-            campaign_id: campaignId,
+        if (hasPass) continue;
+        {
+          const fallbackCand = candidates.find((c) => c.kind === "video") ?? candidates[0]!;
+          const fbKind = fallbackCand.kind;
+          const fbData = fallbackCand.data as CanonicalLiveStream | CanonicalVideo;
+          let fbSource: string;
+          let fbSourceId: string;
+          let fbObservedAt: string;
+          let fbTitle: string;
+          if (fbKind === "live") {
+            fbSource = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
+            fbSourceId = (fbData as CanonicalLiveStream).externalStreamId;
+            fbObservedAt = (fbData as CanonicalLiveStream).observedAt;
+            fbTitle = (fbData as CanonicalLiveStream).title;
+          } else {
+            fbSource = platform === "youtube" ? "youtube_videos_list" : "get_videos";
+            fbSourceId = (fbData as CanonicalVideo).externalVideoId;
+            fbObservedAt = (fbData as CanonicalVideo).observedAt;
+            fbTitle = (fbData as CanonicalVideo).title;
+          }
+          let fbOutcome;
+          try {
+            const fbObs = fbKind === "live" ? ({ kind: "live", data: fbData } as const) : ({ kind: "video", data: fbData } as const);
+            fbOutcome = evaluateRule(rule, platform, fbObs as never);
+          } catch (e) {
+            localStageErrors.push({ stage: "EVALUATE", platform, message: e instanceof Error ? e.message : String(e) });
+            continue;
+          }
+          const evidenceType = fbKind === "live" ? "live_stream" : "video";
+          const externalContentId = fbKind === "live" ? (fbData as CanonicalLiveStream).externalStreamId : (fbData as CanonicalVideo).externalVideoId;
+          const normalized = normalizeText(fbTitle);
+          channelPending.push({
+            evidenceInput: {
+              organization_id: organizationId,
+              campaign_id: campaignId,
+              deliverable_id: deliverable.id,
+              platform,
+              external_channel_id: channel.external_channel_id,
+              external_content_id: externalContentId,
+              evidence_type: evidenceType,
+              source: fbSource as never,
+              source_id: fbSourceId,
+              source_url: fbKind === "live" ? (fbData as CanonicalLiveStream).canonicalUrl : (fbData as CanonicalVideo).canonicalUrl,
+              observed_at: fbObservedAt,
+              observed_value: fbTitle,
+              normalized_value: normalized,
+              raw_ref: { externalId: externalContentId, url: fbSourceId, platform },
+              scanner_version: scannerVersion,
+              scan_id: scan.id,
+            },
+            outcome: { result: fbOutcome.result as import("@/types/database").EvaluationResult, reason: fbOutcome.reason },
             deliverable_id: deliverable.id,
-            platform,
-            external_channel_id: channel.external_channel_id,
-            external_content_id: externalContentId,
-            evidence_type: evidenceType,
-            source: candSource as never,
-            source_id: candSourceId,
-            source_url: obsKind === "live" ? (obsData as CanonicalLiveStream).canonicalUrl : (obsData as CanonicalVideo).canonicalUrl,
-            observed_at: candObservedAt,
-            observed_value: candTitle,
-            normalized_value: normalized,
-            raw_ref: { externalId: externalContentId, url: candSourceId, platform },
-            scanner_version: scannerVersion,
-            scan_id: scan.id,
-          },
-          outcome: { result: candOutcome.result as import("@/types/database").EvaluationResult, reason: candOutcome.reason },
-          deliverable_id: deliverable.id,
-        });
-      }
-      if (hasPass) {
-        void fetchError;
-        continue;
-      }
-      // No PASS — fallback single evidence to preserve prior FAIL/PENDING audit trail
-      {
-        const fallbackCand = candidates.find((c) => c.kind === "video") ?? candidates[0]!;
-        const fbKind = fallbackCand.kind;
-        const fbData = fallbackCand.data as CanonicalLiveStream | CanonicalVideo;
-        let fbSource: string;
-        let fbSourceId: string;
-        let fbObservedAt: string;
-        let fbTitle: string;
-        if (fbKind === "live") {
-          fbSource = platform === "twitch" ? "get_streams" : platform === "youtube" ? "youtube_videos_list" : "kick_livestreams";
-          fbSourceId = (fbData as CanonicalLiveStream).externalStreamId;
-          fbObservedAt = (fbData as CanonicalLiveStream).observedAt;
-          fbTitle = (fbData as CanonicalLiveStream).title;
-        } else {
-          fbSource = platform === "youtube" ? "youtube_videos_list" : "get_videos";
-          fbSourceId = (fbData as CanonicalVideo).externalVideoId;
-          fbObservedAt = (fbData as CanonicalVideo).observedAt;
-          fbTitle = (fbData as CanonicalVideo).title;
+          });
         }
-        let fbOutcome;
-        try {
-          const fbObs = fbKind === "live" ? ({ kind: "live", data: fbData } as const) : ({ kind: "video", data: fbData } as const);
-          fbOutcome = evaluateRule(rule, platform, fbObs as never);
-        } catch (e) {
-          stageErrors.push({ stage: "EVALUATE", platform, message: e instanceof Error ? e.message : String(e) });
-          void fetchError;
-          continue;
-        }
-        const evidenceType = fbKind === "live" ? "live_stream" : "video";
-        const externalContentId = fbKind === "live" ? (fbData as CanonicalLiveStream).externalStreamId : (fbData as CanonicalVideo).externalVideoId;
-        const normalized = normalizeText(fbTitle);
-        pending.push({
-          evidenceInput: {
-            organization_id: organizationId,
-            campaign_id: campaignId,
-            deliverable_id: deliverable.id,
-            platform,
-            external_channel_id: channel.external_channel_id,
-            external_content_id: externalContentId,
-            evidence_type: evidenceType,
-            source: fbSource as never,
-            source_id: fbSourceId,
-            source_url: fbKind === "live" ? (fbData as CanonicalLiveStream).canonicalUrl : (fbData as CanonicalVideo).canonicalUrl,
-            observed_at: fbObservedAt,
-            observed_value: fbTitle,
-            normalized_value: normalized,
-            raw_ref: { externalId: externalContentId, url: fbSourceId, platform },
-            scanner_version: scannerVersion,
-            scan_id: scan.id,
-          },
-          outcome: { result: fbOutcome.result as import("@/types/database").EvaluationResult, reason: fbOutcome.reason },
-          deliverable_id: deliverable.id,
-        });
       }
-      void fetchError;
     }
+    return { pending: channelPending, stageErrors: localStageErrors, success, failed, fetchedLive, fetchedVideos, platform, channel };
+  });
+
+  // Merge channel results deterministically in original channel order
+  for (const res of channelFetchResults) {
+    if (res.failed) failedPlatforms++;
+    if (res.success) successPlatforms++;
+    for (const se of res.stageErrors) stageErrors.push(se);
+    for (const p of res.pending) pending.push(p);
   }
 
   // ─ BATCH PERSIST: evidence[] → evaluations[] (2 round trips, fallback per-row on error preserves idempotency)

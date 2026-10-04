@@ -17,5 +17,7 @@ export interface ProviderBudget {
   readonly platform: Platform;
   canConsume(cost: number): BudgetCheck;
   consume(cost: number): BudgetConsumption;
+  /** Atomic check+consume — concurrency-safe for bounded parallel channels */
+  tryConsume(cost: number): BudgetCheck & { consumed: boolean };
   resetIfNeeded(nowIso: string): void;
 }
