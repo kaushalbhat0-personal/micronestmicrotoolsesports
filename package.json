@@ -17,6 +17,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-select": "^2.3.7",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.48.0",

@@ -8,6 +8,11 @@ export interface NavItem {
   comingSoon?: boolean;
 }
 
+export interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
 export const marketingNav: { label: string; href: string; icon: string }[] = [
   { label: "Tools", href: "/#tools", icon: "Grid3x3" },
   { label: "Pricing", href: "/#pricing", icon: "CreditCard" },
@@ -20,10 +25,10 @@ export const dashboardNav: NavItem[] = [
 ];
 
 /**
- * Get dashboard nav scoped to an organization slug.
- * Operations-first: Campaigns + Check History are primary workflow,
- * Creator Channels + Integrations are workspace management,
- * future tools are subordinate.
+ * Workspace IA — RCCF-UIUX-03
+ * Workspace (Overview/Campaigns/Checks) / Creators (Channels/Connections) / Settings
+ * Proof is NOT top-level — lives under Campaign → Proof.
+ * Channels vs Connections are distinct: channels = creator identities, connections = platform auth.
  */
 export function getDashboardNav(orgSlug: string): NavItem[] {
   const comingSoonTools = TOOLS.filter((t) => t.comingSoon).map(
@@ -37,14 +42,37 @@ export function getDashboardNav(orgSlug: string): NavItem[] {
 
   return [
     { label: "Overview", href: `/dashboard/${orgSlug}` as Route, icon: "LayoutDashboard" },
-    // Operations — primary
     { label: "Campaigns", href: `/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route, icon: "ShieldCheck" },
-    { label: "Check History", href: `/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route, icon: "History" },
-    // Workspace — channels & credentials (same route for now, distinct labels for job clarity)
-    { label: "Creator Channels", href: `/dashboard/${orgSlug}/settings/integrations` as Route, icon: "Tv" },
-    { label: "Integrations", href: `/dashboard/${orgSlug}/settings/integrations` as Route, icon: "Plug" },
-    // Future tools — subordinate
+    { label: "Checks", href: `/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route, icon: "History" },
+    { label: "Channels", href: `/dashboard/${orgSlug}/channels` as Route, icon: "Tv" },
+    { label: "Connections", href: `/dashboard/${orgSlug}/connections` as Route, icon: "Plug" },
+    { label: "Settings", href: `/dashboard/${orgSlug}/settings` as Route, icon: "Settings2" },
     ...comingSoonTools,
     { label: "Organizations", href: "/dashboard/organizations" as Route, icon: "Building2" },
+  ];
+}
+
+export function getDashboardNavGroups(orgSlug: string): NavGroup[] {
+  const nav = getDashboardNav(orgSlug);
+  const byLabel = new Map<string, NavItem | undefined>(nav.map((n) => [n.label, n] as const));
+  const coming = nav.filter((n) => n.comingSoon);
+  return [
+    {
+      label: "Workspace",
+      items: [byLabel.get("Overview"), byLabel.get("Campaigns"), byLabel.get("Checks")].filter(Boolean) as NavItem[],
+    },
+    {
+      label: "Creators",
+      items: [byLabel.get("Channels"), byLabel.get("Connections")].filter(Boolean) as NavItem[],
+    },
+    {
+      label: "Settings",
+      items: [byLabel.get("Settings")].filter(Boolean) as NavItem[],
+    },
+    ...(coming.length > 0 ? [{ label: "Coming soon", items: coming }] : []),
+    {
+      label: "",
+      items: [byLabel.get("Organizations")].filter(Boolean) as NavItem[],
+    },
   ];
 }

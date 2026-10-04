@@ -24,3 +24,5 @@ export {
   SelectSeparator,
 } from "./select";
 export { PageContainer, Section } from "./page-container";
+export { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from "./sheet";
+export { Breadcrumb } from "./breadcrumb";

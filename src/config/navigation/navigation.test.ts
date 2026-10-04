@@ -9,10 +9,10 @@ describe("Navigation", () => {
     expect(labels).not.toContain("Sponsor Sentinel");
   });
 
-  it("org nav uses Check History label not Scans", () => {
+  it("org nav uses Checks label (IA) not Scans", () => {
     const nav = getDashboardNav("acme");
     const labels = nav.map((n) => n.label);
-    expect(labels).toContain("Check History");
+    expect(labels).toContain("Checks");
     // Ensure old Scans label not present as nav item
     expect(labels).not.toContain("Scans");
   });
@@ -23,18 +23,19 @@ describe("Navigation", () => {
     expect(campaigns?.href).toBe("/dashboard/my-org/sponsor-sentinel/campaigns");
   });
 
-  it("Check History points to scans route", () => {
+  it("Checks points to scans route", () => {
     const nav = getDashboardNav("my-org");
-    const item = nav.find((n) => n.label === "Check History");
+    const item = nav.find((n) => n.label === "Checks");
     expect(item?.href).toBe("/dashboard/my-org/sponsor-sentinel/scans");
   });
 
-  it("Creator Channels and Integrations point to settings/integrations", () => {
+  it("Channels and Connections are distinct routes", () => {
     const nav = getDashboardNav("my-org");
-    const channels = nav.find((n) => n.label === "Creator Channels");
-    const integrations = nav.find((n) => n.label === "Integrations");
-    expect(channels?.href).toBe("/dashboard/my-org/settings/integrations");
-    expect(integrations?.href).toBe("/dashboard/my-org/settings/integrations");
+    const channels = nav.find((n) => n.label === "Channels");
+    const connections = nav.find((n) => n.label === "Connections");
+    expect(channels?.href).toBe("/dashboard/my-org/channels");
+    expect(connections?.href).toBe("/dashboard/my-org/connections");
+    expect(channels?.href).not.toBe(connections?.href);
   });
 
   it("future tools remain subordinate with Soon", () => {
@@ -52,13 +53,13 @@ describe("Navigation", () => {
     expect(dashboardNav.some((n) => n.label === "Organizations")).toBe(true);
   });
 
-  it("ordering: Overview before Campaigns before Check History before Channels", () => {
+  it("ordering: Overview before Campaigns before Checks before Channels", () => {
     const nav = getDashboardNav("org1");
     const labels = nav.map((n) => n.label);
     const overviewIdx = labels.indexOf("Overview");
     const campaignsIdx = labels.indexOf("Campaigns");
-    const checkIdx = labels.indexOf("Check History");
-    const channelsIdx = labels.indexOf("Creator Channels");
+    const checkIdx = labels.indexOf("Checks");
+    const channelsIdx = labels.indexOf("Channels");
     expect(overviewIdx).toBeLessThan(campaignsIdx);
     expect(campaignsIdx).toBeLessThan(checkIdx);
     expect(checkIdx).toBeLessThan(channelsIdx);
