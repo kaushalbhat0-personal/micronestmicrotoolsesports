@@ -131,7 +131,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           items={readinessItems}
           action={
             !hasConnectedChannel ? (
-              <Link href={`/dashboard/${orgSlug}/settings/integrations` as Route}>
+              <Link href={`/dashboard/${orgSlug}/channels` as Route}>
                 <Button size="sm" variant="outline">
                   Connect a creator channel
                 </Button>
@@ -182,7 +182,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             title="No creator channel connected"
             description="Connect a creator channel before starting tracking. This campaign will use connected channels to check for sponsorship proof."
             action={
-              <Link href={`/dashboard/${orgSlug}/settings/integrations` as Route}>
+              <Link href={`/dashboard/${orgSlug}/channels` as Route}>
                 <Button size="sm">Connect a creator channel</Button>
               </Link>
             }
