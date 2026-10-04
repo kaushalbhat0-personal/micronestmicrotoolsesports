@@ -1,11 +1,10 @@
+import * as React from "react";
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createClient } from "@/lib/supabase/server";
 import { getCampaign } from "@/features/sponsor-sentinel/services/campaign-service";
 import { listDeliverablesByCampaign } from "@/server/repositories/deliverables";
 import { listConnectedChannelsByOrg } from "@/server/repositories/connected-channels";
-import { listEvidenceByScan } from "@/server/repositories/evidence";
-import { listEvaluationsByScan } from "@/server/repositories/evaluations";
 import { listScansByCampaign } from "@/server/repositories/scans";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -19,9 +18,8 @@ import { DeliverableForm } from "@/features/sponsor-sentinel/components/delivera
 import { DeleteRequirementButton } from "@/features/sponsor-sentinel/components/delete-requirement-button";
 import { ActivateCampaignButton } from "@/features/sponsor-sentinel/components/activate-campaign-button";
 import { CheckNowButton } from "@/features/sponsor-sentinel/components/check-now-button";
-import { ContentProofSections } from "@/features/sponsor-sentinel/components/content-proof-sections";
+import { CampaignProofSection, CampaignProofSkeleton } from "@/features/sponsor-sentinel/components/campaign-proof-section";
 import { formatRequirementDescription } from "@/features/sponsor-sentinel/components/requirement-description";
-import { groupProofByContent } from "@/features/sponsor-sentinel/services/proof-grouping";
 import { APP_TIMEZONE, formatDateTimeKolkata } from "@/lib/utils/format";
 import Link from "next/link";
 import type { Route } from "next";
@@ -59,12 +57,6 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
 
   const latestScan = campaignScans[0] ?? null;
 
-  let evidence: Awaited<ReturnType<typeof listEvidenceByScan>> = [];
-  let evaluations: Awaited<ReturnType<typeof listEvaluationsByScan>> = [];
-  if (latestScan) {
-    [evidence, evaluations] = await Promise.all([listEvidenceByScan(supabase, latestScan.id), listEvaluationsByScan(supabase, latestScan.id)]);
-  }
-
   const hasConnectedChannel = usableChannels.length > 0;
   const hasRequirement = deliverables.length > 0;
   const period = formatPeriod(campaign.starts_at, campaign.ends_at);
@@ -95,22 +87,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     },
   ];
 
-  // Proof grouping for requirement health — many-to-many preserved
-  const deliverableMap = new Map<string, { name: string; rule: unknown }>(deliverables.map((d) => [d.id, { name: d.name, rule: d.rule }]));
-  const proofGroups = evidence.length > 0 ? groupProofByContent(evidence, evaluations, deliverableMap) : [];
-  const proofCountByReq = new Map<string, number>();
-  const resultByReq = new Map<string, string>();
-  for (const g of proofGroups) {
-    for (const r of g.requirements) {
-      proofCountByReq.set(r.deliverableId, (proofCountByReq.get(r.deliverableId) ?? 0) + 1);
-      if (!resultByReq.has(r.deliverableId)) resultByReq.set(r.deliverableId, r.result);
-      else if (r.result === "PASS") resultByReq.set(r.deliverableId, "PASS");
-    }
-  }
-  // Fallback to evaluation result when no proof group (e.g., FAIL with 0 proof)
-  for (const ev of evaluations) {
-    if (!resultByReq.has(ev.deliverable_id)) resultByReq.set(ev.deliverable_id, ev.result);
-  }
+
 
   return (
     <div className="space-y-8">
@@ -193,16 +170,13 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             {deliverables.map((d) => {
               const human = formatRequirementDescription(d.rule as unknown);
               const isLastActive = isActive && activeRequirementCount === 1 && d.status === "active";
-              const result = resultByReq.get(d.id);
-              const proofCount = proofCountByReq.get(d.id) ?? 0;
               return (
                 <li key={d.id} className="rounded-[16px] border border-border bg-card p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-sm font-semibold leading-none">{d.name}</h3>
-                        {result ? <StatusBadge status={result} /> : <Badge variant="outline">Active</Badge>}
-                        <span className="text-xs rounded-full bg-surface-muted px-2 py-0.5 text-muted-foreground">{proofCount} proof</span>
+                        <Badge variant="outline">Active</Badge>
                       </div>
                       {d.description ? <p className="text-xs text-muted-foreground">{d.description}</p> : null}
                       <p className="text-sm">{human}</p>
@@ -260,10 +234,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                   <Badge variant={latestScan.platform === "youtube" ? "platform-youtube" : latestScan.platform === "twitch" ? "platform-twitch" : "platform-kick"} className="capitalize text-[11px]">{platformLabel(latestScan.platform)}</Badge>
                   <span className="text-xs text-muted-foreground">{formatDateTimeKolkata(latestScan.started_at)}</span>
                 </div>
-                <p className="text-sm">
-                  {proofGroups.length} proof items • {evaluations.length} results
-                  {evaluations.length > 0 ? ` • ${Object.entries(evaluations.reduce((a: Record<string, number>, ev) => { a[ev.result] = (a[ev.result] ?? 0) + 1; return a; }, {})).map(([k, v]) => `${k}:${v}`).join(" ")}` : ""}
-                </p>
+                <p className="text-sm">Latest verification for this campaign.</p>
               </div>
               <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans/${latestScan.id}` as Route} className="inline-flex text-sm font-medium text-primary hover:underline">
                 View check →
@@ -273,31 +244,21 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         )}
       </section>
 
-      {/* 5 — Proof — latest check only, many-to-many hero */}
+      {/* 5 — Proof — streamed: hero + requirements render before evidence query */}
       <section className="space-y-3" aria-labelledby="proof-heading">
         <SectionHeader title="Proof" description="Latest proof from this campaign — one content item appears once with all requirements it satisfies. Full history via checks." />
-        {isActive && evidence.length === 0 && !latestScan ? (
-          <EmptyState title="No proof checked yet" description="Check the creator channel to look for the latest sponsorship activity." action={<CheckNowButton orgSlug={orgSlug} campaignId={campaignId} />} />
-        ) : !latestScan ? (
-          <EmptyState
-            title="No proof yet"
-            description={isDraft ? "Start tracking to begin checking creator activity for this campaign." : "Proof will appear when eligible content matches campaign requirements."}
+        <React.Suspense fallback={<CampaignProofSkeleton />}>
+          <CampaignProofSection
+            orgSlug={orgSlug}
+            campaignId={campaignId}
+            scanId={latestScan?.id ?? null}
+            scanPlatform={latestScan?.platform}
+            scanStartedAt={latestScan?.started_at}
+            isActive={isActive}
+            isDraft={isDraft}
+            deliverables={deliverables.map((d) => ({ id: d.id, name: d.name, rule: d.rule }))}
           />
-        ) : evidence.length === 0 ? (
-          <Card variant="default">
-            <CardContent className="pt-6">
-              <p className="text-sm font-medium">No proof found yet</p>
-              <p className="mt-1 text-sm text-muted-foreground">Check the creator channel to look for the latest sponsorship activity.</p>
-              {isActive ? <div className="mt-3"><CheckNowButton orgSlug={orgSlug} campaignId={campaignId} /></div> : null}
-              <p className="mt-2 text-xs text-muted-foreground">Last check: {formatDateTimeKolkata(latestScan.started_at)} • {platformLabel(latestScan.platform)}</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            <ContentProofSections evidence={evidence} evaluations={evaluations} deliverableMap={deliverableMap} />
-            <p className="text-xs text-muted-foreground">Last check: {formatDateTimeKolkata(latestScan.started_at)} • {platformLabel(latestScan.platform)} · <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route} className="text-primary underline">View all checks →</Link></p>
-          </div>
-        )}
+        </React.Suspense>
       </section>
 
       {/* 6 — Creator Channels — contextual, not primary */}

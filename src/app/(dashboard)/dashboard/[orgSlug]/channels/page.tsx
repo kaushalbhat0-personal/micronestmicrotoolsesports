@@ -2,7 +2,7 @@ import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getProviderCredentialRow, toMaskedView } from "@/server/credentials/repository";
+import { listProviderCredentialsByOrg, toMaskedView } from "@/server/credentials/repository";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -24,14 +24,10 @@ export default async function ChannelsPage({ params }: { params: Promise<{ orgSl
   await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
 
   const admin = createAdminClient();
-  const [twitchRow, youtubeRow, kickRow] = await Promise.all([
-    getProviderCredentialRow(admin as never, ctx.organization.id, "twitch"),
-    getProviderCredentialRow(admin as never, ctx.organization.id, "youtube"),
-    getProviderCredentialRow(admin as never, ctx.organization.id, "kick"),
-  ]);
-  const twitch = toMaskedView(twitchRow);
-  const youtube = toMaskedView(youtubeRow);
-  const kick = toMaskedView(kickRow);
+  const providerRows = await listProviderCredentialsByOrg(admin as never, ctx.organization.id);
+  const twitch = toMaskedView(providerRows.twitch);
+  const youtube = toMaskedView(providerRows.youtube);
+  const kick = toMaskedView(providerRows.kick);
 
   const supabase = await createClient();
   const [{ data: channels }, { data: campaigns }] = await Promise.all([

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { forbiddenError, notFoundError } from "@/lib/errors";
 import { requireUser } from "./get-user";
@@ -27,8 +28,9 @@ export interface OrganizationContext {
 /**
  * Require organization context — throws 401/404/403 if invariants violated.
  * Caller can safely assume: user authenticated, org exists, user is member.
+ * Cached per-request per slug — dedupes duplicate lookups within same render.
  */
-export async function requireOrganizationContext(orgSlug: string): Promise<OrganizationContext> {
+export const requireOrganizationContext = cache(async (orgSlug: string): Promise<OrganizationContext> => {
   const user = await requireUser();
   const supabase = await createClient();
 
@@ -55,7 +57,7 @@ export async function requireOrganizationContext(orgSlug: string): Promise<Organ
     membership: result.membership as OrganizationContext["membership"],
     user,
   };
-}
+});
 
 /**
  * Get organization context or null — for conditional rendering / 404 handling.

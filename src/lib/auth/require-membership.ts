@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { forbiddenError, notFoundError } from "@/lib/errors";
 import { requireUser } from "./get-user";
@@ -27,8 +28,8 @@ export interface MembershipContext {
   };
 }
 
-/** Assert user is member of organization — throws 403 otherwise */
-export async function requireOrganizationMember(organizationId: string): Promise<MembershipContext> {
+/** Assert user is member of organization — throws 403 otherwise — cached per-request per org */
+export const requireOrganizationMember = cache(async (organizationId: string): Promise<MembershipContext> => {
   const user = await requireUser();
   const supabase = await createClient();
 
@@ -52,7 +53,7 @@ export async function requireOrganizationMember(organizationId: string): Promise
   }
 
   return { user, membership: membership as MembershipContext["membership"], organization: org };
-}
+});
 
 /** Assert membership with specific role(s) */
 export async function requireOrganizationRole(

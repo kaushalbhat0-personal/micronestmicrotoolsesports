@@ -1,7 +1,7 @@
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getProviderCredentialRow, toMaskedView } from "@/server/credentials/repository";
+import { listProviderCredentialsByOrg, toMaskedView } from "@/server/credentials/repository";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,15 +17,10 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ or
   await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
 
   const admin = createAdminClient();
-  const [twitchRow, youtubeRow, kickRow] = await Promise.all([
-    getProviderCredentialRow(admin as never, ctx.organization.id, "twitch"),
-    getProviderCredentialRow(admin as never, ctx.organization.id, "youtube"),
-    getProviderCredentialRow(admin as never, ctx.organization.id, "kick"),
-  ]);
-
-  const twitch = toMaskedView(twitchRow);
-  const youtube = toMaskedView(youtubeRow);
-  const kick = toMaskedView(kickRow);
+  const providerRows = await listProviderCredentialsByOrg(admin as never, ctx.organization.id);
+  const twitch = toMaskedView(providerRows.twitch);
+  const youtube = toMaskedView(providerRows.youtube);
+  const kick = toMaskedView(providerRows.kick);
 
   const platforms = [
     {

@@ -106,6 +106,26 @@ export async function getProviderCredentialRow(
   return (data as ProviderCredentialRow | null) ?? null;
 }
 
+/** Batched fetch — single query for all providers of an org (replaces ×3 round-trips) */
+export async function listProviderCredentialsByOrg(
+  supabase: SupabaseClient,
+  organizationId: string,
+): Promise<Record<Provider, ProviderCredentialRow | null>> {
+  const { data, error } = await supabase
+    .from("organization_provider_credentials")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .in("provider", ["twitch", "youtube", "kick"]);
+  if (error || !data) return { twitch: null, youtube: null, kick: null };
+  const byProvider: Record<Provider, ProviderCredentialRow | null> = { twitch: null, youtube: null, kick: null };
+  for (const row of data as ProviderCredentialRow[]) {
+    if (row.provider === "twitch" || row.provider === "youtube" || row.provider === "kick") {
+      byProvider[row.provider as Provider] = row;
+    }
+  }
+  return byProvider;
+}
+
 /** Decrypts only server-side — never call from client components */
 export function decryptRow(row: ProviderCredentialRow | null): ProviderCredentialSecretView | null {
   if (!row) return null;

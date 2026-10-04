@@ -10,17 +10,10 @@ import { createClient } from "@/lib/supabase/server";
 import { listCampaigns } from "@/features/sponsor-sentinel/services/campaign-service";
 import { listConnectedChannelsByOrg } from "@/server/repositories/connected-channels";
 import { getScanHistory } from "@/features/sponsor-sentinel/services/scan-history";
-import { groupProofByContent } from "@/features/sponsor-sentinel/services/proof-grouping";
+import { DashboardRecentProof, DashboardRecentProofSkeleton } from "@/features/sponsor-sentinel/components/dashboard-recent-proof";
 import Link from "next/link";
 import type { Route } from "next";
-import { ShieldCheck, Tv, History, TriangleAlert, CheckCircle, ArrowRight, Sparkles, Clock3, ExternalLink, Video } from "lucide-react";
-
-function youtubeThumb(externalContentId: string | null): string | null {
-  if (!externalContentId) return null;
-  // YouTube video IDs are 11 chars, alphanumeric + _-
-  if (!/^[a-zA-Z0-9_-]{6,}$/.test(externalContentId)) return null;
-  return `https://i.ytimg.com/vi/${externalContentId}/hqdefault.jpg`;
-}
+import { ShieldCheck, Tv, History, TriangleAlert, CheckCircle, ArrowRight, Sparkles, Clock3 } from "lucide-react";
 
 function formatRelative(iso: string): string {
   try {
@@ -69,30 +62,6 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
     deliverablesByCampaign.set(d.campaign_id, arr);
   }
 
-  // Recent proof — last 6 evidence, content-centric
-  let proofGroups: ReturnType<typeof groupProofByContent> = [];
-  let proofTodayCount = 0;
-  try {
-    const { data: evRows } = await supabase
-      .from("evidence")
-      .select("id, organization_id, campaign_id, deliverable_id, scan_id, platform, external_channel_id, external_content_id, evidence_type, source, source_id, source_url, observed_value, observed_at, normalized_value, scanner_version, created_at")
-      .eq("organization_id", ctx.organization.id)
-      .order("observed_at", { ascending: false })
-      .limit(6);
-    const evidence = (evRows ?? []) as never as import("@/types/database").Evidence[];
-    if (evidence.length > 0) {
-      const evIds = evidence.map((e) => e.id);
-      const { data: evalRows } = await supabase.from("evaluations").select("id, evidence_id, deliverable_id, result, reason, evaluated_at, scan_id").in("evidence_id", evIds).eq("organization_id", ctx.organization.id);
-      const evaluations = (evalRows ?? []) as never as import("@/types/database").Evaluation[];
-      const deliverableMap = new Map<string, { name: string; rule: unknown }>(deliverables.map((d) => [d.id, { name: d.name, rule: d.rule }]));
-      proofGroups = groupProofByContent(evidence, evaluations, deliverableMap);
-      const today = new Date().toISOString().slice(0, 10);
-      proofTodayCount = evidence.filter((e) => e.observed_at?.slice(0, 10) === today).length;
-    }
-  } catch {
-    proofGroups = [];
-  }
-
   const scans = scanHistory.scans.slice(0, 5);
   const recentCampaigns = campaigns.slice(0, 4);
 
@@ -124,7 +93,7 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
 
   const heroMetrics = [
     { label: "Campaigns tracking", value: String(activeCampaigns.length), sub: `${campaigns.length} total`, icon: ShieldCheck },
-    { label: "Proof found today", value: String(proofTodayCount), sub: proofGroups.length > 0 ? `${proofGroups.length} recent` : "No proof yet", icon: CheckCircle },
+    { label: "Proof found today", value: String(scans.filter((s) => (s.evaluationSummary["PASS"] ?? 0) > 0).length), sub: scanHistory.total > 0 ? `${scanHistory.total} checks` : "No proof yet", icon: CheckCircle },
     { label: "Connected channels", value: String(connectedCount), sub: hasChannels ? "Ready" : "Not connected", icon: Tv },
   ];
 
@@ -197,92 +166,21 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
         )}
       </section>
 
-      {/* Recent Proof — hero */}
+      {/* Recent Proof — streamed: hero + attention render before evidence query */}
       <section className="space-y-3" aria-labelledby="recent-proof-heading">
         <SectionHeader
           title="Recent Proof"
           description="Content-centric — each item once with all requirements it satisfies."
           icon={<Sparkles className="h-4 w-4" />}
           action={
-            proofGroups.length > 0 ? (
-              <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route} className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1">
-                View checks <ArrowRight className="h-3 w-3" />
-              </Link>
-            ) : undefined
+            <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route} className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1">
+              View checks <ArrowRight className="h-3 w-3" />
+            </Link>
           }
         />
-        {proofGroups.length === 0 ? (
-          <EmptyState
-            icon={<Sparkles className="h-5 w-5" />}
-            title="No proof yet"
-            description="Once eligible content is checked, verified proof will appear here."
-            action={
-              hasCampaigns ? (
-                <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route}>
-                  <Button>View campaigns</Button>
-                </Link>
-              ) : (
-                <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/new` as Route}>
-                  <Button>Create campaign</Button>
-                </Link>
-              )
-            }
-            secondaryAction={
-              !hasChannels ? (
-                <Link href={`/dashboard/${orgSlug}/channels` as Route}>
-                  <Button variant="outline">Connect channel</Button>
-                </Link>
-              ) : undefined
-            }
-          />
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {proofGroups.slice(0, 4).map((g) => {
-              const ytThumb = g.platform === "youtube" ? youtubeThumb(g.contentId) : null;
-              const passCount = g.requirements.filter((r) => r.result === "PASS").length;
-              const total = g.requirements.length;
-              return (
-                <div key={`${g.scanId}-${g.contentId}`} className="rounded-[16px] border border-border bg-card p-4">
-                  <div className="flex gap-3">
-                    <div className="h-[68px] w-[120px] shrink-0 overflow-hidden rounded-[8px] border border-border bg-surface-muted flex items-center justify-center">
-                      {ytThumb ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={ytThumb} alt="" className="h-full w-full object-cover" loading="lazy" />
-                      ) : (
-                        <Video className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge variant={g.platform === "youtube" ? "platform-youtube" : g.platform === "twitch" ? "platform-twitch" : "platform-kick"} className="capitalize text-[10px]">
-                          {g.platform}
-                        </Badge>
-                        {g.observedAt ? <span className="text-xs text-muted-foreground">{formatRelative(g.observedAt)}</span> : null}
-                      </div>
-                      <p className="line-clamp-2 text-sm font-medium leading-snug" title={g.title}>
-                        {g.title ?? `Content ${g.contentId.slice(0, 8)}`}
-                      </p>
-                      {g.sourceUrl ? (
-                        <a href={g.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                          View source <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2 rounded-[8px] bg-surface-muted px-3 py-2">
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full ${passCount === total && total > 0 ? "bg-success text-white" : passCount > 0 ? "bg-warning text-white" : "bg-muted text-muted-foreground"}`}>
-                      <CheckCircle className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="text-xs font-medium">
-                      {passCount === total && total > 0 ? `${total} requirements satisfied` : `${passCount}/${total} satisfied`}
-                    </span>
-                    <span className="ml-auto text-xs text-muted-foreground">{total} requirements</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <React.Suspense fallback={<DashboardRecentProofSkeleton />}>
+          <DashboardRecentProof orgSlug={orgSlug} orgId={ctx.organization.id} hasCampaigns={hasCampaigns} hasChannels={hasChannels} deliverables={deliverables.map((d) => ({ id: d.id, name: d.name, rule: d.rule }))} />
+        </React.Suspense>
       </section>
 
       {/* Campaigns strip */}

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { entitlementError } from "@/lib/errors";
 import { requireOrganizationMember } from "./require-membership";
@@ -9,8 +10,8 @@ import { requireOrganizationMember } from "./require-membership";
  * Uses DB helper has_tool_access() where possible, plus app-level resolution for richer errors.
  */
 
-export async function requireEntitlement(organizationId: string, toolSlug: string) {
-  // Ensure membership first — entitlement without membership is meaningless
+export const requireEntitlement = cache(async (organizationId: string, toolSlug: string) => {
+  // Ensure membership first — entitlement without membership is meaningless (deduped via cached member)
   const ctx = await requireOrganizationMember(organizationId);
   const supabase = await createClient();
 
@@ -42,7 +43,7 @@ export async function requireEntitlement(organizationId: string, toolSlug: strin
   if (!valid) throw entitlementError(`Organization does not have access to ${toolSlug}`);
 
   return { ...ctx, toolSlug, hasAccess: true as const };
-}
+});
 
 /** Get entitlements for an org — for UI (tool cards, billing) */
 export async function getOrganizationEntitlements(organizationId: string) {
