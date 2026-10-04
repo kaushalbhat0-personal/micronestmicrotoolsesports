@@ -153,6 +153,16 @@ export async function requestScanAction(formData: FormData): Promise<{ ok?: bool
       revalidatePath(`/dashboard/${slugForRevalidate}/sponsor-sentinel/campaigns/${campaignIdForRevalidate}`);
       revalidatePath(`/dashboard/${slugForRevalidate}/sponsor-sentinel/scans`);
     } catch (e) {
+      // Already running is controlled, not an error — just log and revalidate
+      const code = (e as { code?: string })?.code;
+      if (code === "CONFLICT" || String((e as Error).message ?? "").includes("already running")) {
+        console.warn(JSON.stringify({ event: "check_now_skipped_already_running", organizationId: organizationId.slice(0, 8), campaignId: campaignIdForRevalidate.slice(0, 8) }));
+        try {
+          revalidatePath(`/dashboard/${slugForRevalidate}/sponsor-sentinel/campaigns/${campaignIdForRevalidate}`);
+          revalidatePath(`/dashboard/${slugForRevalidate}/sponsor-sentinel/scans`);
+        } catch {}
+        return;
+      }
       // Safe logging: identifiers only, no secrets/payloads
       const shortOrg = organizationId.slice(0, 8);
       const shortCamp = campaignIdForRevalidate.slice(0, 8);

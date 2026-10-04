@@ -7,6 +7,7 @@ import type { CanonicalLiveStream, CanonicalVideo } from "@/features/sponsor-sen
 import type { ProviderBudget } from "@/features/sponsor-sentinel/types/budget";
 import type { ScanStage, ScanInput, ScanResult } from "./scan-types";
 import { budgetExceededError, providerError } from "./scan-errors";
+import { AppError } from "@/lib/errors";
 import * as campaignRepo from "@/server/repositories/sponsor-campaigns";
 import * as deliverableRepo from "@/server/repositories/deliverables";
 import * as channelRepo from "@/server/repositories/connected-channels";
@@ -68,13 +69,22 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
   // If execution later yields evidence on a single distinct platform, we correct the scan row to that platform
   // (prevents youtube/twitch mismatch when org has multiple channels but proof is twitch).
   const initialScanPlatform: Platform = (input.platformFilter ?? (channels[0]?.platform as Platform | undefined) ?? "twitch");
-  let scan = await scanRepo.createScan(supabase, {
-    organization_id: organizationId,
-    campaign_id: campaignId,
-    platform: initialScanPlatform,
-    status: "pending",
-    scanner_version: scannerVersion,
-  });
+  let scan: import("@/types/database").Scan;
+  try {
+    scan = await scanRepo.tryCreateScanWithLock(supabase, {
+      organization_id: organizationId,
+      campaign_id: campaignId,
+      platform: initialScanPlatform,
+      status: "pending",
+      scanner_version: scannerVersion,
+    });
+  } catch (e) {
+    // Already running is controlled, not a 500
+    if (e instanceof Error && (e as unknown as { code?: string }).code === "CONFLICT") throw e;
+    const maybe = e as { code?: string; message?: string };
+    if (maybe?.code === "CONFLICT" || String(maybe?.message ?? "").includes("already running")) throw e;
+    throw e;
+  }
   // pending -> running
   scan = await scanRepo.updateScanStatus(supabase, scan.id, { status: "running" });
   // Track distinct evidence platforms for post-run correction

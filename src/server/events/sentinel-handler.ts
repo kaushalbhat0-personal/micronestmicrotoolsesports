@@ -65,6 +65,11 @@ export async function handleSentinelWebhookEvent(
       if (sid) scanIds.push(sid);
       console.warn(JSON.stringify({ event: "sentinel_webhook_scan", organizationId, campaignId: campaign.id, channelId: event.externalChannelId, provider: event.provider, eventType: event.eventType, category, scanId: sid }));
     } catch (e) {
+      const code = (e as { code?: string })?.code;
+      if (code === "CONFLICT" || String((e as Error).message ?? "").includes("already running")) {
+        console.warn(JSON.stringify({ event: "sentinel_webhook_scan_skipped_already_running", organizationId, campaignId: campaign.id, category }));
+        continue; // webhook already persisted, active Check will discover it
+      }
       anyFailed = true;
       lastError = e instanceof Error ? e.message : String(e);
       console.warn(JSON.stringify({ event: "sentinel_webhook_scan_failed", organizationId, campaignId: campaign.id, category, error: lastError.slice(0, 200) }));

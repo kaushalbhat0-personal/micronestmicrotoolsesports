@@ -1,5 +1,61 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Scan } from "@/types/database";
+import { AppError } from "@/lib/errors";
+
+export const SCAN_STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+export const SCAN_ALREADY_RUNNING_CODE = "CONFLICT" as const;
+
+export async function expireStaleScans(supabase: SupabaseClient, campaignId: string): Promise<number> {
+  try {
+    if (!supabase || typeof (supabase as unknown as { from?: unknown }).from !== "function") return 0;
+    const threshold = new Date(Date.now() - SCAN_STALE_THRESHOLD_MS).toISOString();
+    const { data, error } = await (supabase as unknown as { from: (t: string) => { update: (p: unknown) => { eq: (k: string, v: unknown) => { in: (k: string, v: unknown[]) => { lt: (k: string, v: string) => { select: (s: string) => Promise<{ data: unknown[] | null; error: unknown }> } } } } } }).from("scans")
+      .update({ status: "failed", completed_at: new Date().toISOString(), error_code: "stale_timeout", error_message: "Scan expired: stale pending/running beyond threshold" } as never)
+      .eq("campaign_id", campaignId)
+      .in("status", ["pending", "running"] as never[])
+      .lt("started_at", threshold)
+      .select("id");
+    if (error) return 0;
+    return (data as unknown[] | null)?.length ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+export async function findActiveScanForCampaign(supabase: SupabaseClient, campaignId: string): Promise<Scan | null> {
+  const { data, error } = await supabase
+    .from("scans")
+    .select("*")
+    .eq("campaign_id", campaignId)
+    .in("status", ["pending", "running"] as never[])
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as Scan;
+}
+
+export async function tryCreateScanWithLock(supabase: SupabaseClient, input: CreateScanInput): Promise<Scan> {
+  try {
+    await expireStaleScans(supabase, input.campaign_id);
+  } catch {
+    // ignore stale cleanup errors in tests
+  }
+  try {
+    // Use dynamic import so vi.spyOn(scanRepo, "createScan") mocks are respected
+    const mod = await import("./scans");
+    const fn = (mod.createScan as unknown as typeof createScan) ?? createScan;
+    return await fn(supabase, input);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const code = (e as { code?: string })?.code;
+    // Postgres unique violation 23505 or message containing duplicate
+    if (code === "23505" || msg.includes("duplicate") || msg.includes("unique") || msg.includes("scans_campaign_active_unique")) {
+      throw new AppError({ code: SCAN_ALREADY_RUNNING_CODE, status: 409, message: "A check is already running for this campaign. Please wait a moment and try again." });
+    }
+    throw e;
+  }
+}
 
 export type CreateScanInput = {
   organization_id: string;

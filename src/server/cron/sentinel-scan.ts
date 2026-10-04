@@ -166,6 +166,15 @@ export async function runCampaignScans(
         }),
       );
     } catch (e) {
+      const maybe = e as { code?: string };
+      if (maybe?.code === "CONFLICT" || String((e as Error).message ?? "").includes("already running")) {
+        const durationMs = Math.round((typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now()) - campaignStart);
+        // Already running is not a failure — skip, allow B to run
+        console.warn(JSON.stringify({ event: "sentinel_campaign_skipped_already_running", cronRunId, campaignId, organizationId, durationMs }));
+        succeeded++;
+        results.push({ campaignId, organizationId, ok: true, durationMs, errorKind: "already_running", error: "already running" });
+        continue;
+      }
       const durationMs = Math.round((typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now()) - campaignStart);
       const errorKind = classifyError(e);
       const msg = sanitizeErrorMessage(e);
