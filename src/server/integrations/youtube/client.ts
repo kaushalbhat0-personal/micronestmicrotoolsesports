@@ -105,13 +105,38 @@ export class YouTubeClient {
   }
 
   async channelsList(params: { id?: string; forHandle?: string; part?: string }): Promise<{
-    items?: Array<{ id: string; snippet: { title: string; description: string; customUrl?: string } }>;
+    items?: Array<{
+      id: string;
+      snippet: { title: string; description: string; customUrl?: string };
+      contentDetails?: { relatedPlaylists?: { uploads?: string } };
+    }>;
   }> {
     const p: Record<string, string | undefined> = {};
     if (params.id) p.id = params.id;
     if (params.forHandle) p.forHandle = params.forHandle;
     p.part = params.part ?? "snippet";
     return this.request("/channels", p, "channels.list");
+  }
+
+  async playlistItemsList(params: {
+    playlistId: string;
+    part?: string;
+    maxResults?: string;
+    pageToken?: string;
+  }): Promise<{
+    items?: Array<{
+      snippet: { publishedAt: string; title: string; resourceId: { videoId?: string } };
+      contentDetails?: { videoId?: string; videoPublishedAt?: string };
+    }>;
+    nextPageToken?: string;
+    pageInfo?: { totalResults: number; resultsPerPage: number };
+  }> {
+    return this.request("/playlistItems", {
+      part: params.part ?? "snippet,contentDetails",
+      playlistId: params.playlistId,
+      maxResults: params.maxResults ?? "50",
+      pageToken: params.pageToken,
+    }, "playlistItems.list");
   }
 
   async videosList(params: {

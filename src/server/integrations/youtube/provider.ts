@@ -133,44 +133,62 @@ export class YouTubeProvider
     channel: ConnectedChannelRef,
     window: { readonly from: string; readonly to: string },
   ): Promise<readonly CanonicalVideo[]> {
-    // Bounded pagination: up to 3 search pages (10 each) => max 25 candidates, respects searchBudget
-    const maxPages = 3;
+    // Search-free historical discovery: channel → uploads playlist → playlistItems → videos
+    // Preserves campaign timeframe filter, candidate cap 25, bounded pagination.
+    // Quota: 1 channels.list + 1 playlistItems.list (50) + 1 videos.list = 3 general units, 0 search.
     const maxCandidates = 25;
-    const pageSize = "10";
-    let pageToken: string | undefined = undefined;
     const allIds: string[] = [];
+    let uploadsPlaylistId: string | null = null;
 
-    for (let page = 0; page < maxPages; page++) {
+    // 1) Resolve uploads playlist via channels.list contentDetails
+    try {
+      this.checkBudget(this.budget, 1, "channels.list");
+      const chRes = await this.client.channelsList({ id: channel.externalChannelId, part: "snippet,contentDetails" });
+      this.consumeBudget(this.budget, 1);
+      const ch = chRes.items?.[0] as unknown as { contentDetails?: { relatedPlaylists?: { uploads?: string } } } | undefined;
+      uploadsPlaylistId = ch?.contentDetails?.relatedPlaylists?.uploads ?? null;
+      // Fallback deterministic derivation if API omits but channel is UC... (UU + channelId[2:])
+      if (!uploadsPlaylistId && channel.externalChannelId.startsWith("UC") && channel.externalChannelId.length >= 10) {
+        uploadsPlaylistId = `UU${channel.externalChannelId.slice(2)}`;
+      }
+    } catch (e) {
+      if (e instanceof YouTubeApiError && e.kind === "quota_exceeded") throw e;
+      // channels failure → fallback to bounded search (1 page, 10 ids) to avoid total miss, still bounded
+      return this.listVideosViaSearchFallback(channel, window, maxCandidates);
+    }
+    if (!uploadsPlaylistId) {
+      return this.listVideosViaSearchFallback(channel, window, maxCandidates);
+    }
+
+    // 2) Bounded playlistItems.list — uploads is reverse-chronological, single page of 50 covers 25 cap
+    let pageToken: string | undefined = undefined;
+    const maxPlaylistPages = 2; // 2×50 =100 items, but cap at 25 ids
+    for (let page = 0; page < maxPlaylistPages; page++) {
       if (allIds.length >= maxCandidates) break;
-      this.checkBudget(this.searchBudget ?? this.budget, 1, "search.list");
-      let searchRes;
+      this.checkBudget(this.budget, 1, "playlistItems.list");
+      let plRes;
       try {
-        const params: { channelId: string; maxResults: string; pageToken?: string } = {
-          channelId: channel.externalChannelId,
-          maxResults: pageSize,
-        };
-        if (pageToken) params.pageToken = pageToken;
-        searchRes = await this.client.searchList(params as { channelId: string; eventType?: string; maxResults?: string; pageToken?: string });
-        this.consumeBudget(this.searchBudget ?? this.budget, 1);
+        plRes = await this.client.playlistItemsList({ playlistId: uploadsPlaylistId, part: "snippet,contentDetails", maxResults: "50", ...(pageToken ? { pageToken } : {}) });
+        this.consumeBudget(this.budget, 1);
       } catch (e) {
         if (e instanceof YouTubeApiError) throw e;
         break;
       }
-      const ids = (searchRes.items ?? []).map((i) => i.id.videoId).filter((v): v is string => Boolean(v));
+      const ids = (plRes.items ?? [])
+        .map((i) => i.contentDetails?.videoId ?? i.snippet.resourceId.videoId)
+        .filter((v): v is string => Boolean(v));
       for (const id of ids) {
         if (allIds.length >= maxCandidates) break;
         if (!allIds.includes(id)) allIds.push(id);
       }
-      const next = (searchRes as { nextPageToken?: string }).nextPageToken;
-      if (!next) break;
+      const next = (plRes as { nextPageToken?: string }).nextPageToken;
+      if (!next || allIds.length >= maxCandidates) break;
       pageToken = next;
-      // Early stop: if we already have enough candidates, break
-      if (allIds.length >= maxCandidates) break;
     }
 
     if (allIds.length === 0) return [];
 
-    // Batch videos.list (YouTube allows up to 50 ids per call; we have ≤25)
+    // 3) Batch videos.list (YouTube allows up to 50 ids per call; we have ≤25)
     this.checkBudget(this.budget, 1, "videos.list");
     const vidsRes = await this.client.videosList({ id: allIds.join(",") });
     this.consumeBudget(this.budget, 1);
@@ -183,10 +201,67 @@ export class YouTubeProvider
       return pub >= from && pub <= to;
     });
 
-    // Preserve original search order (most recent first) as returned by search.list
+    // Preserve uploads order (most recent first) as returned by playlistItems
     const orderMap = new Map(allIds.map((id, idx) => [id, idx]));
     filtered.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
 
+    return filtered.slice(0, maxCandidates).map((v) =>
+      mapYouTubeVideoToCanonical(
+        {
+          id: v.id,
+          snippet: {
+            title: v.snippet.title,
+            description: v.snippet.description,
+            tags: v.snippet.tags,
+            categoryId: v.snippet.categoryId,
+            publishedAt: v.snippet.publishedAt,
+            channelId: v.snippet.channelId,
+            liveBroadcastContent: v.snippet.liveBroadcastContent,
+          },
+          contentDetails: { duration: v.contentDetails.duration },
+          liveStreamingDetails: v.liveStreamingDetails,
+        },
+        channel.externalHandle,
+        new Date().toISOString(),
+      ),
+    );
+  }
+
+  // Bounded fallback: single search page + videos.list, only when uploads path unavailable
+  private async listVideosViaSearchFallback(
+    channel: ConnectedChannelRef,
+    window: { readonly from: string; readonly to: string },
+    maxCandidates: number,
+  ): Promise<readonly CanonicalVideo[]> {
+    const pageSize = "10";
+    const allIds: string[] = [];
+    this.checkBudget(this.searchBudget ?? this.budget, 1, "search.list");
+    let searchRes;
+    try {
+      searchRes = await this.client.searchList({ channelId: channel.externalChannelId, maxResults: pageSize });
+      this.consumeBudget(this.searchBudget ?? this.budget, 1);
+    } catch (e) {
+      if (e instanceof YouTubeApiError) throw e;
+      return [];
+    }
+    const ids = (searchRes.items ?? []).map((i) => i.id.videoId).filter((v): v is string => Boolean(v));
+    for (const id of ids) {
+      if (allIds.length >= maxCandidates) break;
+      if (!allIds.includes(id)) allIds.push(id);
+    }
+    if (allIds.length === 0) return [];
+    this.checkBudget(this.budget, 1, "videos.list");
+    const vidsRes = await this.client.videosList({ id: allIds.join(",") });
+    this.consumeBudget(this.budget, 1);
+    const from = Date.parse(window.from);
+    const to = Date.parse(window.to);
+    const filtered = (vidsRes.items ?? []).filter((v) => {
+      const pub = Date.parse(v.snippet.publishedAt);
+      if (Number.isNaN(pub)) return true;
+      return pub >= from && pub <= to;
+    });
+    const orderMap = new Map(allIds.map((id, idx) => [id, idx]));
+    filtered.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
     return filtered.slice(0, maxCandidates).map((v) =>
       mapYouTubeVideoToCanonical(
         {
