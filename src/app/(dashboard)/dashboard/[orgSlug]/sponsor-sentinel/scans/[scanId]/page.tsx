@@ -8,12 +8,13 @@ import { getScanDetail } from "@/features/sponsor-sentinel/services/scan-detail"
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SectionHeader } from "@/components/ui/section-header";
 import { ScanStatusBadge } from "@/features/sponsor-sentinel/components/scan-status-badge";
 import { ContentProofSections } from "@/features/sponsor-sentinel/components/content-proof-sections";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { AppError } from "@/lib/errors";
 import { formatDateTimeKolkata } from "@/lib/utils/format";
+import { groupProofByContent } from "@/features/sponsor-sentinel/services/proof-grouping";
 
 export const dynamic = "force-dynamic";
 
@@ -41,106 +42,86 @@ export default async function ScanDetailPage({
   }
 
   const { scan, campaignName, evidence, evaluations, evaluationSummary } = detail;
+  const proofGroups = groupProofByContent(evidence, evaluations, detail.deliverableMap);
+  // Proof count per requirement (many-to-many)
+  const proofCountByRequirement = new Map<string, number>();
+  for (const g of proofGroups) {
+    for (const r of g.requirements) {
+      proofCountByRequirement.set(r.deliverableId, (proofCountByRequirement.get(r.deliverableId) ?? 0) + 1);
+    }
+  }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Check Details"
-        description={`Proof and results — ${campaignName ?? "Campaign"} • ${scan.platform}`}
-      />
+    <div className="space-y-8">
+      <PageHeader title={campaignName ?? "Check"} description={`${scan.platform} · ${scan.status} · ${formatDateTime(scan.started_at)}`} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            Check summary <ScanStatusBadge status={scan.status} />
+      <Card variant="default" className="overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex flex-wrap items-center gap-2">
+            Check <ScanStatusBadge status={scan.status} />
+            <Badge variant={scan.platform === "youtube" ? "platform-youtube" : scan.platform === "twitch" ? "platform-twitch" : "platform-kick"} className="capitalize text-[11px]">
+              {scan.platform}
+            </Badge>
+            <span className="text-xs font-normal text-muted-foreground ml-auto">{formatDateTime(scan.started_at)} → {formatDateTime(scan.completed_at) ?? "—"}</span>
           </CardTitle>
           <CardDescription>
-            Campaign {campaignName ?? "Campaign"} • Platform {scan.platform}
+            Campaign {campaignName ?? "Campaign"} • {evidence.length} proof items • {evaluations.length} results • {Object.entries(evaluationSummary).map(([k, v]) => `${k}:${v}`).join(" ") || "No results"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div>
-              <span className="text-muted-foreground">Started:</span> {formatDateTime(scan.started_at)}
-            </div>
-            <div>
-              <span className="text-muted-foreground">Completed:</span> {formatDateTime(scan.completed_at)}
-            </div>
-            <div>
-              <span className="text-muted-foreground">Proof:</span> {String(evidence.length)}
-            </div>
-            <div>
-              <span className="text-muted-foreground">Results:</span>{" "}
-              {Object.keys(evaluationSummary).length === 0
-                ? "—"
-                : Object.entries(evaluationSummary)
-                    .map(([k, v]) => `${k}:${v}`)
-                    .join(" ")}
-            </div>
-          </div>
           {(scan.error_code || scan.error_message) && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3">
+            <div className="rounded-[12px] border border-destructive/30 bg-destructive-soft p-3">
               <p className="font-medium text-destructive">We couldn&apos;t complete this check</p>
               <p className="text-xs mt-1 text-muted-foreground">Please try again in a moment. If the problem continues, contact support.</p>
             </div>
           )}
-          <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route} className="inline-flex text-sm underline">
-            ← Back to check history
+          <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route} className="inline-flex text-xs font-medium text-primary hover:underline">
+            ← Back to checks
           </Link>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Proof ({String(evidence.length)})</CardTitle>
-          <CardDescription>Proof grouped by content — each video shows all requirements it satisfies. Each check creates its own record.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ContentProofSections evidence={evidence} evaluations={evaluations} deliverableMap={detail.deliverableMap} />
-        </CardContent>
-      </Card>
+      <section className="space-y-3" aria-labelledby="results-heading">
+        <SectionHeader title="Requirement Results" description="Each requirement evaluated against all eligible content (content × requirements). Reason explains why." />
+        {evaluations.length === 0 ? (
+          <Card variant="muted" className="p-6 text-center">
+            <p className="text-sm font-medium">No results yet</p>
+            <p className="text-xs text-muted-foreground">This check did not produce results.</p>
+          </Card>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {Array.from(detail.deliverableMap.entries()).map(([delivId, meta]) => {
+              const relatedEvals = evaluations.filter((ev) => ev.deliverable_id === delivId);
+              // One eval per deliverable in current scan (Cartesian creates one per evidence, but summary picks first PASS/FAIL per requirement)
+              // For dashboard we show first eval's result/reason and proof count
+              const primary = relatedEvals[0];
+              const result = primary?.result ?? "PENDING";
+              const reason = primary?.reason ?? "Pending evaluation";
+              const proofCount = proofCountByRequirement.get(delivId) ?? 0;
+              return (
+                <div key={delivId} className="rounded-[16px] border border-border bg-card p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium leading-snug line-clamp-2 flex-1">{meta.name}</p>
+                    <StatusBadge status={result} />
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2" title={reason}>
+                    {reason}
+                  </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="text-xs rounded-full bg-surface-muted px-2.5 py-1 text-muted-foreground">Proof: {proofCount}</span>
+                    <span className="text-xs text-muted-foreground">{relatedEvals.length} evaluations</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Results ({String(evaluations.length)})</CardTitle>
-          <CardDescription>Results for this check. Each requirement is marked Confirmed, Not found, etc.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {evaluations.length === 0 ? (
-            <EmptyState title="No results yet" description="No results were produced for this check." />
-          ) : (
-            <Table aria-label="Results for check">
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col">Requirement</TableHead>
-                  <TableHead scope="col">Status</TableHead>
-                  <TableHead scope="col">Reason</TableHead>
-                  <TableHead scope="col">Checked</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {evaluations.map((ev) => (
-                  <TableRow key={ev.id}>
-                    <TableCell className="text-xs max-w-[10rem] truncate">{detail.deliverableMap.get(ev.deliverable_id)?.name ?? "Requirement"}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={ev.result === "PASS" ? "success" : ev.result === "FAIL" ? "destructive" : ev.result === "PENDING" ? "warning" : "secondary"}
-                        aria-label={`Result ${ev.result}`}
-                      >
-                        {ev.result}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[16rem] truncate text-xs" title={ev.reason}>
-                      {ev.reason}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-xs">{formatDateTime(ev.evaluated_at)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <section className="space-y-3" aria-labelledby="proof-heading">
+        <SectionHeader title={`Proof — ${String(evidence.length)} items`} description="Many-to-many · One content item appears once with all requirements it satisfies. Thumbnails from stored content ID (no provider call)." />
+        <ContentProofSections evidence={evidence} evaluations={evaluations} deliverableMap={detail.deliverableMap} />
+      </section>
     </div>
   );
 }
