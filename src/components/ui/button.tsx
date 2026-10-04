@@ -5,19 +5,21 @@ export type ButtonVariant = "default" | "destructive" | "outline" | "secondary" 
 export type ButtonSize = "default" | "sm" | "lg" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
-  destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-  outline: "border border-input bg-background hover:bg-muted",
-  secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-  ghost: "hover:bg-muted",
+  default:
+    "bg-primary text-primary-foreground hover:bg-[hsl(24_90%_48%)] active:bg-[hsl(24_88%_45%)] shadow-sm border border-transparent",
+  destructive:
+    "bg-destructive text-destructive-foreground hover:bg-[hsl(8_75%_52%)] border border-transparent shadow-sm",
+  outline: "border border-border bg-card text-foreground hover:bg-muted hover:border-border-strong",
+  secondary: "bg-secondary text-secondary-foreground hover:bg-accent border border-transparent",
+  ghost: "text-foreground hover:bg-muted",
   link: "text-primary underline-offset-4 hover:underline",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  default: "h-9 px-4 py-2",
-  sm: "h-8 rounded-md px-3 text-xs",
-  lg: "h-10 rounded-md px-8",
-  icon: "h-9 w-9",
+  default: "h-11 rounded-full px-6 text-[14px]",
+  sm: "h-9 rounded-full px-4 text-[13px]",
+  lg: "h-12 rounded-full px-8 text-[14px]",
+  icon: "h-11 w-11 rounded-full",
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -32,8 +34,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          "inline-flex items-center justify-center gap-2 font-medium transition-colors duration-[180ms]",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "disabled:pointer-events-none disabled:opacity-50",
           variantClasses[variant],
           sizeClasses[size],

@@ -12,13 +12,13 @@ export function SectionHeader({ title, description, action, icon, className, ...
   return (
     <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between", className)} {...props}>
       <div className="min-w-0 space-y-1">
-        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-          {icon ? <span className="text-muted-foreground">{icon}</span> : null}
+        <h2 className="flex items-center gap-2 font-display text-[20px] font-normal tracking-[-0.015em] text-foreground">
+          {icon ? <span className="text-muted-foreground [&_svg]:h-4 [&_svg]:w-4">{icon}</span> : null}
           {title}
         </h2>
         {description ? <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p> : null}
       </div>
-      {action ? <div className="shrink-0 pt-1 sm:pt-0">{action}</div> : null}
+      {action ? <div className="shrink-0 pt-0.5 sm:pt-1">{action}</div> : null}
     </div>
   );
 }

@@ -19,18 +19,19 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/30 p-6 text-center sm:p-8",
+        "flex flex-col items-center justify-center rounded-[16px] border border-dashed border-border bg-surface-muted/40 p-8 text-center sm:p-10",
         className
       )}
     >
-      {icon && <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">{icon}</div>}
-      <h3 className="text-base font-semibold tracking-tight sm:text-lg">{title}</h3>
-      {description && <p className="mt-1.5 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>}
-      {(action || secondaryAction) && (
-        <div className="mt-5 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-          {action}
-          {secondaryAction}
+      {icon && (
+        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-card border border-border text-muted-foreground [&_svg]:h-5 [&_svg]:w-5">
+          {icon}
         </div>
+      )}
+      <h3 className="font-display text-[18px] font-normal tracking-[-0.015em] text-foreground sm:text-[20px]">{title}</h3>
+      {description && <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>}
+      {(action || secondaryAction) && (
+        <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">{action}{secondaryAction}</div>
       )}
     </div>
   );

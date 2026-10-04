@@ -36,7 +36,7 @@ export function Dropdown({ trigger, children, align = "end" }: DropdownProps) {
       {open && (
         <div
           className={cn(
-            "absolute z-50 mt-2 min-w-[12rem] rounded-md border bg-popover p-1 shadow-md",
+            "absolute z-50 mt-2 min-w-[12rem] rounded-[12px] border border-border bg-popover p-1 shadow-md",
             align === "end" ? "right-0" : "left-0"
           )}
           role="menu"
@@ -55,7 +55,7 @@ export function DropdownItem({
   return (
     <div
       className={cn(
-        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted",
+        "relative flex cursor-pointer select-none items-center rounded-[8px] px-2.5 py-2 text-sm outline-none hover:bg-surface-muted focus:bg-surface-muted",
         className
       )}
       role="menuitem"
