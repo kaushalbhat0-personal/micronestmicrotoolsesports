@@ -25,7 +25,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     name: "Sponsorship Tracking",
     shortDescription: "Verify sponsor requirements and keep proof organized.",
     longDescription:
-      "Sponsorship Tracking helps esports creators, teams and organizations verify that creator content meets sponsor requirements — and keeps proof organized when it is time to show the work.",
+      "Sponsorship Tracking is subscription software that helps esports creators, teams and organizations verify that creator content meets sponsor requirements — and keeps proof organized. MicroNest provides the tracking tools; customers manage their sponsor relationships.",
     audience: ["Esports creators", "Esports teams", "Esports organizations", "Sponsorship managers"],
     features: [
       "Create sponsor campaigns with clear requirements",
@@ -39,7 +39,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     icon: "ShieldCheck",
     seoTitle: "Sponsorship Tracking for Esports Creators | MicroNest",
     seoDescription:
-      "Verify sponsor requirements and keep proof organized. Sponsorship Tracking for esports creators, teams and managers — part of MicroNest's focused esports tools.",
+      "Subscription software to verify sponsor requirements and keep proof organized. Sponsorship Tracking for esports creators, teams and managers — part of MicroNest's focused esports tools.",
     number: "T01",
     accent: "terracotta",
     motif: "#Sponsor · Proof",
@@ -49,7 +49,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     name: "Prize Pool Splitter",
     shortDescription: "Calculate prize distributions without spreadsheet headaches.",
     longDescription:
-      "Prize Pool Splitter turns prize pools into clear, shareable splits — no spreadsheet formulas required.",
+      "Prize Pool Splitter is subscription software that helps tournament operators calculate and organize prize-pool distributions. Choose percentage, equal, ranked, or custom splits and generate reconciled, shareable payout tables in your workspace. MicroNest does not hold, escrow, or transfer prize money.",
     audience: ["Tournament organizers", "Esports teams"],
     features: ["Prize input", "Automatic split calculation", "Shareable breakdown"],
     status: "available",
@@ -57,7 +57,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     icon: "Split",
     seoTitle: "Esports Prize Pool Splitter | MicroNest",
     seoDescription:
-      "Calculate prize distributions without spreadsheet headaches. A focused MicroNest tool for prize pools — available now. Deterministic payouts reconciled to the last cent.",
+      "Subscription software to calculate prize distributions without spreadsheet headaches. A focused MicroNest tool for prize pools — available now. Deterministic payouts reconciled to the last cent.",
     number: "T02",
     accent: "charcoal",
     motif: "50 / 30 / 20",

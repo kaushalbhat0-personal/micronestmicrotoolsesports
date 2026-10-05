@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     template: "%s | MicroNest",
   },
   description:
-    "Sponsorships. Scrims. Prizes. Content. Rosters. A growing collection of focused tools for the business of esports.",
+    "Sponsorships. Scrims. Prizes. Content. Rosters. MicroNest is a subscription software platform providing focused tools for the business of esports — customers subscribe for digital access per workspace.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
   verification: {
     google: "Gl_7do3C6Uefr-BDyM411YJZpfo2D4vv1tG1PYaDvuo",

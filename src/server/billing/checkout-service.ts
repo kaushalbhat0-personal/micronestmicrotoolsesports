@@ -68,6 +68,13 @@ export async function createCheckoutOrder(
         amountMinor: plan.amount_minor,
         currency: plan.currency,
         receipt: orderId,
+        notes: {
+          product_type: "software_subscription",
+          billing_period: plan.billing_period,
+          plan_slug: plan.slug,
+          tool: isAllAccess ? "all_access" : (plan.tool_id ?? "unknown"),
+          business: "MicroNest — subscription software for esports operations",
+        },
       },
       deps?.razorpayClient ? { client: deps.razorpayClient } : undefined
     );

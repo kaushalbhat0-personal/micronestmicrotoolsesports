@@ -20,6 +20,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...USE_CASES.map((u) => `/use-cases/${u.slug}`),
     "/privacy",
     "/terms",
+    "/refund",
+    "/digital-delivery",
+    "/shipping",
+    "/contact",
   ];
 
   return publicPaths.map((path) => ({

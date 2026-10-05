@@ -11,7 +11,7 @@ import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, ArrowRight } f
 export const metadata: Metadata = {
   title: "Esports Tools — MicroNest Collection",
   description:
-    "Explore MicroNest's focused tools for esports: Sponsorship Tracking, Scrim Matchmaker, Prize Pool Splitter, VOD Clipper, Roster Sentinel. One growing collection.",
+    "Explore MicroNest's subscription software for esports: Sponsorship Tracking, Scrim Matchmaker, Prize Pool Splitter, VOD Clipper, Roster Sentinel. Customers subscribe for digital access to the tools they need.",
   alternates: { canonical: "/tools" },
   openGraph: {
     title: "Esports Tools — MicroNest",

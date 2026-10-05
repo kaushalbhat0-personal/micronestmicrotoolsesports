@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { Logo } from "@/components/shared/logo";
 
 export function Footer() {
@@ -8,8 +9,8 @@ export function Footer() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Logo height={26} />
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">A growing collection of focused tools for the business of esports.</p>
-            <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground">The toolbox behind esports.</p>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Subscription software for esports operations — focused tools for the business of esports.</p>
+            <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground">The toolbox behind esports. We provide the software; you run your esports operations.</p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Tools</p>
@@ -34,11 +35,14 @@ export function Footer() {
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link href="/privacy" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Privacy Policy</Link></li>
               <li><Link href="/terms" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Terms of Service</Link></li>
+              <li><Link href={"/refund" as Route} className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Refund &amp; Cancellation</Link></li>
+              <li><Link href={"/digital-delivery" as Route} className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Digital Delivery</Link></li>
+              <li><Link href={"/contact" as Route} className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Contact</Link></li>
             </ul>
           </div>
         </div>
         <div className="mt-8 flex flex-col items-center gap-2 border-t border-border pt-6 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-          <span>© {new Date().getFullYear()} MicroNest — Esports micro-SaaS platform. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} MicroNest — Subscription software for esports operations. All rights reserved.</span>
           <span className="text-xs">Focused tools, not a giant suite.</span>
         </div>
       </div>

@@ -10,9 +10,9 @@ import type { ToolAccent } from "@/config/marketing/tools";
 import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, ArrowRight, Users, Trophy, Video, Layers } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "MicroNest — Focused Tools for the Business of Esports",
+  title: "MicroNest — Subscription Software for Esports Operations",
   description:
-    "Sponsorships. Scrims. Prizes. Content. Rosters. MicroNest is a growing collection of focused tools designed to remove repetitive work behind competitive gaming.",
+    "MicroNest is a subscription software platform providing focused tools for the business of esports — sponsorship tracking, prize pool calculations, scrim coordination and more. Customers subscribe for digital access per workspace.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "MicroNest — Focused Tools for the Business of Esports",
@@ -69,8 +69,8 @@ export default function MarketingPage() {
               Sponsorships. <span className="text-primary">Scrims. Prizes.</span> Content. Rosters.
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-              MicroNest is a growing collection of focused microtools for the business of esports — designed to remove
-              repetitive work behind competitive gaming. Start with one tool, add more as you need them.
+              MicroNest is a subscription software platform — a growing collection of focused tools for the business of esports — designed to remove
+              repetitive work behind competitive gaming. Customers subscribe for digital access to the tools they need. Start with one tool, add more as you need them.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link

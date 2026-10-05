@@ -133,12 +133,14 @@ export function BillingClient({
           document.body.appendChild(s);
         });
       }
+      const selectedPlan = plans.find((p) => p.id === planId);
+      const planLabel = selectedPlan ? selectedPlan.name : "MicroNest plan";
       const options = {
         key: keyId,
         amount: amountMinor,
         currency,
         name: "MicroNest",
-        description: "MicroNest plan purchase",
+        description: `${planLabel} \u00B7 Software subscription \u00B7 Digital service for ${organizationSlug} workspace`,
         order_id: razorpayOrderId,
         handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
           try {
@@ -294,6 +296,9 @@ export function BillingClient({
                 Cancel
               </Button>
             </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Digital software subscription — workspace access is provided after payment verification. Renews until cancelled; manage in Settings → Billing.
+            </p>
             {message && (
               <p className={`flex items-center gap-1.5 text-xs ${message.type === "success" ? "text-success" : "text-destructive"}`}>
                 {message.type === "success" ? <Check className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}

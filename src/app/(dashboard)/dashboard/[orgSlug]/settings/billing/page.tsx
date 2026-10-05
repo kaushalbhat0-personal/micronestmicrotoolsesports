@@ -31,7 +31,10 @@ export default async function BillingPage({ params }: { params: Promise<{ orgSlu
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Billing" description={`Billing and access for ${ctx.organization.name}.`} />
+      <PageHeader
+        title="Billing"
+        description={`Subscription software billing and workspace access for ${ctx.organization.name} — digital service, billed per organization workspace.`}
+      />
       <BillingClient
         organizationId={ctx.organization.id}
         organizationSlug={orgSlug}
