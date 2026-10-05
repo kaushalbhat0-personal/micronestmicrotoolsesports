@@ -11,12 +11,13 @@ export default function TermsPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">
-        <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-          <h1 className="text-3xl font-bold tracking-tight">Terms of Service</h1>
+      <main id="main-content" className="flex-1">
+        <div className="container-nest py-10 lg:py-14">
+          <div className="mx-auto max-w-3xl">
+          <h1 className="font-display text-3xl font-normal tracking-tight">Terms of Service</h1>
           <p className="mt-2 text-sm text-muted-foreground">Last updated: October 13, 2026</p>
 
-          <div className="prose prose-neutral dark:prose-invert mt-8 max-w-none space-y-8 text-sm leading-6">
+          <div className="mt-8 max-w-none space-y-8 text-sm leading-6">
             <section>
               <h2 className="text-lg font-semibold">1. Acceptance</h2>
               <p className="mt-2 text-muted-foreground">
@@ -129,6 +130,7 @@ export default function TermsPage() {
                 jurisdiction and entity information are intentionally omitted pending formal incorporation. Where a support email is later published, this section will be updated.
               </p>
             </section>
+          </div>
           </div>
         </div>
       </main>

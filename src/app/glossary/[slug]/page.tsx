@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/footer";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Breadcrumbs, BreadcrumbJsonLd } from "@/components/marketing/content/breadcrumbs";
 import { RelatedContent } from "@/components/marketing/content/related-content";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { GLOSSARY, getGlossary } from "@/config/content/glossary";
 
 export async function generateStaticParams() {
@@ -36,7 +37,7 @@ export default async function GlossaryDetailPage({ params }: { params: Promise<{
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
           <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Glossary", href: "/glossary" }, { label: entry.term }]} />
           <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-primary">Glossary • {entry.category}</p>
@@ -65,17 +66,22 @@ export default async function GlossaryDetailPage({ params }: { params: Promise<{
             ) : isPrizePoolDistribution ? (
               <>
                 <h2>How it differs from related terms</h2>
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b text-left"><th className="py-2">Term</th><th className="py-2">Meaning</th></tr></thead>
-                  <tbody className="text-muted-foreground">
-                    <tr className="border-b"><td className="py-2 font-medium text-foreground">Prize pool size</td><td className="py-2">The total amount (e.g., ₹100,000)</td></tr>
-                    <tr className="border-b"><td className="py-2 font-medium text-foreground">Distribution</td><td className="py-2">The percentages that split the pool (must total 100%)</td></tr>
-                    <tr className="border-b"><td className="py-2 font-medium text-foreground">Payout</td><td className="py-2">The amount one placement receives</td></tr>
-                    <tr className="border-b"><td className="py-2 font-medium text-foreground">Equal split</td><td className="py-2"><code>pool ÷ n</code> per recipient</td></tr>
-                    <tr className="border-b"><td className="py-2 font-medium text-foreground">Percentage split</td><td className="py-2"><code>pool × percentage</code> per placement</td></tr>
-                    <tr><td className="py-2 font-medium text-foreground">Ranked distribution</td><td className="py-2">A preset like Top 3/Top 8 — still percentages, but with placement labels</td></tr>
-                  </tbody>
-                </table>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Term</TableHead>
+                      <TableHead>Meaning</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow><TableCell className="font-medium text-foreground">Prize pool size</TableCell><TableCell>The total amount (e.g., ₹100,000)</TableCell></TableRow>
+                    <TableRow><TableCell className="font-medium text-foreground">Distribution</TableCell><TableCell>The percentages that split the pool (must total 100%)</TableCell></TableRow>
+                    <TableRow><TableCell className="font-medium text-foreground">Payout</TableCell><TableCell>The amount one placement receives</TableCell></TableRow>
+                    <TableRow><TableCell className="font-medium text-foreground">Equal split</TableCell><TableCell><code>pool ÷ n</code> per recipient</TableCell></TableRow>
+                    <TableRow><TableCell className="font-medium text-foreground">Percentage split</TableCell><TableCell><code>pool × percentage</code> per placement</TableCell></TableRow>
+                    <TableRow><TableCell className="font-medium text-foreground">Ranked distribution</TableCell><TableCell>A preset like Top 3/Top 8 — still percentages, but with placement labels</TableCell></TableRow>
+                  </TableBody>
+                </Table>
 
                 <h2>Why the distinction matters</h2>
                 <p>Saying &ldquo;₹50,000 for 1st&rdquo; describes a payout; saying &ldquo;50% for 1st&rdquo; describes a distribution. Percentages scale when the pool changes, fixed payouts do not.</p>
@@ -140,7 +146,7 @@ export default async function GlossaryDetailPage({ params }: { params: Promise<{
               <CardDescription>Use the product workflow in your workspace.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href={`/tools/${entry.related.tool}`} className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)] min-h-[44px]">View tool</Link>
+              <Link href={`/tools/${entry.related.tool}`} className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px]">View tool</Link>
             </CardContent>
           </Card>
 

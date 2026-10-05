@@ -33,7 +33,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
       <div
-        className="fixed inset-0 bg-[hsl(30_10%_15%_/_0.28)] backdrop-blur-[2px]"
+        className="fixed inset-0 bg-foreground/15 backdrop-blur-[2px]"
         onClick={() => onOpenChange(false)}
         aria-hidden
       />

@@ -7,7 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MARKETING_TOOLS, getMarketingTool } from "@/config/marketing/tools";
+import type { ToolAccent } from "@/config/marketing/tools";
 import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Check, ArrowRight } from "lucide-react";
+import { BrowserFrame } from "@/components/marketing/browser-frame";
+import { ShapeCrop } from "@/components/marketing/shape-crop";
+import { ProductFragment } from "@/components/marketing/product-fragment";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ShieldCheck,
@@ -16,6 +20,23 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Scissors,
   FileCheck,
 };
+
+function accentClass(accent: ToolAccent): string {
+  switch (accent) {
+    case "terracotta":
+      return "text-primary";
+    case "charcoal":
+      return "text-foreground";
+    case "teal":
+      return "text-success";
+    case "beige":
+      return "text-muted-foreground";
+    case "amber":
+      return "text-warning";
+    default:
+      return "text-muted-foreground";
+  }
+}
 
 export async function generateStaticParams() {
   return MARKETING_TOOLS.map((t) => ({ slug: t.slug }));
@@ -53,15 +74,22 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">
-        <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-14">
+      <main id="main-content" className="flex-1">
+        <section className="container-nest py-10 lg:py-14">
           <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground hover:underline">Home</Link> <span aria-hidden> · </span>
-            <Link href="/tools" className="hover:text-foreground hover:underline">Tools</Link> <span aria-hidden> · </span>
+            <Link href="/" className="hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Home</Link> <span aria-hidden> · </span>
+            <Link href="/tools" className="hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Tools</Link> <span aria-hidden> · </span>
             <span className="text-foreground">{tool.name}</span>
           </nav>
 
-          <div className="mt-6 flex items-start gap-4">
+          <div className="mt-6 flex items-center gap-2 font-mono text-[11px] tracking-widest">
+            <span className={accentClass(tool.accent)}>{tool.number}</span>
+            <span className="text-border" aria-hidden>
+              ·
+            </span>
+            <span className="text-muted-foreground">{tool.motif}</span>
+          </div>
+          <div className="mt-3 flex items-start gap-4">
             <span className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-surface-muted border border-border shrink-0">
               <Icon className="h-6 w-6 text-muted-foreground" />
             </span>
@@ -73,6 +101,26 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
               <p className="mt-2 max-w-2xl text-muted-foreground leading-relaxed">{tool.longDescription}</p>
             </div>
           </div>
+
+          {/* Product visualization — editorial browser frame */}
+          <section className="relative mt-10 overflow-hidden rounded-[20px] border border-border bg-surface-muted/30 p-4 sm:p-6">
+            <ShapeCrop position="top-right" />
+            <div className="relative">
+              <p className="font-mono text-[11px] tracking-widest text-muted-foreground">
+                {tool.number} · {tool.name} · {tool.status === "available" ? "Live" : "Concept · Coming soon"}
+              </p>
+              <div className="mt-4">
+                <BrowserFrame>
+                  <div className="p-4 sm:p-5">
+                    <ProductFragment slug={tool.slug} />
+                  </div>
+                </BrowserFrame>
+              </div>
+              <p className="mt-3 font-mono text-[11px] text-muted-foreground">
+                {tool.status === "available" ? "Real product fragment" : "Conceptual preview — feature not yet live"} · {tool.motif}
+              </p>
+            </div>
+          </section>
 
           {/* AEO: What is / Who for / How it works */}
           <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -102,7 +150,7 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {tool.features.map((f, i) => (
                 <div key={f} className="flex gap-3 rounded-[12px] border border-border bg-card p-4">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">{i + 1}</span>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-muted border border-border text-xs font-medium text-foreground">{i + 1}</span>
                   <p className="text-sm leading-relaxed text-muted-foreground">{f}</p>
                 </div>
               ))}
@@ -118,8 +166,8 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
                   <CardDescription>Try {tool.name} in your workspace — create a workspace and get started.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-3">
-                  <Link href="/signup" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)] min-h-[44px]">Get started</Link>
-                  <Link href="/dashboard" className="inline-flex h-10 items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted min-h-[44px]">Go to dashboard</Link>
+                  <Link href="/signup" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Get started</Link>
+                  <Link href="/dashboard" className="inline-flex h-10 items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Go to dashboard</Link>
                 </CardContent>
               </Card>
             ) : (

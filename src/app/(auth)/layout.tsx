@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Logo } from "@/components/shared/logo";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -7,12 +7,17 @@ export const metadata: Metadata = {
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex h-14 items-center border-b px-4">
-        <Link href="/" className="font-bold">MicroNest</Link>
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className="flex h-14 items-center border-b border-border bg-card px-4">
+        <Logo height={28} priority href="/" />
       </header>
-      <div className="flex flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-sm">{children}</div>
+      <div className="flex flex-1 items-center justify-center bg-surface-muted/30 p-4 sm:p-8">
+        <div className="w-full max-w-sm">
+          <div className="mb-6 text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">The toolbox behind esports</p>
+          </div>
+          {children}
+        </div>
       </div>
     </div>
   );

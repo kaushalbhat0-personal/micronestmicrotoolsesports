@@ -11,12 +11,13 @@ export default function PrivacyPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">
-        <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-          <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
+      <main id="main-content" className="flex-1">
+        <div className="container-nest py-10 lg:py-14">
+          <div className="mx-auto max-w-3xl">
+          <h1 className="font-display text-3xl font-normal tracking-tight">Privacy Policy</h1>
           <p className="mt-2 text-sm text-muted-foreground">Last updated: October 13, 2026</p>
 
-          <div className="prose prose-neutral dark:prose-invert mt-8 max-w-none space-y-8 text-sm leading-6">
+          <div className="mt-8 max-w-none space-y-8 text-sm leading-6">
             <section>
               <h2 className="text-lg font-semibold">1. Overview</h2>
               <p className="mt-2 text-muted-foreground">
@@ -151,6 +152,7 @@ export default function PrivacyPage() {
               This page describes the <code className="rounded bg-muted px-1 py-0.5">youtube.readonly</code> usage as currently implemented. If the product later requests different scopes or accesses additional YouTube
               data, this policy will be updated before submission for re-verification.
             </p>
+          </div>
           </div>
         </div>
       </main>

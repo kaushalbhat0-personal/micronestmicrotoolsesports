@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
+import type { ToolAccent } from "@/config/marketing/tools";
 import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, ArrowRight, Users, Trophy, Video, Layers } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -35,17 +36,34 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   FileCheck,
 };
 
+function accentClass(accent: ToolAccent): string {
+  switch (accent) {
+    case "terracotta":
+      return "text-primary";
+    case "charcoal":
+      return "text-foreground";
+    case "teal":
+      return "text-success";
+    case "beige":
+      return "text-muted-foreground";
+    case "amber":
+      return "text-warning";
+    default:
+      return "text-muted-foreground";
+  }
+}
+
 export default function MarketingPage() {
   const featured = MARKETING_TOOLS.find((t) => t.slug === "sponsorship-tracking")!;
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         {/* Hero — collection framing */}
-        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24">
+        <section className="container-nest py-16 sm:py-20 lg:py-24">
           <div className="mx-auto max-w-3xl text-center">
             <Badge variant="secondary" className="mb-4">
-              Focused tools for the business of esports
+              The toolbox behind esports
             </Badge>
             <h1 className="font-display text-balance text-4xl font-normal tracking-tight sm:text-5xl">
               Sponsorships. <span className="text-primary">Scrims. Prizes.</span> Content. Rosters.
@@ -57,13 +75,13 @@ export default function MarketingPage() {
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
                 href="/tools/sponsorship-tracking"
-                className="inline-flex h-11 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)] shadow-sm"
+                className="inline-flex h-11 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] active:bg-[var(--color-primary-active)] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Try Sponsorship Tracking
               </Link>
               <Link
                 href="/tools"
-                className="inline-flex h-11 items-center rounded-full border border-border bg-card px-8 text-sm font-medium hover:bg-muted"
+                className="inline-flex h-11 items-center rounded-full border border-border bg-card px-8 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Explore the tools
               </Link>
@@ -72,31 +90,40 @@ export default function MarketingPage() {
         </section>
 
         {/* Tool Collection */}
-        <section id="tools" className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+        <section id="tools" className="container-nest py-12">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="font-display text-2xl font-normal tracking-tight">A collection of focused tools</h2>
             <p className="mt-2 text-muted-foreground">Each tool solves one operational problem well — without platform bloat.</p>
           </div>
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {MARKETING_TOOLS.map((tool) => {
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {MARKETING_TOOLS.map((tool, idx) => {
               const Icon = iconMap[tool.icon] ?? ShieldCheck;
+              const isAvailable = tool.status === "available";
               return (
-                <Card key={tool.slug} className={tool.status === "available" ? "border-primary/20" : "opacity-90"}>
+                <Card
+                  key={tool.slug}
+                  className={`group nest-reveal nest-reveal-delay-${Math.min(idx, 4)} ${isAvailable ? "border-primary/20 bg-card transition-transform duration-[180ms] hover:scale-[1.01] hover:border-border-strong hover:shadow-sm" : "bg-surface-muted/40 opacity-90"}`}
+                  style={{ animationDelay: `${idx * 60}ms` } as React.CSSProperties}
+                >
                   <CardHeader>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-surface-muted border border-border">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-surface-muted border border-border transition-transform duration-[180ms] group-hover:translate-y-[-1px]">
                         <Icon className="h-5 w-5 text-muted-foreground" />
                       </span>
-                      {tool.status === "available" ? <Badge variant="success">Available</Badge> : <Badge variant="secondary">Coming soon</Badge>}
+                      <span className="flex items-center gap-2">
+                        <span className={`font-mono text-[11px] tracking-widest ${accentClass(tool.accent)}`}>{tool.number}</span>
+                        {isAvailable ? <Badge variant="success">Available</Badge> : <Badge variant="secondary">Coming soon</Badge>}
+                      </span>
                     </div>
                     <CardTitle className="text-base mt-3">{tool.name}</CardTitle>
                     <CardDescription>{tool.shortDescription}</CardDescription>
+                    <p className="font-mono text-[11px] tracking-wide text-muted-foreground mt-2">{tool.motif}</p>
                   </CardHeader>
                   <CardContent>
-                    {tool.status === "available" ? (
+                    {isAvailable ? (
                       <Link
                         href={`/tools/${tool.slug}`}
-                        className="inline-flex h-8 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)]"
+                        className="inline-flex h-8 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]"
                       >
                         Learn more
                       </Link>
@@ -113,10 +140,10 @@ export default function MarketingPage() {
         </section>
 
         {/* Why Focused Tools */}
-        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+        <section className="container-nest py-12">
           <div className="mx-auto max-w-3xl">
             <h2 className="font-display text-2xl font-normal tracking-tight text-center">Why focused tools?</h2>
-            <div className="mt-6 grid gap-6 sm:grid-cols-3">
+            <div className="mt-6 grid gap-5 sm:grid-cols-3">
               <div className="rounded-[16px] border border-border bg-card p-5">
                 <Layers className="h-5 w-5 text-primary" />
                 <h3 className="mt-3 text-sm font-semibold">One problem, well solved</h3>
@@ -137,7 +164,7 @@ export default function MarketingPage() {
         </section>
 
         {/* Who It's For */}
-        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+        <section className="container-nest py-12">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="font-display text-2xl font-normal tracking-tight">Who it is for</h2>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -154,8 +181,8 @@ export default function MarketingPage() {
         </section>
 
         {/* Featured Tool — Sponsorship Tracking */}
-        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-          <div className="rounded-[20px] border border-primary/20 bg-card p-6 sm:p-8">
+        <section className="container-nest py-12">
+          <div className="rounded-[20px] border border-primary/20 bg-card p-6 sm:p-8 shadow-sm">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-xl">
                 <Badge variant="success" className="mb-3">Featured • Available now</Badge>
@@ -169,11 +196,11 @@ export default function MarketingPage() {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-6 flex gap-3">
-                  <Link href="/tools/sponsorship-tracking" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)]">
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link href="/tools/sponsorship-tracking" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     Explore Sponsorship Tracking <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
-                  <Link href="/signup" className="inline-flex h-10 items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted">
+                  <Link href="/signup" className="inline-flex h-10 items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     Get started
                   </Link>
                 </div>
@@ -195,15 +222,15 @@ export default function MarketingPage() {
         </section>
 
         {/* Final CTA */}
-        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
+        <section className="container-nest py-16">
           <div className="mx-auto max-w-3xl rounded-[20px] border border-border bg-surface-muted/40 p-8 text-center">
             <h2 className="font-display text-2xl font-normal tracking-tight">Start with one tool</h2>
             <p className="mt-2 text-muted-foreground">Create a workspace and try Sponsorship Tracking — no bloat, no lock-in.</p>
-            <div className="mt-6 flex justify-center gap-3">
-              <Link href="/signup" className="inline-flex h-11 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)]">
+            <div className="mt-6 flex flex-col sm:flex-row justify-center gap-3">
+              <Link href="/signup" className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 Get started
               </Link>
-              <Link href="/tools" className="inline-flex h-11 items-center rounded-full border border-border bg-card px-8 text-sm font-medium hover:bg-muted">
+              <Link href="/tools" className="inline-flex h-11 items-center justify-center rounded-full border border-border bg-card px-8 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 View all tools
               </Link>
             </div>

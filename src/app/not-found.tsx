@@ -1,11 +1,13 @@
 import Link from "next/link";
+import { Logo } from "@/components/shared/logo";
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
-      <h1 className="text-4xl font-bold">404</h1>
-      <p className="mt-2 text-muted-foreground">The page you’re looking for doesn’t exist.</p>
-      <Link href="/" className="mt-6 inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-8 text-center">
+      <Logo height={32} />
+      <h1 className="font-display mt-6 text-4xl font-normal tracking-tight">404</h1>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">The page you’re looking for doesn’t exist. Back to the workbench.</p>
+      <Link href="/" className="mt-6 inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         Back to home
       </Link>
     </div>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Breadcrumbs, BreadcrumbJsonLd } from "@/components/marketing/content/breadcrumbs";
 import { AnswerBlock } from "@/components/marketing/content/answer-block";
 import { RelatedContent } from "@/components/marketing/content/related-content";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { GUIDES, getGuide } from "@/config/content/guides";
 
 export async function generateStaticParams() {
@@ -38,7 +39,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
             <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides", href: "/guides" }, { label: guide.title }]} />
             <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-primary">Guide • Sponsorship</p>
@@ -54,17 +55,23 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
               <h2>Common types of deliverables</h2>
               <p>Most esports deliverables fall into a small set of verifiable patterns. MicroNest models these as campaign requirements:</p>
-              <table className="w-full text-sm">
-                <thead><tr className="border-b text-left"><th className="py-2">Type</th><th className="py-2">Example</th><th className="py-2">Checked where</th></tr></thead>
-                <tbody className="text-muted-foreground">
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">Title phrase</td><td className="py-2">&ldquo;Monster Energy — November Campaign&rdquo; in title</td><td className="py-2">Stream title / video title</td></tr>
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">Hashtag</td><td className="py-2">#MonsterEnergy in title</td><td className="py-2">Title (normalized, # ensured)</td></tr>
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">Category</td><td className="py-2">Category is League of Legends</td><td className="py-2">Platform category</td></tr>
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">Duration</td><td className="py-2">Stream at least 90 minutes</td><td className="py-2">Twitch/YouTube duration</td></tr>
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">Description link/hashtag</td><td className="py-2">Link in description contains sponsor URL</td><td className="py-2">Description</td></tr>
-                  <tr><td className="py-2 font-medium text-foreground">Platform tag</td><td className="py-2">Twitch tag or YouTube tag includes sponsor tag</td><td className="py-2">Twitch curated / YouTube freeform</td></tr>
-                </tbody>
-              </table>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Example</TableHead>
+                    <TableHead>Checked where</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow><TableCell className="font-medium text-foreground">Title phrase</TableCell><TableCell>&ldquo;Monster Energy — November Campaign&rdquo; in title</TableCell><TableCell>Stream title / video title</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">Hashtag</TableCell><TableCell>#MonsterEnergy in title</TableCell><TableCell>Title (normalized, # ensured)</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">Category</TableCell><TableCell>Category is League of Legends</TableCell><TableCell>Platform category</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">Duration</TableCell><TableCell>Stream at least 90 minutes</TableCell><TableCell>Twitch/YouTube duration</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">Description link/hashtag</TableCell><TableCell>Link in description contains sponsor URL</TableCell><TableCell>Description</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">Platform tag</TableCell><TableCell>Twitch tag or YouTube tag includes sponsor tag</TableCell><TableCell>Twitch curated / YouTube freeform</TableCell></TableRow>
+                </TableBody>
+              </Table>
               <p className="text-xs text-muted-foreground">Kick VOD-related requirements (duration, VOD existence) are currently not verifiable on Kick — the platform does not expose VODs the same way.</p>
 
               <h2>How to turn vague requests into measurable requirements</h2>
@@ -109,7 +116,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                 <CardDescription>Turn these deliverables into a campaign and see proof grouped by content.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Link href="/tools/sponsorship-tracking" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)] min-h-[44px]">Try Sponsorship Tracking</Link>
+                <Link href="/tools/sponsorship-tracking" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px]">Try Sponsorship Tracking</Link>
               </CardContent>
             </Card>
 
@@ -134,7 +141,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
             <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides", href: "/guides" }, { label: guide.title }]} />
             <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-primary">Guide • Workflow</p>
@@ -184,7 +191,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                 <CardDescription>Define requirements, connect a creator channel, and run your first check.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Link href="/tools/sponsorship-tracking" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)] min-h-[44px]">Try Sponsorship Tracking</Link>
+                <Link href="/tools/sponsorship-tracking" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px]">Try Sponsorship Tracking</Link>
               </CardContent>
             </Card>
 
@@ -209,7 +216,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
             <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides", href: "/guides" }, { label: guide.title }]} />
             <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-primary">Guide • Prize Pool</p>
@@ -234,16 +241,22 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
               <h2>Ranked distributions</h2>
               <p>Ranked presets are convenient starting points, not rules. MicroNest’s <Link href="/tools/prize-pool-splitter">Prize Pool Splitter</Link> includes:</p>
-              <table className="w-full text-sm">
-                <thead><tr className="border-b text-left"><th className="py-2">Preset</th><th className="py-2">Percentages</th><th className="py-2">When it’s useful</th></tr></thead>
-                <tbody className="text-muted-foreground">
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">Top 3</td><td className="py-2 font-mono">50 / 30 / 20</td><td className="py-2">Small finals, three paid places</td></tr>
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">Top 4</td><td className="py-2 font-mono">40 / 30 / 20 / 10</td><td className="py-2">Four-team playoff</td></tr>
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">Top 5</td><td className="py-2 font-mono">35 / 25 / 20 / 12 / 8</td><td className="py-2">Five paid, winner still distinct</td></tr>
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">Top 8</td><td className="py-2 font-mono">30 / 20 / 15 / 10 / 8 / 7 / 5 / 5</td><td className="py-2">Large bracket, deeper payout</td></tr>
-                  <tr><td className="py-2 font-medium text-foreground">Top 10</td><td className="py-2 font-mono">25 / 18 / 15 / 10 / 8 / 6 / 5 / 5 / 4 / 4</td><td className="py-2">Season or league</td></tr>
-                </tbody>
-              </table>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Preset</TableHead>
+                    <TableHead>Percentages</TableHead>
+                    <TableHead>When it’s useful</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow><TableCell className="font-medium text-foreground">Top 3</TableCell><TableCell className="font-mono">50 / 30 / 20</TableCell><TableCell>Small finals, three paid places</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">Top 4</TableCell><TableCell className="font-mono">40 / 30 / 20 / 10</TableCell><TableCell>Four-team playoff</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">Top 5</TableCell><TableCell className="font-mono">35 / 25 / 20 / 12 / 8</TableCell><TableCell>Five paid, winner still distinct</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">Top 8</TableCell><TableCell className="font-mono">30 / 20 / 15 / 10 / 8 / 7 / 5 / 5</TableCell><TableCell>Large bracket, deeper payout</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">Top 10</TableCell><TableCell className="font-mono">25 / 18 / 15 / 10 / 8 / 6 / 5 / 5 / 4 / 4</TableCell><TableCell>Season or league</TableCell></TableRow>
+                </TableBody>
+              </Table>
               <p className="text-xs text-muted-foreground">All presets are editable — adjust any percentage in the calculator.</p>
 
               <h2>Custom distributions</h2>
@@ -278,7 +291,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                 <CardDescription>Enter the pool, pick a method, and get exact reconciled payouts.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Link href="/tools/prize-pool-splitter" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)] min-h-[44px]">Open Prize Pool Splitter</Link>
+                <Link href="/tools/prize-pool-splitter" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px]">Open Prize Pool Splitter</Link>
               </CardContent>
             </Card>
 
@@ -303,7 +316,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
             <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides", href: "/guides" }, { label: guide.title }]} />
             <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-primary">Guide • Prize Pool</p>
@@ -319,14 +332,20 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
               <h2>Example: ₹100,000 — 50 / 30 / 20</h2>
               <p>This is an <em>example</em>, not an industry standard. It is the default in <Link href="/tools/prize-pool-splitter" className="underline decoration-primary/30 hover:decoration-primary">Prize Pool Splitter</Link> because it is easy to verify:</p>
-              <table className="w-full text-sm">
-                <thead><tr className="border-b text-left"><th className="py-2">Placement</th><th className="py-2">Percent</th><th className="py-2">Payout (₹)</th></tr></thead>
-                <tbody className="text-muted-foreground">
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">1st</td><td className="py-2 font-mono">50%</td><td className="py-2 font-mono">50,000.00</td></tr>
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">2nd</td><td className="py-2 font-mono">30%</td><td className="py-2 font-mono">30,000.00</td></tr>
-                  <tr><td className="py-2 font-medium text-foreground">3rd</td><td className="py-2 font-mono">20%</td><td className="py-2 font-mono">20,000.00</td></tr>
-                </tbody>
-              </table>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Placement</TableHead>
+                    <TableHead>Percent</TableHead>
+                    <TableHead>Payout (₹)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow><TableCell className="font-medium text-foreground">1st</TableCell><TableCell className="font-mono">50%</TableCell><TableCell className="font-mono">50,000.00</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">2nd</TableCell><TableCell className="font-mono">30%</TableCell><TableCell className="font-mono">30,000.00</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">3rd</TableCell><TableCell className="font-mono">20%</TableCell><TableCell className="font-mono">20,000.00</TableCell></TableRow>
+                </TableBody>
+              </Table>
               <p className="text-xs text-muted-foreground">Total <code>₹1,00,000.00</code> • <code>100%</code> • <code>₹0.00</code> remaining — <em>Balanced</em>.</p>
 
               <h2>Other common structures</h2>
@@ -366,7 +385,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                 <CardDescription>Open the calculator with 50/30/20 pre-filled and edit any value.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Link href="/tools/prize-pool-splitter" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)] min-h-[44px]">Open Prize Pool Splitter</Link>
+                <Link href="/tools/prize-pool-splitter" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px]">Open Prize Pool Splitter</Link>
               </CardContent>
             </Card>
 
@@ -391,7 +410,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
             <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides", href: "/guides" }, { label: guide.title }]} />
             <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-primary">Guide • Prize Pool</p>
@@ -421,14 +440,21 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
               <p>Tie-breaking by position makes the result deterministic — same input always yields the same allocation.</p>
 
               <h2>Example: ₹100 split three ways</h2>
-              <table className="w-full text-sm">
-                <thead><tr className="border-b text-left"><th className="py-2">Placement</th><th className="py-2">Percent</th><th className="py-2">Raw</th><th className="py-2">Payout</th></tr></thead>
-                <tbody className="text-muted-foreground">
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">1st</td><td className="py-2 font-mono">33.3333%</td><td className="py-2 font-mono">33.3333</td><td className="py-2 font-mono">₹33.34</td></tr>
-                  <tr className="border-b"><td className="py-2 font-medium text-foreground">2nd</td><td className="py-2 font-mono">33.3333%</td><td className="py-2 font-mono">33.3333</td><td className="py-2 font-mono">₹33.33</td></tr>
-                  <tr><td className="py-2 font-medium text-foreground">3rd</td><td className="py-2 font-mono">33.3333%</td><td className="py-2 font-mono">33.3333</td><td className="py-2 font-mono">₹33.33</td></tr>
-                </tbody>
-              </table>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Placement</TableHead>
+                    <TableHead>Percent</TableHead>
+                    <TableHead>Raw</TableHead>
+                    <TableHead>Payout</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow><TableCell className="font-medium text-foreground">1st</TableCell><TableCell className="font-mono">33.3333%</TableCell><TableCell className="font-mono">33.3333</TableCell><TableCell className="font-mono">₹33.34</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">2nd</TableCell><TableCell className="font-mono">33.3333%</TableCell><TableCell className="font-mono">33.3333</TableCell><TableCell className="font-mono">₹33.33</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-foreground">3rd</TableCell><TableCell className="font-mono">33.3333%</TableCell><TableCell className="font-mono">33.3333</TableCell><TableCell className="font-mono">₹33.33</TableCell></TableRow>
+                </TableBody>
+              </Table>
               <p className="text-xs text-muted-foreground">Total <code>₹100.00</code> • <code>100%</code> • <code>₹0.00</code> remaining. If percentages are exactly <code>33.3333%</code> each, the largest remainder goes to 1st deterministically.</p>
 
               <h2>Equal split is the same problem</h2>
@@ -451,7 +477,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                 <CardDescription>Enter ₹100 with 3 equal recipients and watch the 1-cent distribution.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Link href="/tools/prize-pool-splitter" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)] min-h-[44px]">Open Prize Pool Splitter</Link>
+                <Link href="/tools/prize-pool-splitter" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px]">Open Prize Pool Splitter</Link>
               </CardContent>
             </Card>
 

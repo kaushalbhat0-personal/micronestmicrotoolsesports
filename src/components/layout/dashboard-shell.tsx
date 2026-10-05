@@ -18,7 +18,6 @@ import {
   Settings2,
   Building2,
   Menu,
-  Sparkles,
   CalendarSearch,
   Split,
   Scissors,
@@ -28,6 +27,7 @@ import {
 import type { Route } from "next";
 import { NavigationProgress } from "@/components/ui/navigation-progress";
 import type { WorkspaceTool } from "@/server/services/workspace-tools";
+import { Logo } from "@/components/shared/logo";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -259,11 +259,8 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
       <NavigationProgress />
       <aside className="hidden w-[272px] shrink-0 border-r border-border bg-card lg:flex lg:flex-col">
         <div className="sticky top-0 flex h-full flex-col">
-          <div className="flex h-[56px] items-center gap-2 border-b border-border px-4">
-            <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-primary text-primary-foreground">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <span className="font-display text-[16px] tracking-[-0.015em] font-normal">MicroNest</span>
+          <div className="flex h-[56px] items-center border-b border-border px-4">
+            <Logo height={26} priority />
           </div>
           <div className="p-3">
             {organizations.length > 0 && <OrgSwitcher organizations={organizations} activeOrgId={activeOrg?.id} variant="sidebar" />}
@@ -284,14 +281,11 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
               </button>
             </SheetTrigger>
             <SheetContent className="w-[300px] p-0" aria-describedby={undefined}>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-primary text-primary-foreground">
-                    <Sparkles className="h-4 w-4" />
-                  </span>
-                  MicroNest
-                </SheetTitle>
-              </SheetHeader>
+            <SheetHeader>
+              <SheetTitle>
+                <Logo height={24} />
+              </SheetTitle>
+            </SheetHeader>
               <div className="flex-1 overflow-y-auto p-3">
                 {organizations.length > 0 && (
                   <div className="mb-4">
@@ -303,7 +297,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
             </SheetContent>
           </Sheet>
 
-          <div className="hidden flex-1 lg:block">
+          <div className="hidden flex-1 lg:block" id="main-content">
             <Breadcrumb items={breadcrumbs} />
           </div>
           <div className="flex flex-1 items-center gap-2 lg:hidden min-w-0">

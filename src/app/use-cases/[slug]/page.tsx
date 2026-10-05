@@ -34,7 +34,7 @@ export default async function UseCasePage({ params }: { params: Promise<{ slug: 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
           <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Use Cases", href: "/use-cases" }, { label: entry.title }]} />
           <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-primary">Use case • {isTournament ? "Prize Pool" : "Organizations"}</p>
@@ -122,7 +122,7 @@ export default async function UseCasePage({ params }: { params: Promise<{ slug: 
               <CardDescription>{isTournament ? "Enter the pool, pick a method, and get exact reconciled payouts — no spreadsheet drift." : "Create a workspace, define requirements, connect a creator channel, and run your first check."}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href={isTournament ? "/tools/prize-pool-splitter" : "/tools/sponsorship-tracking"} className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[hsl(24_90%_48%)] min-h-[44px]">{isTournament ? "Open Prize Pool Splitter" : "Try Sponsorship Tracking"}</Link>
+              <Link href={isTournament ? "/tools/prize-pool-splitter" : "/tools/sponsorship-tracking"} className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px]">{isTournament ? "Open Prize Pool Splitter" : "Try Sponsorship Tracking"}</Link>
             </CardContent>
           </Card>
 

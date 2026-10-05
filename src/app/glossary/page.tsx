@@ -16,15 +16,15 @@ export default function GlossaryPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">
-        <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-14">
+      <main id="main-content" className="flex-1">
+        <section className="container-nest py-10 lg:py-14">
           <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Glossary" }]} />
           <h1 className="font-display mt-4 text-3xl font-normal tracking-tight">Glossary</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground leading-relaxed">
             Short, useful definitions for the concepts behind sponsorships, campaigns, and proof.
           </p>
 
-          <div className="mt-8 grid gap-6 sm:grid-cols-2">
+          <div className="mt-8 grid gap-5 sm:grid-cols-2">
             {GLOSSARY.map((g) => (
               <Link key={g.slug} href={`/glossary/${g.slug}` as never} className="group">
                 <Card className="h-full hover:bg-surface-muted/50 transition-colors">

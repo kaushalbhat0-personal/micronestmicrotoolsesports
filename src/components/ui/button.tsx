@@ -6,7 +6,7 @@ export type ButtonSize = "default" | "sm" | "lg" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
   default:
-    "bg-primary text-primary-foreground hover:bg-[hsl(24_90%_48%)] active:bg-[hsl(24_88%_45%)] shadow-sm border border-transparent",
+    "bg-primary text-primary-foreground hover:bg-[var(--color-primary-hover)] active:bg-[var(--color-primary-active)] shadow-sm border border-transparent",
   destructive:
     "bg-destructive text-destructive-foreground hover:bg-[hsl(8_75%_52%)] border border-transparent shadow-sm",
   outline: "border border-border bg-card text-foreground hover:bg-muted hover:border-border-strong",

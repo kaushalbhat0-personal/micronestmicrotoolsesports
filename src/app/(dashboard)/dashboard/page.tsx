@@ -26,7 +26,7 @@ export default async function DashboardPage() {
         title={`Welcome${user?.email ? `, ${user.email}` : ""}`}
         description="Your esports command center. Select a tool or manage your organizations."
         action={
-          <Link href="/dashboard/organizations/new" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+          <Link href="/dashboard/organizations/new" className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             Create organization
           </Link>
         }
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
           title="No organization yet"
           description="Create an organization to unlock tools and subscriptions. You can join multiple orgs from one account."
           action={
-            <Link href="/dashboard/organizations/new" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+            <Link href="/dashboard/organizations/new" className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)]">
               Create organization
             </Link>
           }
@@ -57,8 +57,8 @@ export default async function DashboardPage() {
                 const org = Array.isArray(raw) ? raw[0] : raw;
                 if (!org) return null;
                 return (
-                  <li key={org.id} className="flex items-center justify-between rounded-md border px-4 py-2">
-                    <span className="font-medium">{org.name}</span>
+                          <li key={org.id} className="flex items-center justify-between rounded-[12px] border border-border bg-surface-muted/40 px-4 py-3">
+                    <span className="text-sm font-medium">{org.name}</span>
                     <Badge variant="secondary">{m.role}</Badge>
                   </li>
                 );
@@ -69,10 +69,14 @@ export default async function DashboardPage() {
       )}
 
       <div>
-        <h2 className="text-lg font-semibold">Available tools</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {TOOLS.map((t) => (
-            <Card key={t.slug}>
+        <h2 className="font-display text-xl font-normal tracking-tight">Available tools</h2>
+        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {TOOLS.map((t, idx) => (
+            <Card
+              key={t.slug}
+              className={`nest-reveal nest-reveal-delay-${Math.min(idx, 4)} ${!t.comingSoon ? "transition-transform duration-[180ms] hover:scale-[1.01] hover:border-border-strong hover:shadow-sm" : ""}`}
+              style={{ animationDelay: `${idx * 60}ms` } as React.CSSProperties}
+            >
               <CardHeader>
                 <CardTitle className="text-base flex items-center justify-between">
                   {t.name}
@@ -86,7 +90,7 @@ export default async function DashboardPage() {
                     Coming soon
                   </Button>
                 ) : (
-                  <Link href="/dashboard/organizations" className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">
+                  <Link href="/dashboard/organizations" className="inline-flex h-8 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]">
                     Select organization
                   </Link>
                 )}

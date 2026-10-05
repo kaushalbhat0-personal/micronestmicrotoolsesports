@@ -1,5 +1,7 @@
 export type MarketingToolStatus = "available" | "coming-soon";
 
+export type ToolAccent = "terracotta" | "charcoal" | "teal" | "beige" | "amber";
+
 export interface MarketingTool {
   slug: string; // public URL slug /tools/:slug
   name: string;
@@ -12,6 +14,9 @@ export interface MarketingTool {
   icon: string;
   seoTitle: string;
   seoDescription: string;
+  number: string; // editorial T01—T05, deterministic
+  accent: ToolAccent;
+  motif: string; // small mono esports-data motif, illustrative
 }
 
 export const MARKETING_TOOLS: MarketingTool[] = [
@@ -35,21 +40,9 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     seoTitle: "Sponsorship Tracking for Esports Creators | MicroNest",
     seoDescription:
       "Verify sponsor requirements and keep proof organized. Sponsorship Tracking for esports creators, teams and managers — part of MicroNest's focused esports tools.",
-  },
-  {
-    slug: "scrim-matchmaker",
-    name: "Scrim Matchmaker",
-    shortDescription: "Coordinate scrims across teams, schedules, and time zones.",
-    longDescription:
-      "Scrim Matchmaker helps teams find practice opponents without the usual back-and-forth — with time zone aware scheduling at its core.",
-    audience: ["Esports teams", "Coaches and managers"],
-    features: ["Team availability", "Time zone aware scheduling", "Opponent discovery"],
-    status: "coming-soon",
-    internalSlug: "scrim-matchmaker",
-    icon: "CalendarSearch",
-    seoTitle: "Esports Scrim Matchmaker | MicroNest",
-    seoDescription:
-      "Coordinate scrims across teams, schedules and time zones. A focused MicroNest tool for competitive practice — coming soon.",
+    number: "T01",
+    accent: "terracotta",
+    motif: "#Sponsor · Proof",
   },
   {
     slug: "prize-pool-splitter",
@@ -65,6 +58,27 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     seoTitle: "Esports Prize Pool Splitter | MicroNest",
     seoDescription:
       "Calculate prize distributions without spreadsheet headaches. A focused MicroNest tool for prize pools — available now. Deterministic payouts reconciled to the last cent.",
+    number: "T02",
+    accent: "charcoal",
+    motif: "50 / 30 / 20",
+  },
+  {
+    slug: "scrim-matchmaker",
+    name: "Scrim Matchmaker",
+    shortDescription: "Coordinate scrims across teams, schedules, and time zones.",
+    longDescription:
+      "Scrim Matchmaker helps teams find practice opponents without the usual back-and-forth — with time zone aware scheduling at its core.",
+    audience: ["Esports teams", "Coaches and managers"],
+    features: ["Team availability", "Time zone aware scheduling", "Opponent discovery"],
+    status: "coming-soon",
+    internalSlug: "scrim-matchmaker",
+    icon: "CalendarSearch",
+    seoTitle: "Esports Scrim Matchmaker | MicroNest",
+    seoDescription:
+      "Coordinate scrims across teams, schedules and time zones. A focused MicroNest tool for competitive practice — coming soon.",
+    number: "T03",
+    accent: "teal",
+    motif: "19:00 IST · BO3",
   },
   {
     slug: "vod-clipper",
@@ -80,6 +94,9 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     seoTitle: "Esports VOD Clipper | MicroNest",
     seoDescription:
       "Save important moments from match recordings for quick review. A focused MicroNest tool for VODs — coming soon.",
+    number: "T04",
+    accent: "beige",
+    motif: "12:34 → 13:07",
   },
   {
     slug: "roster-sentinel",
@@ -95,6 +112,9 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     seoTitle: "Esports Roster Sentinel | MicroNest",
     seoDescription:
       "Keep roster-related operational information easier to manage. A focused MicroNest tool for rosters — coming soon.",
+    number: "T05",
+    accent: "amber",
+    motif: "Contract · 2026",
   },
 ];
 
