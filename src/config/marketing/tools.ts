@@ -59,12 +59,12 @@ export const MARKETING_TOOLS: MarketingTool[] = [
       "Prize Pool Splitter turns prize pools into clear, shareable splits — no spreadsheet formulas required.",
     audience: ["Tournament organizers", "Esports teams"],
     features: ["Prize input", "Automatic split calculation", "Shareable breakdown"],
-    status: "coming-soon",
+    status: "available",
     internalSlug: "prize-splitter",
     icon: "Split",
     seoTitle: "Esports Prize Pool Splitter | MicroNest",
     seoDescription:
-      "Calculate prize distributions without spreadsheet headaches. A focused MicroNest tool for prize pools — coming soon.",
+      "Calculate prize distributions without spreadsheet headaches. A focused MicroNest tool for prize pools — available now. Deterministic payouts reconciled to the last cent.",
   },
   {
     slug: "vod-clipper",

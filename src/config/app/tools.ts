@@ -35,7 +35,6 @@ export const TOOLS: ToolConfig[] = [
     description: "Split a prize pool in seconds — deterministic payouts",
     href: "/dashboard/prize-splitter",
     icon: "Split",
-    comingSoon: true,
   },
   {
     slug: "vod-clipper",
