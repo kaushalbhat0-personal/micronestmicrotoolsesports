@@ -14,6 +14,12 @@ export function Header() {
             Tools
           </Link>
           <Link
+            href="/pricing"
+            className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Pricing
+          </Link>
+          <Link
             href="/#tools"
             className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >

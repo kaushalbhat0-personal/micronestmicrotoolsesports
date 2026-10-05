@@ -26,6 +26,7 @@ export function Footer() {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Explore</p>
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link href="/tools" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">All tools</Link></li>
+              <li><Link href="/pricing" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Pricing</Link></li>
               <li><Link href="/signup" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Get started</Link></li>
               <li><Link href="/login" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Log in</Link></li>
             </ul>

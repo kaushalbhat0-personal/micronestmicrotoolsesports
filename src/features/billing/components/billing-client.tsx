@@ -297,7 +297,7 @@ export function BillingClient({
               </Button>
             </div>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Digital software subscription — workspace access is provided after payment verification. Renews until cancelled; manage in Settings → Billing.
+              Digital software subscription — workspace access is provided after payment verification. No automatic renewal; manual renewal only. Manage in Settings → Billing. See <a href="/pricing" className="underline hover:text-foreground">Pricing</a> and <a href="/refund" className="underline hover:text-foreground">Refund Policy</a>.
             </p>
             {message && (
               <p className={`flex items-center gap-1.5 text-xs ${message.type === "success" ? "text-success" : "text-destructive"}`}>

@@ -14,8 +14,8 @@ export interface NavGroup {
 }
 
 export const marketingNav: { label: string; href: string; icon: string }[] = [
-  { label: "Tools", href: "/#tools", icon: "Grid3x3" },
-  { label: "Pricing", href: "/#pricing", icon: "CreditCard" },
+  { label: "Tools", href: "/tools", icon: "Grid3x3" },
+  { label: "Pricing", href: "/pricing", icon: "CreditCard" },
   { label: "Docs", href: "/docs", icon: "BookOpen" },
 ];
 

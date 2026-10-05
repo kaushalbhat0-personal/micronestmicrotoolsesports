@@ -12,6 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "",
     "/tools",
     ...MARKETING_TOOLS.map((t) => `/tools/${t.slug}`),
+    "/pricing",
     "/guides",
     ...GUIDES.map((g) => `/guides/${g.slug}`),
     "/glossary",

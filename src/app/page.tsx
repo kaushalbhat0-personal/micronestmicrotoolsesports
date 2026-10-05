@@ -80,6 +80,12 @@ export default function MarketingPage() {
                 Try Sponsorship Tracking
               </Link>
               <Link
+                href="/pricing"
+                className="inline-flex h-11 items-center rounded-full border border-border bg-card px-8 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                View pricing
+              </Link>
+              <Link
                 href="/tools"
                 className="inline-flex h-11 items-center rounded-full border border-border bg-card px-8 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
@@ -225,10 +231,13 @@ export default function MarketingPage() {
         <section className="container-nest py-16">
           <div className="mx-auto max-w-3xl rounded-[20px] border border-border bg-surface-muted/40 p-8 text-center">
             <h2 className="font-display text-2xl font-normal tracking-tight">Start with one tool</h2>
-            <p className="mt-2 text-muted-foreground">Create a workspace and try Sponsorship Tracking — no bloat, no lock-in.</p>
+            <p className="mt-2 text-muted-foreground">Create a workspace and try Sponsorship Tracking — no bloat, no lock-in. <Link href="/pricing" className="font-medium text-primary hover:underline">View pricing</Link> before you decide.</p>
             <div className="mt-6 flex flex-col sm:flex-row justify-center gap-3">
               <Link href="/signup" className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 Get started
+              </Link>
+              <Link href="/pricing" className="inline-flex h-11 items-center justify-center rounded-full border border-border bg-card px-8 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                View pricing
               </Link>
               <Link href="/tools" className="inline-flex h-11 items-center justify-center rounded-full border border-border bg-card px-8 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 View all tools

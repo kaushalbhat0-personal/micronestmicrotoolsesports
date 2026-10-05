@@ -106,6 +106,10 @@ export default function ToolsPage() {
             })}
           </div>
 
+          <div className="mt-10 flex flex-wrap items-center gap-3">
+            <Link href="/pricing" className="inline-flex min-h-[44px] items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">View pricing</Link>
+            <Link href="/tools/sponsorship-tracking" className="inline-flex min-h-[44px] items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Sponsorship Tracking</Link>
+          </div>
           <nav aria-label="Breadcrumb" className="mt-10 text-sm text-muted-foreground">
             <Link href="/" className="hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Home</Link> <span aria-hidden>·</span> Tools
           </nav>
