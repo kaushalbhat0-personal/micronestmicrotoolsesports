@@ -164,6 +164,45 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
             </section>
           )}
 
+          {/* Prize Pool Splitter — authority cluster */}
+          {tool.slug === "prize-pool-splitter" && (
+            <section className="mt-10">
+              <h2 className="text-sm font-semibold">Learn more about prize pools</h2>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Link href="/guides/esports-prize-pool-distribution" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50 transition-colors">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Guide</p>
+                  <p className="mt-1 text-sm font-medium">Prize Pool Distribution — Overview</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">Percentage, equal, ranked and custom with Top 3–Top 10.</p>
+                </Link>
+                <Link href="/guides/esports-prize-pool-percentage-split" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50 transition-colors">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Guide</p>
+                  <p className="mt-1 text-sm font-medium">How to Split by Percentage</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">₹100,000 — 50/30/20 walkthrough and validation.</p>
+                </Link>
+                <Link href="/guides/esports-prize-pool-rounding" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50 transition-colors">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Guide</p>
+                  <p className="mt-1 text-sm font-medium">How to Handle Rounding</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">Largest-remainder reconciliation for exact totals.</p>
+                </Link>
+                <Link href="/glossary/prize-pool" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50 transition-colors">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Glossary</p>
+                  <p className="mt-1 text-sm font-medium">Prize Pool</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">What a prize pool is in esports.</p>
+                </Link>
+                <Link href="/glossary/prize-pool-distribution" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50 transition-colors">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Glossary</p>
+                  <p className="mt-1 text-sm font-medium">Prize Pool Distribution</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">How distribution differs from pool size and payout.</p>
+                </Link>
+                <Link href="/use-cases/tournament-organizers" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50 transition-colors">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Use case</p>
+                  <p className="mt-1 text-sm font-medium">For Tournament Organizers</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">Define, validate, and communicate payouts.</p>
+                </Link>
+              </div>
+            </section>
+          )}
+
           {/* Related tools */}
           <section className="mt-10">
             <h2 className="text-sm font-semibold">Related tools</h2>

@@ -29,6 +29,21 @@ export const USE_CASES: UseCaseMeta[] = [
       glossary: "proof-of-performance",
     },
   },
+  {
+    slug: "tournament-organizers",
+    title: "Prize Pool Tools for Tournament Organizers",
+    description:
+      "How tournament organizers define a prize pool, choose a distribution model, validate percentages, calculate exact payouts, and communicate results — without handling registrations, brackets, payments or escrow.",
+    audience: ["Tournament organizers", "Esports teams", "League operators"],
+    category: "Prize Pool",
+    publishedAt: "2026-10-17",
+    primaryTool: "prize-pool-splitter",
+    related: {
+      tool: "prize-pool-splitter",
+      guides: ["esports-prize-pool-distribution", "esports-prize-pool-percentage-split"],
+      glossary: "prize-pool",
+    },
+  },
 ];
 
 export function getUseCase(slug: string) {
