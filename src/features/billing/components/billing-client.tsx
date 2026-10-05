@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,22 +65,40 @@ declare global {
 export function BillingClient({
   organizationId,
   organizationSlug,
+  organizationName,
   entitlements,
   plans,
   history,
   currentPlan,
+  hintedPlanSlug,
 }: {
   organizationId: string;
   organizationSlug: string;
+  organizationName?: string;
   entitlements: EntitlementView[];
   plans: Plan[];
   history: HistoryEntry[];
   currentPlan: Plan | null;
+  hintedPlanSlug?: string | null;
 }) {
-  const [selectedPlanId, setSelectedPlanId] = React.useState<string | null>(currentPlan?.id ?? null);
-  const [showRenew, setShowRenew] = React.useState(false);
+  const displayOrgName = organizationName ?? organizationSlug;
+  const initialHintedPlanId = React.useMemo(() => {
+    if (!hintedPlanSlug) return null;
+    const p = plans.find((x) => x.slug === hintedPlanSlug && x.currency === "INR");
+    return p?.id ?? null;
+  }, [hintedPlanSlug, plans]);
+  const [selectedPlanId, setSelectedPlanId] = React.useState<string | null>(initialHintedPlanId ?? currentPlan?.id ?? null);
+  const [showRenew, setShowRenew] = React.useState(Boolean(initialHintedPlanId));
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Keep selected plan in sync if hint arrives after mount (client navigation)
+  React.useEffect(() => {
+    if (initialHintedPlanId && !selectedPlanId) {
+      setSelectedPlanId(initialHintedPlanId);
+      setShowRenew(true);
+    }
+  }, [initialHintedPlanId, selectedPlanId]);
 
   const activePlans = plans.filter((p) => p.slug.includes("monthly") || p.slug.includes("yearly"));
   const hasPermanent = entitlements.some((e) => e.status === "permanent");
@@ -284,21 +303,89 @@ export function BillingClient({
                 </div>
               </div>
             )}
+            {/* Pre-checkout disclosure — must be visible BEFORE Razorpay */}
+            {selectedPlanId &&
+              (() => {
+                const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
+                if (!selectedPlan) return null;
+                return (
+                  <Card className="border-primary/20 bg-card">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm">Purchase summary</CardTitle>
+                      <CardDescription>Review exactly what you will pay before continuing.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div className="grid gap-2 rounded-[12px] border border-border bg-surface-muted/30 p-4">
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Plan</span>
+                          <span className="font-medium text-foreground">{selectedPlan.name}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Billing period</span>
+                          <span className="font-medium capitalize">{selectedPlan.billing_period}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Price</span>
+                          <span className="font-medium font-mono">
+                            {formatAmount(selectedPlan.amount_minor, selectedPlan.currency)} / {selectedPlan.billing_period === "monthly" ? "month" : "year"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Currency</span>
+                          <span className="font-medium">{selectedPlan.currency}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Workspace</span>
+                          <span className="font-medium">{displayOrgName}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs font-medium text-foreground">Manual renewal only. No automatic renewal or recurring charge is enabled.</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Payments are non-refundable after access has been provisioned, subject to investigation of duplicate or erroneous charges.{" "}
+                        <a href="/refund" className="underline underline-offset-4 hover:text-foreground">
+                          Refund Policy
+                        </a>
+                        .
+                      </p>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        By continuing, you agree to the{" "}
+                        <a href="/terms" className="underline underline-offset-4 hover:text-foreground">
+                          Terms
+                        </a>{" "}
+                        and acknowledge the{" "}
+                        <a href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+                          Privacy Policy
+                        </a>{" "}
+                        and{" "}
+                        <a href="/refund" className="underline underline-offset-4 hover:text-foreground">
+                          Refund Policy
+                        </a>
+                        .
+                      </p>
+                      <Link href="/pricing" className="inline-flex text-xs font-medium text-primary hover:underline">
+                        Change plan — View pricing →
+                      </Link>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             <div className="flex gap-2">
               <Button
                 disabled={!selectedPlanId || loading}
                 onClick={() => selectedPlanId && handleCheckout(selectedPlanId)}
                 className="min-h-[44px] flex-1"
               >
-                {loading ? "Processing…" : "Continue to checkout"}
+                {loading
+                  ? "Processing…"
+                  : (() => {
+                      const sp = selectedPlanId ? plans.find((p) => p.id === selectedPlanId) : null;
+                      return sp ? `Pay ${formatAmount(sp.amount_minor, sp.currency)} — Continue to payment` : "Continue to payment";
+                    })()}
               </Button>
               <Button variant="outline" className="min-h-[44px]" onClick={() => setShowRenew(false)}>
                 Cancel
               </Button>
             </div>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Digital software subscription — workspace access is provided after payment verification. No automatic renewal; manual renewal only. Manage in Settings → Billing. See <a href="/pricing" className="underline hover:text-foreground">Pricing</a> and <a href="/refund" className="underline hover:text-foreground">Refund Policy</a>.
-            </p>
             {message && (
               <p className={`flex items-center gap-1.5 text-xs ${message.type === "success" ? "text-success" : "text-destructive"}`}>
                 {message.type === "success" ? <Check className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}

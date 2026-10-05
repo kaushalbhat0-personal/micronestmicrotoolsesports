@@ -15,8 +15,16 @@ export async function generateMetadata() {
   };
 }
 
-export default async function BillingPage({ params }: { params: Promise<{ orgSlug: string }> }) {
+export default async function BillingPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ orgSlug: string }>;
+  searchParams?: Promise<{ plan?: string }>;
+}) {
   const { orgSlug } = await params;
+  const sp = searchParams ? await searchParams : undefined;
+  const hintedPlanSlug = sp?.plan ?? null;
   const ctx = await requireOrganizationContext(orgSlug);
   const supabase = await createClient();
   const overview = await getBillingOverview(supabase, ctx.organization.id);
@@ -38,10 +46,12 @@ export default async function BillingPage({ params }: { params: Promise<{ orgSlu
       <BillingClient
         organizationId={ctx.organization.id}
         organizationSlug={orgSlug}
+        organizationName={ctx.organization.name}
         entitlements={enriched}
         plans={overview.plans}
         history={overview.history}
         currentPlan={overview.currentPlan}
+        hintedPlanSlug={hintedPlanSlug}
       />
     </div>
   );
