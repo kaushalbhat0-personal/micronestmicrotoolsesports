@@ -2,7 +2,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/auth/get-user";
 import { requireOrganizationMember } from "@/lib/auth/require-membership";
 import { verifyRazorpayPayment, fetchRazorpayPayment, type RazorpayClientLike } from "./razorpay";
-import { calculateRenewedExpiry } from "./expiry";
 import type { BillingPeriod } from "./period";
 
 export type VerifyInput = {
@@ -123,24 +122,25 @@ export async function verifyPaymentAndActivate(
     throw validationError(`Payment not captured: ${fetched.status}`);
   }
 
-  // 8. Also verify amount via order snapshot vs payment — already done, no client trust
+  // 8. Atomic MicroNest DB transaction: payment + order + entitlement
+  // Razorpay verification is outside the transaction (not part of DB); the DB changes are atomic via RPC
+  const { data: plan } = await admin.from("plans").select("billing_period").eq("id", order.plan_id).single();
+  if (!plan) throw new Error("Plan not found for order");
+  const billingPeriod = (plan.billing_period as BillingPeriod) ?? "monthly";
 
-  // 9. Persist payment (before entitlement, inside same logical transaction)
-  const { error: paymentError } = await admin.from("payments").insert({
-    order_id: order.id,
-    organization_id: order.organization_id,
-    razorpay_payment_id: input.razorpayPaymentId,
-    razorpay_signature: input.razorpaySignature,
-    amount_minor: fetched.amountMinor,
-    currency: fetched.currency,
-    status: "captured",
-    verified_at: new Date().toISOString(),
+  const { data: rpcData, error: rpcError } = await admin.rpc("complete_billing_payment", {
+    p_order_id: order.id,
+    p_razorpay_payment_id: input.razorpayPaymentId,
+    p_razorpay_signature: input.razorpaySignature,
+    p_amount_minor: fetched.amountMinor,
+    p_currency: fetched.currency,
+    p_verified_at: new Date().toISOString(),
+    p_billing_period: billingPeriod,
   });
 
-  if (paymentError) {
-    // Unique violation means race: another request inserted same payment concurrently
-    if (paymentError.code === "23505") {
-      // Treat as idempotent success
+  if (rpcError) {
+    // Unique violation or other — treat duplicate payment as idempotent if it matches existing payment
+    if (rpcError.code === "23505" || rpcError.message?.includes("duplicate")) {
       const { data: ent } = await admin
         .from("tool_entitlements")
         .select("expires_at")
@@ -149,74 +149,15 @@ export async function verifyPaymentAndActivate(
         .maybeSingle();
       return { success: true, orderId: order.id, status: "paid", expiresAt: (ent as { expires_at: string | null } | null)?.expires_at ?? null };
     }
-    throw new Error(`Failed to persist payment: ${paymentError.message}`);
+    throw new Error(`Failed to complete payment: ${rpcError.message}`);
   }
 
-  // 10. Update order status to paid
-  const { error: orderUpdateError } = await admin.from("orders").update({ status: "paid" }).eq("id", order.id);
-  if (orderUpdateError) throw new Error(`Failed to update order: ${orderUpdateError.message}`);
+  const expiresAt = (rpcData as { expires_at: string | null } | null)?.expires_at ?? null;
 
-  // 11. Activate/renew entitlement
-  // Need plan for billing_period
-  const { data: plan } = await admin.from("plans").select("billing_period").eq("id", order.plan_id).single();
-  if (!plan) throw new Error("Plan not found for order");
-
-  const billingPeriod = plan.billing_period as BillingPeriod;
-  const now = new Date();
-
-  // Fetch existing entitlement (if any)
-  let existingExpiresAt: Date | null = null;
-  let existingId: string | null = null;
-
-  if (order.is_all_access) {
-    const { data: existing } = await admin
-      .from("tool_entitlements")
-      .select("id, expires_at")
-      .eq("organization_id", order.organization_id)
-      .eq("is_all_access", true)
-      .maybeSingle();
-    if (existing) {
-      existingId = (existing as { id: string }).id;
-      const exp = (existing as { expires_at: string | null }).expires_at;
-      existingExpiresAt = exp ? new Date(exp) : null;
-    }
-  } else if (order.tool_id) {
-    const { data: existing } = await admin
-      .from("tool_entitlements")
-      .select("id, expires_at")
-      .eq("organization_id", order.organization_id)
-      .eq("tool_id", order.tool_id)
-      .maybeSingle();
-    if (existing) {
-      existingId = (existing as { id: string }).id;
-      const exp = (existing as { expires_at: string | null }).expires_at;
-      existingExpiresAt = exp ? new Date(exp) : null;
-    }
-  }
-
-  // Handle NULL existing expiry (infinite promo/manual) — convert to finite paid
-  // Spec says STOP unless service explicitly defines; we define as now+period and document
-  const newExpiresAt = calculateRenewedExpiry(existingExpiresAt, now, billingPeriod);
-
-  if (existingId) {
-    const { error: entError } = await admin
-      .from("tool_entitlements")
-      .update({
-        expires_at: newExpiresAt.toISOString(),
-        source: "subscription",
-      })
-      .eq("id", existingId);
-    if (entError) throw new Error(`Failed to update entitlement: ${entError.message}`);
-  } else {
-    const { error: entError } = await admin.from("tool_entitlements").insert({
-      organization_id: order.organization_id,
-      tool_id: order.is_all_access ? null : order.tool_id,
-      is_all_access: order.is_all_access,
-      source: "subscription",
-      expires_at: newExpiresAt.toISOString(),
-    });
-    if (entError) throw new Error(`Failed to create entitlement: ${entError.message}`);
-  }
-
-  return { success: true, orderId: order.id, status: "paid", expiresAt: newExpiresAt.toISOString() };
+  return {
+    success: true,
+    orderId: order.id,
+    status: "paid",
+    expiresAt,
+  };
 }

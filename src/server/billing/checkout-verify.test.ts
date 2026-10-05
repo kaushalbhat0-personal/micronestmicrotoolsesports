@@ -14,6 +14,7 @@ vi.mock("@/lib/auth/require-membership", () => ({
 
 // Mock supabase
 const mockAdminFrom = vi.fn();
+const mockAdminRpc = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     from: vi.fn((table: string) => ({
@@ -30,6 +31,7 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({
     from: mockAdminFrom,
+    rpc: mockAdminRpc,
   })),
 }));
 
@@ -203,32 +205,19 @@ describe("billing verify — payment verification", () => {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: mockOrder, error: null })) })),
           })),
-          update: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) })),
         } as never;
       }
       if (table === "payments") {
         return {
           select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })),
-          insert: vi.fn(async () => ({ error: null })),
         } as never;
       }
       if (table === "plans") {
         return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: mockPlan, error: null })) })) })) } as never;
       }
-      if (table === "tool_entitlements") {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })),
-              maybeSingle: vi.fn(async () => ({ data: null, error: null })),
-            })),
-          })),
-          insert: vi.fn(async () => ({ error: null })),
-          update: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) })),
-        } as never;
-      }
       return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
     });
+    mockAdminRpc.mockResolvedValueOnce({ data: { expires_at: "2026-11-05T00:00:00.000Z" }, error: null });
 
     const result = await verifyPaymentAndActivate({
       orderId: "order-1",
@@ -332,25 +321,17 @@ describe("billing verify — payment verification", () => {
     const mockPlan = { id: "plan-all-monthly", billing_period: "monthly" };
     mockAdminFrom.mockImplementation((table: string) => {
       if (table === "orders") {
-        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: mockOrder, error: null })) })) })), update: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) })) } as never;
+        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: mockOrder, error: null })) })) })) } as never;
       }
       if (table === "payments") {
-        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })), insert: vi.fn(async () => ({ error: null })) } as never;
+        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
       }
       if (table === "plans") {
         return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: mockPlan, error: null })) })) })) } as never;
       }
-      if (table === "tool_entitlements") {
-        return {
-          select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) })),
-          insert: vi.fn(async (vals: unknown) => {
-            expect(vals).toMatchObject({ is_all_access: true, tool_id: null });
-            return { error: null };
-          }),
-        } as never;
-      }
       return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
     });
+    mockAdminRpc.mockResolvedValueOnce({ data: { expires_at: new Date().toISOString() }, error: null });
     const { fetchRazorpayPayment } = await import("./razorpay");
     (fetchRazorpayPayment as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       providerPaymentId: "pay_all",
@@ -366,34 +347,22 @@ describe("billing verify — payment verification", () => {
       razorpaySignature: "valid_sig",
     });
     expect(result.success).toBe(true);
+    expect(mockAdminRpc).toHaveBeenCalledWith("complete_billing_payment", expect.objectContaining({ p_order_id: "order-all" }));
   });
 
   it("renewal future expiry extends from existing", async () => {
     const now = new Date("2026-10-05T00:00:00Z");
     vi.useFakeTimers();
     vi.setSystemTime(now);
-    const existingExpires = new Date("2026-11-05T00:00:00Z").toISOString();
     const mockOrder = { id: "order-1", organization_id: "org-a", plan_id: "plan-monthly", tool_id: "tool-1", is_all_access: false, amount_minor: 149900, currency: "INR", razorpay_order_id: "order_razor_123" };
     const mockPlan = { id: "plan-monthly", billing_period: "monthly" };
     mockAdminFrom.mockImplementation((table: string) => {
-      if (table === "orders") return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: mockOrder, error: null })) })) })), update: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) })) } as never;
-      if (table === "payments") return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })), insert: vi.fn(async () => ({ error: null })) } as never;
+      if (table === "orders") return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: mockOrder, error: null })) })) })) } as never;
+      if (table === "payments") return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
       if (table === "plans") return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: mockPlan, error: null })) })) })) } as never;
-      if (table === "tool_entitlements") {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: { id: "ent-1", expires_at: existingExpires }, error: null })) })),
-            })),
-          })),
-          update: vi.fn(() => ({ eq: vi.fn(async (vals) => {
-            // Should be Dec 5, not Nov 5+now
-            return { error: null };
-          }) })),
-        } as never;
-      }
       return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
     });
+    mockAdminRpc.mockResolvedValueOnce({ data: { expires_at: "2026-12-05T00:00:00.000Z" }, error: null });
     // Need to mock fetch to return correct amount for this order
     const { fetchRazorpayPayment } = await import("./razorpay");
     (fetchRazorpayPayment as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
