@@ -216,6 +216,50 @@ export interface OrganizationProviderCredential {
   updated_at: string;
 }
 
+export type BillingPeriod = "monthly" | "yearly";
+export type PlanCurrency = "INR";
+export type OrderStatus = "created" | "paid" | "failed" | "expired";
+export type PaymentStatus = "created" | "authorized" | "captured" | "failed";
+
+export interface Plan {
+  id: string;
+  tool_id: string | null;
+  name: string;
+  slug: string;
+  billing_period: BillingPeriod;
+  amount_minor: number;
+  currency: PlanCurrency;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Order {
+  id: string;
+  organization_id: string;
+  plan_id: string;
+  tool_id: string | null;
+  is_all_access: boolean;
+  amount_minor: number;
+  currency: PlanCurrency;
+  status: OrderStatus;
+  razorpay_order_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Payment {
+  id: string;
+  order_id: string;
+  organization_id: string;
+  razorpay_payment_id: string | null;
+  razorpay_signature: string | null;
+  amount_minor: number;
+  currency: PlanCurrency;
+  status: PaymentStatus;
+  verified_at: string | null;
+  created_at: string;
+}
+
 // Joined helpers
 export type OrganizationWithRole = Organization & { role: OrganizationRole };
 export type EntitlementWithTool = ToolEntitlement & { tool: Tool | null };
