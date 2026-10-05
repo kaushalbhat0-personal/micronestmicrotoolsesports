@@ -35,3 +35,4 @@ coverage
 
 # build cache
 tsconfig.tsbuildinfo
+.env*
