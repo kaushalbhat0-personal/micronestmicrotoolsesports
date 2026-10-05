@@ -23,6 +23,7 @@ import {
   Scissors,
   FileCheck,
   ChevronRight,
+  CreditCard,
 } from "lucide-react";
 import type { Route } from "next";
 import { NavigationProgress } from "@/components/ui/navigation-progress";
@@ -41,6 +42,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Split,
   Scissors,
   FileCheck,
+  CreditCard,
 };
 
 function getBreadcrumbs(pathname: string, orgSlug?: string): BreadcrumbItem[] {
@@ -195,6 +197,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Settings</p>
           <div className="space-y-1">
             <NavLink href={`/dashboard/${orgSlug}/settings` as Route} icon="Settings2" label="Settings" pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+            <NavLink href={`/dashboard/${orgSlug}/settings/billing` as Route} icon="CreditCard" label="Billing" pathname={pathname} onNavigate={() => setMobileOpen(false)} />
           </div>
         </div>
 
