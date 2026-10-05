@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/auth/get-user";
 import { requireOrganizationMember } from "@/lib/auth/require-membership";
 import { getPlanById } from "@/server/repositories/plans";
 import { createRazorpayOrder } from "./razorpay";
+import { getRazorpayConfig } from "@/server/integrations/razorpay/client";
 
 export type CheckoutInput = {
   planId: string;
@@ -28,14 +28,22 @@ export async function createCheckoutOrder(
   // Verify organization membership — server-authoritative, prevents org spoof
   await requireOrganizationMember(input.organizationId);
 
-  const supabase = await createClient();
-  const plan = await getPlanById(supabase, input.planId);
+  // Use admin client for plan lookup (authoritative catalog, no RLS variance)
+  // Tenant check already done via requireOrganizationMember; plan is global catalog.
+  const admin = createAdminClient();
+  const plan = await getPlanById(admin, input.planId);
   if (!plan || !plan.is_active) {
     const { validationError } = await import("@/lib/errors");
     throw validationError("Invalid or inactive plan");
   }
 
-  const admin = createAdminClient();
+  // Fail-fast: validate Razorpay config BEFORE creating internal order
+  // If Razorpay is not configured and no test double is provided, do not create audit noise.
+  const razorpayCfg = getRazorpayConfig();
+  if (!razorpayCfg && !deps?.razorpayClient) {
+    const { validationError } = await import("@/lib/errors");
+    throw validationError("Payment not configured");
+  }
 
   // Snapshot from plan — server-authoritative, client never provides amount/currency/tool
   const isAllAccess = plan.tool_id === null;
@@ -87,14 +95,14 @@ export async function createCheckoutOrder(
 
     if (updateError) throw new Error(`Failed to persist Razorpay order: ${updateError.message}`);
 
-    const keyId = process.env.RAZORPAY_KEY_ID ?? null;
+    const resolvedKeyId = getRazorpayConfig()?.keyId ?? process.env.RAZORPAY_KEY_ID ?? null;
 
     return {
       orderId,
       razorpayOrderId: razorpayOrder.providerOrderId,
       amountMinor: plan.amount_minor,
       currency: plan.currency,
-      keyId,
+      keyId: resolvedKeyId,
     };
   } catch (err) {
     // Deterministic failure: mark order failed, no entitlement, no payment

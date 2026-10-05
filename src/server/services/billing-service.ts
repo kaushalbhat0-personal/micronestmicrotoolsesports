@@ -48,7 +48,7 @@ export async function getBillingOverview(supabase: SupabaseClient, organizationI
   // Also map by tool id via tools table if needed — for now use slug via entitlements join
   const entViews: BillingEntitlementView[] = [];
 
-  for (const ent of entitlements as (ToolEntitlement & { tool?: { slug: string; name: string } })[]) {
+  for (const ent of entitlements as unknown as (ToolEntitlement & { tool?: { slug: string; name: string } })[]) {
     const isAllAccess = ent.is_all_access;
     let toolSlug: string | null = null;
     let toolName = "All Access";

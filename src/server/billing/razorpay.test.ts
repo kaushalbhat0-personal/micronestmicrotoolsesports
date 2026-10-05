@@ -216,8 +216,9 @@ describe("razorpay adapter — parseWebhook", () => {
     expect(parsed).not.toBeNull();
     expect(parsed?.eventType).toBe("order.paid");
     expect(parsed?.providerPaymentId).toBeNull();
-    // Should have fallback externalEventId (hash)
-    expect(parsed?.externalEventId.startsWith("unknown:")).toBe(true);
+    // Should have fallback externalEventId (hash) prefixed with eventType
+    expect(parsed?.externalEventId.startsWith("order.paid:")).toBe(true);
+    expect(parsed?.externalEventId.length).toBeGreaterThan(10);
   });
 
   it("malformed JSON returns null", () => {

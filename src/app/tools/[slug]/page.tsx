@@ -12,6 +12,24 @@ import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Check, ArrowRi
 import { BrowserFrame } from "@/components/marketing/browser-frame";
 import { ShapeCrop } from "@/components/marketing/shape-crop";
 import { ProductFragment } from "@/components/marketing/product-fragment";
+import { createClient } from "@/lib/supabase/server";
+import { listActivePlans } from "@/server/repositories/plans";
+import { buildOffers, TOOL_PLAN_PREFIX } from "@/lib/marketing/tool-offers";
+
+async function getOffersForTool(slug: string): Promise<ReturnType<typeof buildOffers>> {
+  const prefix = TOOL_PLAN_PREFIX[slug];
+  if (!prefix) return buildOffers(null, "coming-soon");
+  try {
+    const supabase = await createClient();
+    const plans = await listActivePlans(supabase);
+    const toolPlans = plans.filter((p) => p.slug.startsWith(prefix) && p.currency === "INR" && p.is_active);
+    return buildOffers(toolPlans.length ? toolPlans : null, "available");
+  } catch {
+    // DB unavailable at build — fall back to coming-soon semantics for unavailable plans
+    // Do not emit fake $0 price
+    return buildOffers(null, "coming-soon");
+  }
+}
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ShieldCheck,
@@ -70,6 +88,7 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
   if (!tool) notFound();
   const Icon = iconMap[tool.icon] ?? ShieldCheck;
   const related = MARKETING_TOOLS.filter((t) => t.slug !== tool.slug).slice(0, 2);
+  const { offers: toolOffers } = await getOffersForTool(tool.slug);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -265,7 +284,7 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
         </section>
       </main>
       <Footer />
-      {/* Structured data: SoftwareApplication + Breadcrumb */}
+      {/* Structured data: SoftwareApplication + Breadcrumb — authoritative INR pricing, no $0 */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -278,7 +297,11 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
             description: tool.seoDescription,
             url: `/tools/${tool.slug}`,
             isPartOf: { "@type": "WebSite", name: "MicroNest", url: "/" },
-            offers: { "@type": "Offer", price: "0", priceCurrency: "USD", availability: tool.status === "available" ? "https://schema.org/InStock" : "https://schema.org/PreOrder" },
+            ...(toolOffers
+              ? Array.isArray(toolOffers)
+                ? { offers: toolOffers }
+                : { offers: toolOffers }
+              : {}),
           }),
         }}
       />

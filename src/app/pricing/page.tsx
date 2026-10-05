@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { listActivePlans } from "@/server/repositories/plans";
 import { PricingClient } from "./pricing-client";
 
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "Pricing — MicroNest MicroTools",
   description: "Simple INR pricing for focused esports tools. Choose Sponsorship Tracking, Prize Pool Splitter, or All Access. Monthly and yearly plans, manual renewal only.",

@@ -86,7 +86,7 @@ describe("billing hardening — transaction", () => {
       if (table === "plans") return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: mockPlan, error: null })) })) })) } as never;
       return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
     });
-    mockAdminRpc.mockResolvedValueOnce({ data: null, error: { message: "entitlement insert failed", code: "23505" } } as never);
+    mockAdminRpc.mockResolvedValueOnce({ data: null, error: { message: "entitlement insert failed", code: "P0001" } } as never);
 
     await expect(
       verifyPaymentAndActivate({

@@ -27,64 +27,27 @@ export async function verifyPaymentAndActivate(
 
   const admin = createAdminClient();
 
-  // 1. Load MicroNest order
-  const { data: order, error: orderError } = await admin.from("orders").select("*").eq("id", input.orderId).single();
+  // 1. Load MicroNest order — explicit projection (hot path)
+  const { data: order, error: orderError } = await admin
+    .from("orders")
+    .select("id, organization_id, plan_id, tool_id, is_all_access, amount_minor, currency, razorpay_order_id, status")
+    .eq("id", input.orderId)
+    .single();
   if (orderError || !order) {
     const { validationError } = await import("@/lib/errors");
     throw validationError("Invalid order");
   }
 
   // 2. Verify organization ownership — server-authoritative tenant check
-  await requireOrganizationMember(order.organization_id);
+  await requireOrganizationMember((order as { organization_id: string }).organization_id);
 
   // 3. Verify Razorpay order match (server-side, not client trust)
-  if (order.razorpay_order_id !== input.razorpayOrderId) {
+  if ((order as { razorpay_order_id: string | null }).razorpay_order_id !== input.razorpayOrderId) {
     const { validationError } = await import("@/lib/errors");
     throw validationError("Razorpay order mismatch");
   }
 
-  // 4. Idempotency: if payment already captured for this razorpay_payment_id, return without re-extending
-  const { data: existingPayment } = await admin
-    .from("payments")
-    .select("id, status")
-    .eq("razorpay_payment_id", input.razorpayPaymentId)
-    .maybeSingle();
-
-  if (existingPayment) {
-    // Already processed — fetch current entitlement expiry for response
-    const { data: ent } = await admin
-      .from("tool_entitlements")
-      .select("expires_at")
-      .eq("organization_id", order.organization_id)
-      .eq("is_all_access", order.is_all_access)
-      .maybeSingle();
-
-    // For per-tool, need tool_id match; handle via query
-    let expiresAt: string | null = null;
-    if (order.is_all_access) {
-      const { data: allEnt } = await admin
-        .from("tool_entitlements")
-        .select("expires_at")
-        .eq("organization_id", order.organization_id)
-        .eq("is_all_access", true)
-        .maybeSingle();
-      expiresAt = (allEnt as { expires_at: string | null } | null)?.expires_at ?? null;
-    } else if (order.tool_id) {
-      const { data: toolEnt } = await admin
-        .from("tool_entitlements")
-        .select("expires_at")
-        .eq("organization_id", order.organization_id)
-        .eq("tool_id", order.tool_id)
-        .maybeSingle();
-      expiresAt = (toolEnt as { expires_at: string | null } | null)?.expires_at ?? null;
-    } else {
-      expiresAt = (ent as { expires_at: string | null } | null)?.expires_at ?? null;
-    }
-
-    return { success: true, orderId: order.id, status: "paid", expiresAt };
-  }
-
-  // 5. Verify cryptographic signature (HMAC, timing-safe)
+  // 4. Verify cryptographic signature BEFORE idempotency check — security invariant
   const sigResult = verifyRazorpayPayment({
     orderId: input.razorpayOrderId,
     paymentId: input.razorpayPaymentId,
@@ -95,12 +58,64 @@ export async function verifyPaymentAndActivate(
     throw validationError("Invalid payment signature");
   }
 
-  // 6. Fetch authoritative Razorpay payment for amount/currency/status
+  // 5. Idempotency: if payment already captured for this razorpay_payment_id, return without re-extending
+  const { data: existingPayment } = await admin
+    .from("payments")
+    .select("id, status")
+    .eq("razorpay_payment_id", input.razorpayPaymentId)
+    .maybeSingle();
+
+  if (existingPayment) {
+    // Scoped entitlement lookup — single query, not 3
+    const ord = order as { organization_id: string; is_all_access: boolean; tool_id: string | null };
+    let expiresAt: string | null = null;
+    if (ord.is_all_access) {
+      const { data: allEnt } = await admin
+        .from("tool_entitlements")
+        .select("expires_at")
+        .eq("organization_id", ord.organization_id)
+        .eq("is_all_access", true)
+        .maybeSingle();
+      expiresAt = (allEnt as { expires_at: string | null } | null)?.expires_at ?? null;
+    } else if (ord.tool_id) {
+      const { data: toolEnt } = await admin
+        .from("tool_entitlements")
+        .select("expires_at")
+        .eq("organization_id", ord.organization_id)
+        .eq("tool_id", ord.tool_id)
+        .maybeSingle();
+      expiresAt = (toolEnt as { expires_at: string | null } | null)?.expires_at ?? null;
+    } else {
+      // Fallback — all-access false with no tool_id (defensive)
+      const { data: fallback } = await admin
+        .from("tool_entitlements")
+        .select("expires_at")
+        .eq("organization_id", ord.organization_id)
+        .eq("is_all_access", false)
+        .maybeSingle();
+      expiresAt = (fallback as { expires_at: string | null } | null)?.expires_at ?? null;
+    }
+
+    return { success: true, orderId: (order as { id: string }).id, status: "paid", expiresAt };
+  }
+
+  // 6. Fetch authoritative Razorpay payment and billing period in parallel (independent)
   let fetched: { providerPaymentId: string; providerOrderId: string; amountMinor: number; currency: string; status: string };
+  let billingPeriod: BillingPeriod = "monthly";
   try {
-    fetched = await fetchRazorpayPayment(input.razorpayPaymentId, deps?.razorpayClient ? { client: deps.razorpayClient } : undefined);
+    const [fetchedResult, planResult] = await Promise.all([
+      fetchRazorpayPayment(input.razorpayPaymentId, deps?.razorpayClient ? { client: deps.razorpayClient } : undefined),
+      admin.from("plans").select("billing_period").eq("id", (order as { plan_id: string }).plan_id).single(),
+    ]);
+    fetched = fetchedResult;
+    const plan = (planResult as { data: { billing_period: string } | null }).data;
+    if (plan) billingPeriod = (plan.billing_period as BillingPeriod) ?? "monthly";
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // Distinguish Razorpay fetch failure vs plan fetch failure
+    if (msg.includes("Razorpay fetchPayment") || msg.includes("Razorpay")) {
+      throw new Error(`Payment verification failed: ${msg}`);
+    }
     throw new Error(`Payment verification failed: ${msg}`);
   }
 
@@ -109,11 +124,11 @@ export async function verifyPaymentAndActivate(
     const { validationError } = await import("@/lib/errors");
     throw validationError("Payment order mismatch");
   }
-  if (fetched.amountMinor !== order.amount_minor) {
+  if (fetched.amountMinor !== (order as { amount_minor: number }).amount_minor) {
     const { validationError } = await import("@/lib/errors");
     throw validationError("Payment amount mismatch");
   }
-  if (fetched.currency !== order.currency) {
+  if (fetched.currency !== (order as { currency: string }).currency) {
     const { validationError } = await import("@/lib/errors");
     throw validationError("Payment currency mismatch");
   }
@@ -124,12 +139,8 @@ export async function verifyPaymentAndActivate(
 
   // 8. Atomic MicroNest DB transaction: payment + order + entitlement
   // Razorpay verification is outside the transaction (not part of DB); the DB changes are atomic via RPC
-  const { data: plan } = await admin.from("plans").select("billing_period").eq("id", order.plan_id).single();
-  if (!plan) throw new Error("Plan not found for order");
-  const billingPeriod = (plan.billing_period as BillingPeriod) ?? "monthly";
-
   const { data: rpcData, error: rpcError } = await admin.rpc("complete_billing_payment", {
-    p_order_id: order.id,
+    p_order_id: (order as { id: string }).id,
     p_razorpay_payment_id: input.razorpayPaymentId,
     p_razorpay_signature: input.razorpaySignature,
     p_amount_minor: fetched.amountMinor,
@@ -139,15 +150,37 @@ export async function verifyPaymentAndActivate(
   });
 
   if (rpcError) {
-    // Unique violation or other — treat duplicate payment as idempotent if it matches existing payment
+    // Unique violation — scoped expiry lookup (never unrestricted limit 1)
     if (rpcError.code === "23505" || rpcError.message?.includes("duplicate")) {
-      const { data: ent } = await admin
-        .from("tool_entitlements")
-        .select("expires_at")
-        .eq("organization_id", order.organization_id)
-        .limit(1)
-        .maybeSingle();
-      return { success: true, orderId: order.id, status: "paid", expiresAt: (ent as { expires_at: string | null } | null)?.expires_at ?? null };
+      const ord = order as { organization_id: string; is_all_access: boolean; tool_id: string | null };
+      let scoped: { expires_at: string | null } | null = null;
+      if (ord.is_all_access) {
+        const { data: ent } = await admin
+          .from("tool_entitlements")
+          .select("expires_at")
+          .eq("organization_id", ord.organization_id)
+          .eq("is_all_access", true)
+          .maybeSingle();
+        scoped = ent as { expires_at: string | null } | null;
+      } else if (ord.tool_id) {
+        const { data: ent } = await admin
+          .from("tool_entitlements")
+          .select("expires_at")
+          .eq("organization_id", ord.organization_id)
+          .eq("tool_id", ord.tool_id)
+          .eq("is_all_access", false)
+          .maybeSingle();
+        scoped = ent as { expires_at: string | null } | null;
+      } else {
+        const { data: ent } = await admin
+          .from("tool_entitlements")
+          .select("expires_at")
+          .eq("organization_id", ord.organization_id)
+          .eq("is_all_access", false)
+          .maybeSingle();
+        scoped = ent as { expires_at: string | null } | null;
+      }
+      return { success: true, orderId: (order as { id: string }).id, status: "paid", expiresAt: scoped?.expires_at ?? null };
     }
     throw new Error(`Failed to complete payment: ${rpcError.message}`);
   }
@@ -156,7 +189,7 @@ export async function verifyPaymentAndActivate(
 
   return {
     success: true,
-    orderId: order.id,
+    orderId: (order as { id: string }).id,
     status: "paid",
     expiresAt,
   };

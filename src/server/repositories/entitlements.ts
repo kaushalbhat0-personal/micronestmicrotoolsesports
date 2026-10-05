@@ -4,7 +4,7 @@ import type { ToolEntitlement } from "@/types/database";
 export async function listEntitlementsForOrg(supabase: SupabaseClient, organizationId: string) {
   const { data, error } = await supabase
     .from("tool_entitlements")
-    .select("*, tool:tools(id, slug, name, description)")
+    .select("id, organization_id, tool_id, subscription_id, is_all_access, source, expires_at, created_at, tool:tools(id, slug, name, description)")
     .eq("organization_id", organizationId);
   if (error) throw error;
   return data;

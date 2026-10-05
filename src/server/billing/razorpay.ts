@@ -4,6 +4,7 @@
  */
 
 import crypto from "node:crypto";
+import { getRazorpayConfig } from "@/server/integrations/razorpay/client";
 
 export type RazorpayOrderInput = {
   amountMinor: number;
@@ -57,15 +58,7 @@ export type RazorpayClientLike = {
 };
 
 function getRazorpayConfigFromEnv(): { keyId: string; keySecret: string; webhookSecret?: string } | null {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-  if (!keyId || !keySecret) return null;
-  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-  return {
-    keyId,
-    keySecret,
-    ...(webhookSecret ? { webhookSecret } : {}),
-  };
+  return getRazorpayConfig();
 }
 
 function createRazorpayClientFromEnv(): RazorpayClientLike | null {
@@ -135,7 +128,10 @@ export function verifyRazorpayPayment(args: {
   signature: string;
   keySecret?: string;
 }): RazorpayPaymentVerification {
-  const keySecret = args.keySecret ?? process.env.RAZORPAY_KEY_SECRET;
+  let keySecret = args.keySecret;
+  if (!keySecret) {
+    keySecret = getRazorpayConfig()?.keySecret ?? process.env.RAZORPAY_KEY_SECRET;
+  }
   if (!keySecret) return { valid: false };
   if (!args.orderId || !args.paymentId || !args.signature) return { valid: false };
 
@@ -152,7 +148,10 @@ export function verifyRazorpayPayment(args: {
 export function verifyRazorpayWebhook(args: { rawBody: string; signature: string; webhookSecret?: string }): {
   valid: boolean;
 } {
-  const secret = args.webhookSecret ?? process.env.RAZORPAY_WEBHOOK_SECRET;
+  let secret = args.webhookSecret;
+  if (!secret) {
+    secret = getRazorpayConfig()?.webhookSecret ?? process.env.RAZORPAY_WEBHOOK_SECRET;
+  }
   if (!secret) return { valid: false };
   if (!args.rawBody || !args.signature) return { valid: false };
   const expected = crypto.createHmac("sha256", secret).update(args.rawBody).digest("hex");
@@ -235,8 +234,8 @@ export function parseRazorpayWebhook(rawBody: string): RazorpayWebhookEvent | nu
     let externalEventId: string;
     if (paymentId) externalEventId = `${eventType}:${paymentId}`;
     else {
-      // Fallback: hash raw body (deterministic, not cryptographically unique but sufficient for unknown events)
-      externalEventId = `unknown:${crypto.createHash("sha256").update(rawBody).digest("hex").slice(0, 16)}`;
+      // Fallback: hash raw body (deterministic) — 32 hex chars for collision safety
+      externalEventId = `${eventType}:${crypto.createHash("sha256").update(rawBody).digest("hex").slice(0, 32)}`;
     }
 
     return {

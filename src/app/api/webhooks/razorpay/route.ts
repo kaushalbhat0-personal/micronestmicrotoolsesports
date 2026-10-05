@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyRazorpayWebhook, parseRazorpayWebhook, fetchRazorpayPayment } from "@/server/billing/razorpay";
+import { getRazorpayConfig } from "@/server/integrations/razorpay/client";
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Missing webhook signature" } }, { status: 400 });
   }
 
-  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  const webhookSecret = getRazorpayConfig()?.webhookSecret ?? process.env.RAZORPAY_WEBHOOK_SECRET;
   if (!webhookSecret) {
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Webhook not configured" } }, { status: 500 });
   }
@@ -48,7 +49,6 @@ export async function POST(request: Request) {
     .single();
 
   let webhookEventId: string | null = (insertedEvent as { id: string } | null)?.id ?? null;
-  let isNewEvent = true;
 
   if (insertError) {
     if (insertError.code === "23505") {
@@ -60,41 +60,34 @@ export async function POST(request: Request) {
         .eq("external_event_id", parsed.externalEventId)
         .maybeSingle();
 
-      const existingStatus = (existing as { status: string | null; processed: boolean | null } | null)?.status;
-      const existingProcessed = (existing as { processed: boolean | null } | null)?.processed;
+      if (!existing) {
+        console.error("[webhook:razorpay] duplicate but no existing row found");
+        return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to record webhook" } }, { status: 500 });
+      }
+
+      const existingStatus = (existing as { status: string | null; processed: boolean | null }).status;
+      const existingProcessed = (existing as { processed: boolean | null }).processed;
 
       // If already succeeded/processed, it's a permanent duplicate → 200
       if (existingStatus === "succeeded" || existingProcessed === true) {
         return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
       }
 
-      // If existing is failed/pending, it's retryable — try to claim it; if already succeeded/processed, it's permanent duplicate
-      if (existing) {
-        const status = (existing as { status: string | null }).status;
-        const processed = (existing as { processed: boolean | null }).processed;
-        if (status === "succeeded" || processed === true) {
-          return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
-        }
-        // Retryable: pending/failed/processing — try to claim where status is pending or failed (not already processing/succeeded)
-        const { data: claimed, error: claimError } = await admin
-          .from("webhook_events")
-          .update({ status: "processing", processed: false })
-          .eq("provider", "razorpay")
-          .eq("external_event_id", parsed.externalEventId)
-          .in("status", ["pending", "failed"])
-          .select("id")
-          .maybeSingle();
+      // Retryable: pending/failed — try to claim; processing/succeeded already handled above
+      const { data: claimed, error: claimError } = await admin
+        .from("webhook_events")
+        .update({ status: "processing", processed: false })
+        .eq("provider", "razorpay")
+        .eq("external_event_id", parsed.externalEventId)
+        .in("status", ["pending", "failed"])
+        .select("id")
+        .maybeSingle();
 
-        if (claimError || !claimed) {
-          // Another concurrent request claimed it (now processing) or status became succeeded
-          return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
-        }
-        webhookEventId = (claimed as { id: string }).id;
-        isNewEvent = false;
-      } else {
-        console.error("[webhook:razorpay] duplicate but no existing row found");
-        return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to record webhook" } }, { status: 500 });
+      if (claimError || !claimed) {
+        // Another concurrent request claimed it (now processing) or status became succeeded
+        return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
       }
+      webhookEventId = (claimed as { id: string }).id;
     } else {
       console.error("[webhook:razorpay] insert failed", insertError);
       return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to record webhook" } }, { status: 500 });
