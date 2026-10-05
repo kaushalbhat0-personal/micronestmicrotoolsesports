@@ -3,8 +3,9 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 
 export const metadata: Metadata = {
-  title: "Terms of Service",
-  description: "MicroNest terms of service — use of Sponsorship Tracking and other micro-tools.",
+  title: "Terms of Service — MicroNest",
+  description: "MicroNest MicroTools — Esports terms of service. Support: info.micronest@gmail.com. Location: Pune, Maharashtra, India. Governing jurisdiction: India.",
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {
@@ -28,9 +29,9 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold">2. What MicroNest provides</h2>
               <p className="mt-2 text-muted-foreground">
-                MicroNest is a subscription software platform that provides focused workflow tools for esports teams, organizations, creators, and tournament operators. MicroNest hosts independent micro-tools for esports organizations (for example, Sponsorship Tracking). Features are provided on an organization/workspace basis. No tool is
-                intended to replace platform-native dashboards; they provide narrow, independently valuable verification and tracking.
+                MicroNest (“MicroNest MicroTools — Esports”) is a subscription software platform that provides focused workflow tools for esports teams, organizations, creators, and tournament operators. MicroNest hosts independent micro-tools for esports organizations (for example, Sponsorship Tracking). Features are provided on an organization/workspace basis. No tool is intended to replace platform-native dashboards; they provide narrow, independently valuable verification and tracking.
               </p>
+              <p className="mt-2 text-xs text-muted-foreground">Brand: MicroNest · Product: MicroNest MicroTools — Esports · Operating location: Pune, Maharashtra, India · Support: <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a> · MicroNest is currently not registered for GST.</p>
               <div className="mt-4 space-y-3 rounded-[12px] border border-border bg-surface-muted/30 p-4">
                 <h3 className="text-sm font-semibold">Service type — digital software</h3>
                 <p className="text-sm text-muted-foreground">
@@ -38,11 +39,15 @@ export default function TermsPage() {
                 </p>
                 <h3 className="text-sm font-semibold">Subscription — monthly and yearly</h3>
                 <p className="text-sm text-muted-foreground">
-                  Plans are billed per the selected period — monthly or yearly — in INR as displayed at checkout. Subscriptions provide access for the purchased period (shown as “Active until” in Settings → Billing). Renewal requires a new purchase before or after expiry; access remains until the current period’s expiry and does not auto-extend without payment.
+                  Plans are billed per the selected period — monthly or yearly — in INR as displayed at checkout. Subscriptions provide access for the purchased period (shown as “Active until” in Settings → Billing). Renewal requires a new purchase before or after expiry; access remains until the current period’s expiry and does not auto-extend without payment. There is no automatic recurring charge, no AutoPay, and no recurring mandate.
                 </p>
                 <h3 className="text-sm font-semibold">Digital delivery</h3>
                 <p className="text-sm text-muted-foreground">
                   No physical shipping occurs. Software access is provisioned digitally to your organization/workspace immediately after payment verification (Razorpay → webhook → entitlement). You can confirm access in Dashboard → Settings → Billing.
+                </p>
+                <h3 className="text-sm font-semibold">Refunds</h3>
+                <p className="text-sm text-muted-foreground">
+                  No refunds after purchase and digital access provisioning. See <a href="/refund" className="underline underline-offset-4 hover:text-foreground">Refund &amp; Cancellation Policy</a>. Legitimate duplicate or erroneous payment issues can be reported to <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a> for investigation — this does not create an automatic refund entitlement.
                 </p>
               </div>
             </section>
@@ -156,11 +161,16 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold">14. Contact</h2>
+              <h2 className="text-lg font-semibold">14. Governing law &amp; jurisdiction</h2>
+              <p className="mt-2 text-muted-foreground">These Terms are governed by the laws of India.</p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">15. Contact</h2>
               <p className="mt-2 text-muted-foreground">
-                For questions about these Terms, contact the workspace owner or MicroNest administrator via the dashboard. The repository does not currently publish a dedicated legal contact;
-                jurisdiction and entity information are intentionally omitted pending formal incorporation. Where a support email is later published, this section will be updated.
+                For questions about these Terms, billing, payments, or service issues, contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a>. Workspace members may also contact their workspace owner or check Dashboard → Settings → Billing for current access. Do not send passwords, OAuth secrets, Razorpay signatures, or payment credentials by email. Operating location: Pune, Maharashtra, India.
               </p>
+              <p className="mt-2 text-xs text-muted-foreground">MicroNest Services is the planned parent business and is not represented as an already registered entity. No CIN, GSTIN, or registration number is claimed.</p>
             </section>
           </div>
           </div>

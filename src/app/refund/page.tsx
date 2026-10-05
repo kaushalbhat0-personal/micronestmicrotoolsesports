@@ -3,8 +3,9 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 
 export const metadata: Metadata = {
-  title: "Refund & Cancellation Policy",
-  description: "MicroNest refund and cancellation policy — subscription software for esports operations. Digital service, billing per workspace.",
+  title: "Refund & Cancellation Policy — MicroNest",
+  description: "MicroNest MicroTools — Esports refund policy: no refunds after purchase and digital access provisioning. Billing questions: info.micronest@gmail.com, Pune, Maharashtra, India.",
+  alternates: { canonical: "/refund" },
 };
 
 export default function RefundPage() {
@@ -38,7 +39,7 @@ export default function RefundPage() {
                   <div className="rounded-[12px] border border-border bg-surface-muted/30 p-4">
                     <h3 className="text-sm font-semibold">Cancellation</h3>
                     <p className="mt-1 text-muted-foreground">
-                      You may stop using any tool at any time and choose not to renew. Access remains active until the current period’s expiry — shown as “Active until” in Dashboard → Settings → Billing. Renewal requires an explicit new purchase; there is no automatic recurring charge beyond a completed checkout.
+                      You may stop using any tool at any time and choose not to renew. Access remains active until the current period’s expiry — shown as “Active until” in Dashboard → Settings → Billing. Renewal requires an explicit new purchase; there is no automatic recurring charge beyond a completed checkout, no AutoPay, and no recurring mandate.
                     </p>
                   </div>
                   <div className="rounded-[12px] border border-border bg-surface-muted/30 p-4">
@@ -48,20 +49,26 @@ export default function RefundPage() {
                     </p>
                   </div>
                   <div className="rounded-[12px] border border-border bg-surface-muted/30 p-4">
-                    <h3 className="text-sm font-semibold">Refund</h3>
+                    <h3 className="text-sm font-semibold">Refund — no refunds after provisioning</h3>
                     <p className="mt-1 text-muted-foreground">
-                      Refund is a return of payment already made, distinct from stopping future renewals. Refunds are not automated in the current product; any refund request is reviewed case-by-case by support against applicable law and the circumstances of the purchase. Digital access delivered and used before a refund request will be considered.
+                      Purchases are final after digital access has been purchased and provisioned to your organization/workspace. No refunds after purchase and digital access provisioning. Refund is a return of payment already made, distinct from stopping future renewals (not renewing). This policy applies to monthly and yearly plans, including All Access.
+                    </p>
+                  </div>
+                  <div className="rounded-[12px] border border-border bg-surface-muted/30 p-4">
+                    <h3 className="text-sm font-semibold">Duplicate or erroneous payments</h3>
+                    <p className="mt-1 text-muted-foreground">
+                      If you believe you were charged twice, charged in error, or experienced a technical payment issue, contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a> with the Razorpay payment ID (<code className="rounded bg-muted px-1 py-0.5">pay_</code>), order receipt, organization/workspace name, and a brief description. Reports are investigated case-by-case; this does not create an automatic refund entitlement and does not weaken the no-refund-after-provisioning policy.
                     </p>
                   </div>
                   <div className="rounded-[12px] border border-border bg-surface-muted/30 p-4">
                     <h3 className="text-sm font-semibold">Renewal</h3>
                     <p className="mt-1 text-muted-foreground">
-                      Renewal extends access for a new period (monthly/yearly) at the then-displayed price. You will see the selected plan, amount, and billing period before confirming checkout via Razorpay. Confirming the Razorpay checkout creates a new order; verification provisions a new entitlement period.
+                      Renewal extends access for a new period (monthly/yearly) at the then-displayed price. You will see the selected plan, amount, and billing period before confirming checkout via Razorpay. Confirming the Razorpay checkout creates a new order; verification provisions a new entitlement period. Manual purchase, manual renewal — no automatic charge.
                     </p>
                   </div>
                 </div>
                 <p className="mt-3 text-muted-foreground">
-                  Cancelling (not renewing) does not automatically refund a current paid period; expiring without renewal simply lets access lapse at period end.
+                  Cancelling (not renewing) does not automatically refund a current paid period; expiring without renewal simply lets access lapse at period end. See <a href="/terms" className="underline underline-offset-4 hover:text-foreground">Terms of Service</a> for governing law (India).
                 </p>
               </section>
 
@@ -84,8 +91,9 @@ export default function RefundPage() {
               <section>
                 <h2 className="text-lg font-semibold">6. Contact for billing questions</h2>
                 <p className="mt-2 text-muted-foreground">
-                  For refund or cancellation questions, contact the workspace owner or MicroNest administrator via the Dashboard. The repository does not currently publish a dedicated billing support email; jurisdiction, entity, GSTIN, and formal contact are intentionally omitted pending formal incorporation. Where a support email is later published, this section will be updated. Do not submit Razorpay payment IDs or signatures via public channels.
+                  For refund, cancellation, or billing questions, contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a>. Include your organization/workspace name and, if applicable, Razorpay payment ID (<code className="rounded bg-muted px-1 py-0.5">pay_</code>) and order receipt. Do not send Razorpay signatures, OAuth secrets, or passwords by email.
                 </p>
+                <p className="mt-2 text-xs text-muted-foreground">Location: Pune, Maharashtra, India · MicroNest is currently not registered for GST. · Jurisdiction: India.</p>
               </section>
             </div>
           </div>

@@ -3,8 +3,9 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 
 export const metadata: Metadata = {
-  title: "Digital Delivery Policy",
-  description: "MicroNest digital delivery — subscription software for esports operations. No physical shipping; instant workspace access after payment.",
+  title: "Digital Delivery Policy — MicroNest",
+  description: "MicroNest MicroTools — Esports digital delivery. Support: info.micronest@gmail.com, Pune, Maharashtra, India. Instant workspace access after Razorpay verification.",
+  alternates: { canonical: "/digital-delivery" },
 };
 
 export default function DigitalDeliveryPage() {
@@ -67,8 +68,9 @@ export default function DigitalDeliveryPage() {
               <section>
                 <h2 className="text-lg font-semibold">7. Support</h2>
                 <p className="mt-2 text-muted-foreground">
-                  For delivery questions, check Dashboard → Settings → Billing for current access status. The repository does not currently publish a dedicated support email; contact the workspace owner or MicroNest administrator via the Dashboard. Where a support email is later published, this section will be updated.
+                  For delivery questions, check Dashboard → Settings → Billing for current access status or contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a>. Location: Pune, Maharashtra, India.
                 </p>
+                <p className="mt-2 text-xs text-muted-foreground">Do not send Razorpay signatures or OAuth secrets by email. No refunds after purchase and provisioning — see <a href="/refund" className="underline underline-offset-4 hover:text-foreground">Refund &amp; Cancellation Policy</a>.</p>
               </section>
             </div>
           </div>

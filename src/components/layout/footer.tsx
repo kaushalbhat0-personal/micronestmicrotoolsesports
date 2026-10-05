@@ -41,9 +41,23 @@ export function Footer() {
             </ul>
           </div>
         </div>
-        <div className="mt-8 flex flex-col items-center gap-2 border-t border-border pt-6 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-          <span>© {new Date().getFullYear()} MicroNest — Subscription software for esports operations. All rights reserved.</span>
-          <span className="text-xs">Focused tools, not a giant suite.</span>
+        <div className="mt-8 border-t border-border pt-6">
+          <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                <a href="mailto:info.micronest@gmail.com" className="font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+                  info.micronest@gmail.com
+                </a>
+                <span className="mx-2" aria-hidden>·</span>
+                <span>Pune, Maharashtra, India</span>
+              </p>
+              <p className="text-xs text-muted-foreground">MicroNest · MicroNest MicroTools — Esports · Subscription software for esports operations. MicroNest is currently not registered for GST.</p>
+            </div>
+            <span className="text-xs shrink-0">Focused tools, not a giant suite.</span>
+          </div>
+          <div className="mt-4 flex flex-col items-center gap-2 border-t border-border/60 pt-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
+            <span>© {new Date().getFullYear()} MicroNest — Subscription software for esports operations. All rights reserved.</span>
+          </div>
         </div>
       </div>
     </footer>

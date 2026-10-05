@@ -3,8 +3,9 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 
 export const metadata: Metadata = {
-  title: "Shipping Policy",
-  description: "MicroNest shipping policy — digital SaaS with no physical shipment. Software access delivered instantly to your workspace.",
+  title: "Shipping Policy — MicroNest",
+  description: "MicroNest MicroTools — Esports shipping policy: no physical shipment, digital delivery only. Support: info.micronest@gmail.com, Pune, Maharashtra, India.",
+  alternates: { canonical: "/shipping" },
 };
 
 export default function ShippingPage() {
@@ -37,6 +38,11 @@ export default function ShippingPage() {
                 <p className="mt-2 text-muted-foreground">
                   If a checkout field requires a shipping value, select <strong className="font-medium text-foreground">“No shipping — digital delivery only.”</strong> There is no tracking number or courier.
                 </p>
+              </section>
+
+              <section>
+                <h2 className="text-lg font-semibold">Support</h2>
+                <p className="mt-2 text-muted-foreground">Questions? Contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a> — Pune, Maharashtra, India.</p>
               </section>
             </div>
           </div>

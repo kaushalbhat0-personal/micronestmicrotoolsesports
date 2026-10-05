@@ -3,8 +3,9 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description: "MicroNest privacy policy — how we handle connected YouTube data (youtube.readonly), OAuth tokens, and workspace data for Sponsorship Tracking.",
+  title: "Privacy Policy — MicroNest",
+  description: "MicroNest MicroTools — Esports privacy policy. Contact: info.micronest@gmail.com, Pune, Maharashtra, India. How we handle YouTube youtube.readonly OAuth tokens and workspace data.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {
@@ -143,9 +144,9 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lg font-semibold">10. Contact</h2>
               <p className="mt-2 text-muted-foreground">
-                The repository does not currently publish a dedicated support email. For privacy questions, contact the workspace owner or the MicroNest administrator via the
-                dashboard. If a support address is later published, it will be listed here. Do not submit OAuth client secrets, access tokens, or refresh tokens via email or chat.
+                For privacy questions, contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a>. Workspace members may also contact their workspace owner or MicroNest administrator via the dashboard. Operating location: Pune, Maharashtra, India. MicroNest is currently not registered for GST. Do not submit OAuth client secrets, access tokens, or refresh tokens via email or chat.
               </p>
+              <p className="mt-2 text-xs text-muted-foreground">Brand: MicroNest · Product: MicroNest MicroTools — Esports. Do not send passwords or payment signatures by email.</p>
             </section>
 
             <p className="mt-10 border-t pt-6 text-xs text-muted-foreground">
