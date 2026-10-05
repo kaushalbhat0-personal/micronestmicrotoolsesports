@@ -16,7 +16,8 @@ const serverSchema = z.object({
   // Stripe — optional until billing is implemented
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  // Razorpay — optional
+  // Razorpay — optional (Test Mode uses test keys, Live Mode uses live keys — key_secret determines mode)
+  RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
   // Twitch — optional
