@@ -24,7 +24,8 @@ export async function createCheckoutOrder(
     razorpayClient?: Parameters<typeof createRazorpayOrder>[1] extends { client?: infer C } ? C : never;
   }
 ): Promise<CheckoutResult> {
-  const user = await requireUser();
+  const _user = await requireUser();
+  void _user;
   // Verify organization membership — server-authoritative, prevents org spoof
   await requireOrganizationMember(input.organizationId);
 

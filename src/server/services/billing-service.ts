@@ -3,7 +3,6 @@ import { listActivePlans } from "@/server/repositories/plans";
 import { listOrdersForOrg } from "@/server/repositories/orders";
 import { listPaymentsForOrg } from "@/server/repositories/payments";
 import { listEntitlementsForOrg } from "@/server/repositories/entitlements";
-import { TOOLS } from "@/config/app/tools";
 import type { Plan, Order, Payment, ToolEntitlement } from "@/types/database";
 
 export type BillingEntitlementView = {
@@ -44,8 +43,6 @@ export async function getBillingOverview(supabase: SupabaseClient, organizationI
     listPaymentsForOrg(supabase, organizationId),
   ]);
 
-  const toolMap = new Map(TOOLS.map((t) => [t.slug, t]));
-  // Also map by tool id via tools table if needed — for now use slug via entitlements join
   const entViews: BillingEntitlementView[] = [];
 
   for (const ent of entitlements as unknown as (ToolEntitlement & { tool?: { slug: string; name: string } })[]) {
