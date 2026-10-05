@@ -126,7 +126,7 @@ export function calculateSplit(input: SplitInput): SplitResult {
     const raws = Array.from({ length: n }, () => poolMinor * equalPct / 100);
     const floored = raws.map((r) => Math.floor(r));
     const fractions = raws.map((r, idx) => ({ idx, frac: r - Math.floor(r) }));
-    let remaining = poolMinor - floored.reduce((a, b) => a + b, 0);
+    const remaining = poolMinor - floored.reduce((a, b) => a + b, 0);
     // largest remainder — stable sort by frac desc, idx asc
     fractions.sort((a, b) => b.frac - a.frac || a.idx - b.idx);
     const extra = new Array(n).fill(0) as number[];
@@ -149,7 +149,7 @@ export function calculateSplit(input: SplitInput): SplitResult {
     const raws = input.placements.map((p) => poolMinor * p.percentage / 100);
     const floored = raws.map((r) => Math.floor(r));
     const fractions = raws.map((r, idx) => ({ idx, frac: r - Math.floor(r) }));
-    let remaining = poolMinor - floored.reduce((a, b) => a + b, 0);
+    const remaining = poolMinor - floored.reduce((a, b) => a + b, 0);
     fractions.sort((a, b) => b.frac - a.frac || a.idx - b.idx);
     const extra = new Array(raws.length).fill(0) as number[];
     for (let i = 0; i < remaining; i++) {
