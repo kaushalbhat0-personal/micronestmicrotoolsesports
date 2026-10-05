@@ -27,8 +27,10 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // Deduplicate webhook event via webhook_events (provider, external_event_id) unique
-  // Insert pending, ON CONFLICT DO NOTHING to handle concurrent duplicates
+  // Retry-safe webhook event deduplication
+  // We must distinguish: event received vs event successfully processed.
+  // Use webhook_events.status: pending/processing vs succeeded vs failed
+  // Insert as pending, ON CONFLICT check existing status
   const { data: insertedEvent, error: insertError } = await admin
     .from("webhook_events")
     .insert({
@@ -37,25 +39,72 @@ export async function POST(request: Request) {
       external_event_id: parsed.externalEventId,
       event_type: parsed.eventType,
       payload: JSON.parse(rawBody),
-      organization_id: null, // will be resolved after order lookup if needed
+      organization_id: null,
       platform: "razorpay",
       status: "pending",
       processed: false,
     })
-    .select("id")
+    .select("id, status, processed")
     .single();
 
-  // If duplicate (unique violation), treat as already processed — 2xx
+  let webhookEventId: string | null = (insertedEvent as { id: string } | null)?.id ?? null;
+  let isNewEvent = true;
+
   if (insertError) {
     if (insertError.code === "23505") {
-      return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
-    }
-    // Other DB error → retryable
-    console.error("[webhook:razorpay] insert failed", insertError);
-    return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to record webhook" } }, { status: 500 });
-  }
+      // Duplicate — check existing event's status to decide if it's a true duplicate or retryable
+      const { data: existing } = await admin
+        .from("webhook_events")
+        .select("id, status, processed")
+        .eq("provider", "razorpay")
+        .eq("external_event_id", parsed.externalEventId)
+        .maybeSingle();
 
-  const webhookEventId = (insertedEvent as { id: string } | null)?.id;
+      const existingStatus = (existing as { status: string | null; processed: boolean | null } | null)?.status;
+      const existingProcessed = (existing as { processed: boolean | null } | null)?.processed;
+
+      // If already succeeded/processed, it's a permanent duplicate → 200
+      if (existingStatus === "succeeded" || existingProcessed === true) {
+        return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
+      }
+
+      // If existing is failed/pending, it's retryable — try to claim it; if already succeeded/processed, it's permanent duplicate
+      if (existing) {
+        const status = (existing as { status: string | null }).status;
+        const processed = (existing as { processed: boolean | null }).processed;
+        if (status === "succeeded" || processed === true) {
+          return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
+        }
+        // Retryable: pending/failed/processing — try to claim where status is pending or failed (not already processing/succeeded)
+        const { data: claimed, error: claimError } = await admin
+          .from("webhook_events")
+          .update({ status: "processing", processed: false })
+          .eq("provider", "razorpay")
+          .eq("external_event_id", parsed.externalEventId)
+          .in("status", ["pending", "failed"])
+          .select("id")
+          .maybeSingle();
+
+        if (claimError || !claimed) {
+          // Another concurrent request claimed it (now processing) or status became succeeded
+          return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
+        }
+        webhookEventId = (claimed as { id: string }).id;
+        isNewEvent = false;
+      } else {
+        console.error("[webhook:razorpay] duplicate but no existing row found");
+        return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to record webhook" } }, { status: 500 });
+      }
+    } else {
+      console.error("[webhook:razorpay] insert failed", insertError);
+      return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to record webhook" } }, { status: 500 });
+    }
+  } else {
+    // Successfully inserted as pending — immediately mark as processing to claim
+    if (webhookEventId) {
+      await admin.from("webhook_events").update({ status: "processing" }).eq("id", webhookEventId);
+    }
+  }
 
   // Only handle payment.captured (and optionally authorized if explicitly supported — currently not)
   if (parsed.eventType !== "payment.captured") {
@@ -98,8 +147,9 @@ export async function POST(request: Request) {
   try {
     fetched = await fetchRazorpayPayment(parsed.providerPaymentId);
   } catch (err) {
+    // Transient — keep event retryable (processed false, status failed)
     if (webhookEventId) {
-      await admin.from("webhook_events").update({ status: "failed", processed: true, processed_at: new Date().toISOString() }).eq("id", webhookEventId);
+      await admin.from("webhook_events").update({ status: "failed", processed: false, processed_at: new Date().toISOString() }).eq("id", webhookEventId);
     }
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[webhook:razorpay] fetch failed", msg);
@@ -141,10 +191,9 @@ export async function POST(request: Request) {
   });
 
   if (rpcError) {
-    // Unique violation on payments already handled as idempotent inside RPC, but if RPC fails otherwise, mark webhook failed for retry
+    // Transient DB/RPC failure — keep event retryable (processed false) so Razorpay can retry
     console.error("[webhook:razorpay] complete_billing_payment failed", rpcError);
-    if (webhookEventId) await admin.from("webhook_events").update({ status: "failed", processed: true }).eq("id", webhookEventId);
-    // If it's a duplicate payment (23505), RPC already returns idempotent success, so this branch shouldn't happen for that case
+    if (webhookEventId) await admin.from("webhook_events").update({ status: "failed", processed: false, processed_at: new Date().toISOString() }).eq("id", webhookEventId);
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to complete payment" } }, { status: 500 });
   }
 

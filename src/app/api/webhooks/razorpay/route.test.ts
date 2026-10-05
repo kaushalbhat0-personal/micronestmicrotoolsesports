@@ -152,13 +152,20 @@ describe("POST /api/webhooks/razorpay", () => {
     expect(mockAdminRpc).not.toHaveBeenCalled();
   });
 
-  it("duplicate event → 200 idempotent", async () => {
+  it("duplicate event → 200 idempotent (already succeeded)", async () => {
     const raw = JSON.stringify({ event: "payment.captured", payload: { payment: { entity: { id: "pay_dup", order_id: "order_razor_123", amount: 149900, currency: "INR", status: "captured" } } } });
     mockAdminFrom.mockImplementation((table: string) => {
       if (table === "webhook_events") {
         return {
           insert: vi.fn(() => ({
             select: vi.fn(() => ({ single: vi.fn(async () => ({ data: null, error: { code: "23505", message: "duplicate" } })) })),
+          })),
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn(async () => ({ data: { id: "evt-existing", status: "succeeded", processed: true }, error: null })),
+              })),
+            })),
           })),
         } as never;
       }
@@ -169,6 +176,57 @@ describe("POST /api/webhooks/razorpay", () => {
     const json = await res.json();
     expect(json.duplicate).toBe(true);
     expect(mockAdminRpc).not.toHaveBeenCalled();
+  });
+
+  it("failed event retried → actually processes (not permanent duplicate)", async () => {
+    const raw = JSON.stringify({ event: "payment.captured", payload: { payment: { entity: { id: "pay_retry", order_id: "order_razor_123", amount: 149900, currency: "INR", status: "captured" } } } });
+    let selectCallCount = 0;
+    mockAdminFrom.mockImplementation((table: string) => {
+      if (table === "webhook_events") {
+        return {
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({ single: vi.fn(async () => ({ data: null, error: { code: "23505", message: "duplicate" } })) })),
+          })),
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn(async () => {
+                  selectCallCount++;
+                  if (selectCallCount === 1) {
+                    return { data: { id: "evt-existing", status: "failed", processed: false }, error: null };
+                  }
+                  return { data: { id: "evt-existing", status: "succeeded", processed: true }, error: null };
+                }),
+              })),
+            })),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn(() => ({
+                  select: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: { id: "evt-existing" }, error: null })) })),
+                })),
+              })),
+            })),
+          })),
+        } as never;
+      }
+      if (table === "orders") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: { id: "order-1", organization_id: "org-a", plan_id: "plan-1", amount_minor: 149900, currency: "INR", razorpay_order_id: "order_razor_123" }, error: null })) })),
+          })),
+        } as never;
+      }
+      if (table === "plans") {
+        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: { billing_period: "monthly" }, error: null })) })) })) } as never;
+      }
+      return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
+    });
+    mockAdminRpc.mockResolvedValueOnce({ data: { order_id: "order-1", expires_at: "2026-11-05T00:00:00.000Z" }, error: null });
+    const res = await POST(makeRequest(raw, "valid_webhook_sig"));
+    expect(res.status).toBe(200);
+    expect(mockAdminRpc).toHaveBeenCalled();
   });
 
   it("order not found → 200 acknowledged, no entitlement", async () => {
