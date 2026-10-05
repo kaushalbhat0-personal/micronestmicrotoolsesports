@@ -162,4 +162,23 @@ describe("prize-splitter calculation", () => {
       expect(t).toContain("Total Distributed");
     });
   });
+
+  describe("intentional default (RCCF-TOOL-02A)", () => {
+    it("default method is Percentage with 50/30/20 on ₹100,000 INR", async () => {
+      const { DEFAULT_METHOD, DEFAULT_PRIZE_POOL, DEFAULT_CURRENCY, DEFAULT_PLACEMENTS } = await import("../types");
+      expect(DEFAULT_METHOD).toBe("percentage");
+      expect(DEFAULT_PRIZE_POOL).toBe(100000);
+      expect(DEFAULT_CURRENCY).toBe("INR");
+      expect(DEFAULT_PLACEMENTS).toEqual([
+        { label: "1st", percentage: 50 },
+        { label: "2nd", percentage: 30 },
+        { label: "3rd", percentage: 20 },
+      ]);
+      // Verify default calculates to balanced 50k/30k/20k
+      const r = calculateSplit({ prizePool: 100000, currency: "INR", method: "percentage", placements: DEFAULT_PLACEMENTS });
+      expect(r.isBalanced).toBe(true);
+      expect(r.totalDistributed).toBe(100000);
+      expect(r.placements.map((p) => p.payout)).toEqual([50000, 30000, 20000]);
+    });
+  });
 });

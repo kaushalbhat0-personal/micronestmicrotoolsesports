@@ -98,3 +98,17 @@ export function formatPlacementLabel(position: number): string {
   })();
   return `${position}${suffix}`;
 }
+
+/**
+ * Intentional MVP defaults — RCCF-TOOL-02A spec alignment.
+ * Default method is Percentage (not Ranked) with 50/30/20 on ₹100,000 INR.
+ * Ranked presets remain available as convenience.
+ */
+export const DEFAULT_PLACEMENTS: PlacementInput[] = [
+  { label: "1st", percentage: 50 },
+  { label: "2nd", percentage: 30 },
+  { label: "3rd", percentage: 20 },
+];
+export const DEFAULT_METHOD: DistributionMethod = "percentage";
+export const DEFAULT_PRIZE_POOL = 100000;
+export const DEFAULT_CURRENCY: Currency = "INR";

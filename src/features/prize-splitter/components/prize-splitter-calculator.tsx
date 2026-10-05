@@ -7,7 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
-import { CURRENCIES, RANKED_PRESETS, formatPlacementLabel, type Currency, type DistributionMethod, type PlacementInput } from "../types";
+import {
+  CURRENCIES,
+  RANKED_PRESETS,
+  formatPlacementLabel,
+  DEFAULT_PLACEMENTS,
+  DEFAULT_METHOD,
+  DEFAULT_PRIZE_POOL,
+  DEFAULT_CURRENCY,
+  type Currency,
+  type DistributionMethod,
+  type PlacementInput,
+} from "../types";
 import { calculateSplit, validateInput, formatMoney, buildCopyText } from "../services/calculation";
 import { Trophy, Percent, Users, Medal, Copy, RotateCcw, Check, AlertCircle, Plus, Trash2, Calculator } from "lucide-react";
 
@@ -15,21 +26,15 @@ type Props = {
   orgSlug: string;
 };
 
-const DEFAULT_PLACEMENTS: PlacementInput[] = [
-  { label: "1st", percentage: 50 },
-  { label: "2nd", percentage: 30 },
-  { label: "3rd", percentage: 20 },
-];
-
 function ordinalLabel(n: number): string {
   return formatPlacementLabel(n);
 }
 
 export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
-  const [prizePool, setPrizePool] = React.useState<number>(100000);
-  const [prizePoolRaw, setPrizePoolRaw] = React.useState<string>("100000");
-  const [currency, setCurrency] = React.useState<Currency>("INR");
-  const [method, setMethod] = React.useState<DistributionMethod>("percentage");
+  const [prizePool, setPrizePool] = React.useState<number>(DEFAULT_PRIZE_POOL);
+  const [prizePoolRaw, setPrizePoolRaw] = React.useState<string>(String(DEFAULT_PRIZE_POOL));
+  const [currency, setCurrency] = React.useState<Currency>(DEFAULT_CURRENCY);
+  const [method, setMethod] = React.useState<DistributionMethod>(DEFAULT_METHOD);
   const [placements, setPlacements] = React.useState<PlacementInput[]>(DEFAULT_PLACEMENTS);
   const [equalCount, setEqualCount] = React.useState<number>(5);
   const [rankedPreset, setRankedPreset] = React.useState<string>("top3");
@@ -131,10 +136,10 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
   };
 
   const handleReset = () => {
-    setPrizePool(100000);
-    setPrizePoolRaw("100000");
-    setCurrency("INR");
-    setMethod("percentage");
+    setPrizePool(DEFAULT_PRIZE_POOL);
+    setPrizePoolRaw(String(DEFAULT_PRIZE_POOL));
+    setCurrency(DEFAULT_CURRENCY);
+    setMethod(DEFAULT_METHOD);
     setPlacements(DEFAULT_PLACEMENTS);
     setEqualCount(5);
     setRankedPreset("top3");
