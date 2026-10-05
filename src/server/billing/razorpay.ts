@@ -45,6 +45,15 @@ export type RazorpayClientLike = {
       receipt: string;
     }>;
   };
+  payments?: {
+    fetch: (paymentId: string) => Promise<{
+      id: string;
+      order_id: string;
+      amount: number;
+      currency: string;
+      status: string;
+    }>;
+  };
 };
 
 function getRazorpayConfigFromEnv(): { keyId: string; keySecret: string; webhookSecret?: string } | null {
@@ -149,6 +158,40 @@ export function verifyRazorpayWebhook(args: { rawBody: string; signature: string
   const expected = crypto.createHmac("sha256", secret).update(args.rawBody).digest("hex");
   // Razorpay sends signature as hex (sometimes with no prefix); compare timing-safe
   return { valid: timingSafeEqualHex(expected, args.signature) };
+}
+
+export type RazorpayPaymentFetchResult = {
+  providerPaymentId: string;
+  providerOrderId: string;
+  amountMinor: number;
+  currency: string;
+  status: string;
+};
+
+/**
+ * Fetch authoritative Razorpay payment for amount/currency/status validation.
+ * Server-side only, uses key_secret (never exposed).
+ */
+export async function fetchRazorpayPayment(
+  paymentId: string,
+  deps?: { client?: RazorpayClientLike }
+): Promise<RazorpayPaymentFetchResult> {
+  const client = deps?.client ?? createRazorpayClientFromEnv();
+  if (!client) throw new Error("Razorpay not configured — missing RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET");
+  if (!client.payments?.fetch) throw new Error("Razorpay payments.fetch not available");
+  try {
+    const p = await client.payments.fetch(paymentId);
+    return {
+      providerPaymentId: p.id,
+      providerOrderId: p.order_id,
+      amountMinor: p.amount,
+      currency: p.currency,
+      status: p.status,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Razorpay fetchPayment failed: ${msg}`);
+  }
 }
 
 /**

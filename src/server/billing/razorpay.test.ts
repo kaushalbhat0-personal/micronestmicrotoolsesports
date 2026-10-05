@@ -35,16 +35,16 @@ describe("razorpay adapter — createOrder", () => {
   it("normalizes provider response, does not leak raw object", async () => {
     const client: RazorpayClientLike = {
       orders: {
-        create: async () => ({
-          id: "order_xyz",
-          amount: 69900,
-          currency: "INR",
-          status: "created",
-          receipt: "rcpt",
-          // @ts-expect-error extra raw field should not leak
-          extra: "leak",
-          key_secret: "should_not_appear",
-        }),
+        create: async () =>
+          ({
+            id: "order_xyz",
+            amount: 69900,
+            currency: "INR",
+            status: "created",
+            receipt: "rcpt",
+            extra: "leak",
+            key_secret: "should_not_appear",
+          }) as unknown as { id: string; amount: number; currency: string; status: string; receipt: string },
       },
     };
     const result = await createRazorpayOrder({ amountMinor: 69900, currency: "INR", receipt: "rcpt" }, { client });
