@@ -212,7 +212,7 @@ export function PrizeSplitterCalculator() {
     const v = validateInput(testInput as never);
     if (!v.valid) return;
     const encoded = encodeShareState(shareState as never);
-    const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
+    const url = `${window.location.origin}/share/prize-splitter?s=${encoded}`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -280,7 +280,7 @@ export function PrizeSplitterCalculator() {
   return (
     <div className="space-y-6">
       {/* Header card — contextual */}
-      <div className="rounded-[16px] border border-border bg-card p-4 sm:p-5 flex items-start gap-3">
+      <div className="rounded-[16px] border border-border bg-card p-4 sm:p-5 flex items-start gap-3 print:hidden">
         <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-primary/10 border border-primary/15 shrink-0">
           <Calculator className="h-5 w-5 text-primary" />
         </span>
@@ -294,7 +294,7 @@ export function PrizeSplitterCalculator() {
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Left: inputs */}
-        <div className="lg:col-span-3 space-y-5">
+        <div className="lg:col-span-3 space-y-5 print:hidden">
           {/* Prize Pool */}
           <Card>
             <CardHeader className="pb-3">
@@ -588,7 +588,7 @@ export function PrizeSplitterCalculator() {
             </Card>
 
             {/* Publish */}
-            <div className="space-y-3 rounded-[16px] border border-border bg-card p-4">
+            <div className="space-y-3 rounded-[16px] border border-border bg-card p-4 print:hidden">
               <p className="text-xs font-semibold tracking-wide">Publish</p>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -662,9 +662,11 @@ export function PrizeSplitterCalculator() {
       </div>
 
       <style>{`@media print {
-        body * { visibility: hidden; }
-        #payout-sheet, #payout-sheet * { visibility: visible; }
-        #payout-sheet { position: absolute; left: 0; top: 0; width: 100%; border: 1px solid #e5e7eb; }
+        @page { margin: 12mm; size: A4; }
+        html, body { height: auto !important; min-height: 0 !important; background: white !important; overflow: visible !important; }
+        header, aside, nav, footer { display: none !important; }
+        body > div, main, .space-y-6, .grid, [class*="sticky"] { height: auto !important; min-height: 0 !important; overflow: visible !important; position: static !important; top: auto !important; }
+        #payout-sheet { position: static !important; visibility: visible !important; box-shadow: none !important; border: 1px solid #e5e7eb !important; page-break-inside: avoid; break-inside: avoid; width: 100% !important; max-width: 700px !important; margin: 0 auto !important; }
         .print\\:block { display: block !important; }
         .print\\:hidden { display: none !important; }
       }`}</style>
