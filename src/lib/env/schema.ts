@@ -37,6 +37,10 @@ const serverSchema = z.object({
   DISCORD_WEBHOOK_URL: z.string().url().optional(),
   // Credential encryption — server-only, never DB, 32-byte base64 or hex
   CREDENTIALS_ENCRYPTION_KEY: z.string().min(32).optional(),
+  // Billing LIVE test — server-only, fail-closed when absent (temporary gated ₹1)
+  BILLING_LIVE_TEST_ENABLED: z.string().optional(),
+  BILLING_LIVE_TEST_ORG_ID: z.string().uuid().optional(),
+  BILLING_LIVE_TEST_USER_EMAIL: z.string().email().optional(),
   // Node env
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 }).superRefine((data, ctx) => {

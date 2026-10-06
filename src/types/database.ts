@@ -243,6 +243,7 @@ export interface Order {
   currency: PlanCurrency;
   status: OrderStatus;
   razorpay_order_id: string | null;
+  is_live_test?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -256,6 +257,7 @@ export interface Payment {
   amount_minor: number;
   currency: PlanCurrency;
   status: PaymentStatus;
+  is_live_test?: boolean;
   verified_at: string | null;
   created_at: string;
 }
