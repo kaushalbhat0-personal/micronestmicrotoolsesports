@@ -13,6 +13,8 @@ export {
   Plug,
   Settings2,
   Building2,
+  House,
+  Globe,
   // Actions
   SearchCheck,
   Play,
@@ -27,6 +29,7 @@ export {
   ChevronsUpDown,
   X,
   Menu,
+  LogOut,
   // Requirements
   Type,
   Hash,

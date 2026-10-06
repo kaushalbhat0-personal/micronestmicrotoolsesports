@@ -24,11 +24,14 @@ import {
   FileCheck,
   ChevronRight,
   CreditCard,
+  House,
+  LogOut,
 } from "lucide-react";
 import type { Route } from "next";
 import { NavigationProgress } from "@/components/ui/navigation-progress";
 import type { WorkspaceTool } from "@/server/services/workspace-tools";
 import { Logo } from "@/components/shared/logo";
+import { signOutAction } from "@/lib/auth/actions";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -269,8 +272,26 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
             {organizations.length > 0 && <OrgSwitcher organizations={organizations} activeOrgId={activeOrg?.id} variant="sidebar" />}
           </div>
           <div className="flex-1 overflow-y-auto px-3 pb-4">{navContent}</div>
-          <div className="border-t border-border p-3">
-            <p className="px-3 text-xs text-muted-foreground">© {new Date().getFullYear()} MicroNest</p>
+          <div className="border-t border-border p-3 space-y-1">
+            <Link
+              href={"/" as Route}
+              aria-label="Go to MicroNest homepage"
+              className="flex items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <House className="h-4 w-4 shrink-0" />
+              <span className="flex-1 truncate">Home</span>
+            </Link>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                aria-label="Log out"
+                className="flex w-full items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate text-left">Log out</span>
+              </button>
+            </form>
+            <p className="px-3 pt-2 text-xs text-muted-foreground">© {new Date().getFullYear()} MicroNest</p>
           </div>
         </div>
       </aside>
@@ -289,13 +310,36 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
                 <Logo height={28} />
               </SheetTitle>
             </SheetHeader>
-              <div className="flex-1 overflow-y-auto p-3">
+              <div className="flex flex-1 flex-col overflow-y-auto p-3">
                 {organizations.length > 0 && (
                   <div className="mb-4">
                     <OrgSwitcher organizations={organizations} activeOrgId={activeOrg?.id} variant="sidebar" />
                   </div>
                 )}
-                <div id="mobile-nav">{navContent}</div>
+                <div id="mobile-nav" className="flex-1">
+                  {navContent}
+                </div>
+                <div className="border-t border-border pt-4 mt-4 space-y-1">
+                  <Link
+                    href={"/" as Route}
+                    aria-label="Go to MicroNest homepage"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <House className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 truncate">Home</span>
+                  </Link>
+                  <form action={signOutAction}>
+                    <button
+                      type="submit"
+                      aria-label="Log out"
+                      className="flex w-full items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <LogOut className="h-4 w-4 shrink-0" />
+                      <span className="flex-1 truncate text-left">Log out</span>
+                    </button>
+                  </form>
+                </div>
               </div>
             </SheetContent>
           </Sheet>
