@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { Logo } from "@/components/shared/logo";
+import { LogoMark } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +64,7 @@ export default function MarketingPage() {
         <section className="container-nest py-16 sm:py-20 lg:py-24">
           <div className="mx-auto max-w-3xl text-center">
             <div className="mx-auto mb-6 flex justify-center">
-              <Logo height={88} href="" priority className="!h-14 sm:!h-[72px] lg:!h-[88px]" />
+              <LogoMark size={80} priority className="!size-14 sm:!size-[72px] lg:!size-[80px]" />
             </div>
             <p className="mb-4 text-sm tracking-widest text-muted-foreground">The toolbox behind esports</p>
             <h1 className="font-display text-balance text-4xl font-normal tracking-tight sm:text-5xl">

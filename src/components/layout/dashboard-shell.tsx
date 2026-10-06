@@ -30,7 +30,7 @@ import {
 import type { Route } from "next";
 import { NavigationProgress } from "@/components/ui/navigation-progress";
 import type { WorkspaceTool } from "@/server/services/workspace-tools";
-import { Logo } from "@/components/shared/logo";
+import { LogoMark } from "@/components/shared/logo";
 import { signOutAction } from "@/lib/auth/actions";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -266,7 +266,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
       <aside className="hidden w-[272px] shrink-0 border-r border-border bg-card lg:flex lg:flex-col">
         <div className="sticky top-0 flex h-full flex-col">
           <div className="flex h-[56px] items-center border-b border-border px-4">
-            <Logo height={28} priority />
+            <LogoMark size={28} priority href="/" />
           </div>
           <div className="p-3">
             {organizations.length > 0 && <OrgSwitcher organizations={organizations} activeOrgId={activeOrg?.id} variant="sidebar" />}
@@ -307,7 +307,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
             <SheetContent className="w-[300px] p-0" aria-describedby={undefined}>
             <SheetHeader>
               <SheetTitle>
-                <Logo height={28} />
+                <LogoMark size={28} href="/" />
               </SheetTitle>
             </SheetHeader>
               <div className="flex flex-1 flex-col overflow-y-auto p-3">

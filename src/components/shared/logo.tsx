@@ -12,8 +12,10 @@ interface LogoProps {
 
 /**
  * MicroNest Logo — single source of truth
- * Asset: /public/Final_MicroNest_Logo.svg — DO NOT modify source
- * Use CSS sizing (height) with w-auto to preserve aspect ratio (viewBox 0 0 1500 1500)
+ * - Logo: full lockup (mark + wordmark + tagline) from /public/Final_MicroNest_Logo.svg
+ *   Use only for footer/press/OG — not for compact navigation.
+ * - LogoMark: mark-only from /public/micronest-mark.svg
+ *   Use for header, hero, dashboard, auth, and any compact UI.
  */
 export function Logo({ className, height = 28, priority = false, href = "/" }: LogoProps) {
   const isLinked = typeof href === "string" && href.length > 0;
@@ -39,15 +41,35 @@ export function Logo({ className, height = 28, priority = false, href = "/" }: L
   return img;
 }
 
-export function LogoMark({ className, size = 28 }: { className?: string; size?: number }) {
-  return (
+export function LogoMark({
+  className,
+  size = 32,
+  priority = false,
+  href,
+}: {
+  className?: string;
+  size?: number;
+  priority?: boolean;
+  href?: string;
+}) {
+  const img = (
     <Image
-      src="/Final_MicroNest_Logo.svg"
+      src="/micronest-mark.svg"
       alt="MicroNest"
-      width={Math.round(size * 1.8)}
+      width={size}
       height={size}
-      className={cn("w-auto select-none", className)}
-      style={{ height: `${size}px`, width: "auto" }}
+      priority={priority}
+      className={cn("select-none", className)}
+      style={{ height: `${size}px`, width: `${size}px` }}
     />
   );
+
+  if (typeof href === "string" && href.length > 0) {
+    return (
+      <Link href={href as never} className="inline-flex items-center shrink-0" aria-label="MicroNest home">
+        {img}
+      </Link>
+    );
+  }
+  return img;
 }

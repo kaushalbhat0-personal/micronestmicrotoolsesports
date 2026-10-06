@@ -33,9 +33,9 @@ export const metadata: Metadata = {
     google: "Gl_7do3C6Uefr-BDyM411YJZpfo2D4vv1tG1PYaDvuo",
   },
   icons: {
-    icon: [{ url: "/Final_MicroNest_Logo.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/Final_MicroNest_Logo.svg", type: "image/svg+xml" }],
-    shortcut: "/Final_MicroNest_Logo.svg",
+    icon: [{ url: "/micronest-mark.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/micronest-mark.svg", type: "image/svg+xml" }],
+    shortcut: "/micronest-mark.svg",
   },
   openGraph: {
     type: "website",

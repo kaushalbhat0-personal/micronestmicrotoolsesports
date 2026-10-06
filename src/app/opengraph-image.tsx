@@ -7,9 +7,9 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 // OG output is rasterized PNG for crawler compatibility.
-// Master logo at /public/Final_MicroNest_Logo.svg remains vector and untouched — only the OG *output* is PNG.
+// Master logo at /public/Final_MicroNest_Logo.svg remains untouched — OG uses mark-only for clean hierarchy.
 export default async function OpengraphImage() {
-  const logoSvg = await readFile(path.join(process.cwd(), "public", "Final_MicroNest_Logo.svg"), "utf-8");
+  const logoSvg = await readFile(path.join(process.cwd(), "public", "micronest-mark.svg"), "utf-8");
   const logoDataUri = `data:image/svg+xml;base64,${Buffer.from(logoSvg).toString("base64")}`;
 
   return new ImageResponse(
@@ -44,8 +44,8 @@ export default async function OpengraphImage() {
           <img
             src={logoDataUri}
             alt="MicroNest"
-            width={420}
-            height={240}
+            width={180}
+            height={180}
             style={{ objectFit: "contain" }}
           />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
