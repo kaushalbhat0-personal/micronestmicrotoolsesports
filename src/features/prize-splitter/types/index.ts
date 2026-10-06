@@ -99,6 +99,38 @@ export function formatPlacementLabel(position: number): string {
   return `${position}${suffix}`;
 }
 
+/** Canonical share/publish primitives */
+export const MAX_PRIZE_POOL = 1_000_000_000;
+export const PERCENTAGE_DECIMALS = 2;
+
+/** Locale per currency — used by formatMoney */
+export const CURRENCY_LOCALES: Record<Currency, string> = {
+  INR: "en-IN",
+  USD: "en-US",
+  EUR: "de-DE",
+  GBP: "en-GB",
+};
+
+/** Publish context — optional header for all formatters/exports */
+export interface PrizePublishContext {
+  tournamentName?: string;
+  date?: string;
+  sponsorName?: string;
+}
+
+/** Share state version */
+export const SHARE_VERSION = 1;
+
+export interface PrizeShareState {
+  v: number;
+  pool: number;
+  cur: Currency;
+  method: DistributionMethod;
+  placements: PlacementInput[];
+  equalCount?: number;
+  ctx?: PrizePublishContext;
+}
+
 /**
  * Intentional MVP defaults — RCCF-TOOL-02A spec alignment.
  * Default method is Percentage (not Ranked) with 50/30/20 on ₹100,000 INR.

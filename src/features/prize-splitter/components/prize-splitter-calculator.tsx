@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,19 +19,30 @@ import {
   type Currency,
   type DistributionMethod,
   type PlacementInput,
+  type PrizePublishContext,
 } from "../types";
-import { calculateSplit, validateInput, formatMoney, buildCopyText } from "../services/calculation";
-import { Trophy, Percent, Users, Medal, Copy, RotateCcw, Check, AlertCircle, Plus, Trash2, Calculator } from "lucide-react";
-
-type Props = {
-  orgSlug: string;
-};
+import { calculateSplit, validateInput, formatMoney, canonicalPct } from "../services/calculation";
+import { formatPayoutAnnouncement, type AnnouncementStyle } from "../services/formatters";
+import { buildCsv, downloadCsv } from "../services/export";
+import { decodeShareState, encodeShareState } from "../services/share";
+import { Trophy, Percent, Users, Medal, Copy, RotateCcw, Check, AlertCircle, Plus, Trash2, Calculator, Link2, Download, Printer, ChevronDown } from "lucide-react";
 
 function ordinalLabel(n: number): string {
   return formatPlacementLabel(n);
 }
 
-export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
+function sanitizePoolInput(v: string): string {
+  // Allow digits and single dot; strip others. Prevent multiple dots.
+  let s = v.replace(/[^0-9.]/g, "");
+  const firstDot = s.indexOf(".");
+  if (firstDot !== -1) {
+    // keep first dot, remove others
+    s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
+  }
+  return s;
+}
+
+export function PrizeSplitterCalculator() {
   const [prizePool, setPrizePool] = React.useState<number>(DEFAULT_PRIZE_POOL);
   const [prizePoolRaw, setPrizePoolRaw] = React.useState<string>(String(DEFAULT_PRIZE_POOL));
   const [currency, setCurrency] = React.useState<Currency>(DEFAULT_CURRENCY);
@@ -38,12 +50,63 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
   const [placements, setPlacements] = React.useState<PlacementInput[]>(DEFAULT_PLACEMENTS);
   const [equalCount, setEqualCount] = React.useState<number>(5);
   const [rankedPreset, setRankedPreset] = React.useState<string>("top3");
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = React.useState<string | null>(null);
+  const [copyMenuOpen, setCopyMenuOpen] = React.useState(false);
+  const [linkCopied, setLinkCopied] = React.useState(false);
+
+  // Publish context
+  const [tournamentName, setTournamentName] = React.useState("");
+  const [date, setDate] = React.useState("");
+  const [sponsorName, setSponsorName] = React.useState("");
 
   const currencyCfg = CURRENCIES[currency];
   const symbol = currencyCfg.symbol;
 
-  // Sync ranked preset when method changes to ranked
+  const publishCtx: PrizePublishContext | undefined = React.useMemo(() => {
+    const t = tournamentName.trim();
+    const d = date.trim();
+    const s = sponsorName.trim();
+    if (!t && !d && !s) return undefined;
+    return {
+      ...(t ? { tournamentName: t } : {}),
+      ...(d ? { date: d } : {}),
+      ...(s ? { sponsorName: s } : {}),
+    };
+  }, [tournamentName, date, sponsorName]);
+
+  // Share URL rehydration — decode ?s= on mount only
+  React.useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const encoded = params.get("s");
+      if (!encoded) return;
+      const decoded = decodeShareState(encoded);
+      if (!decoded.ok || !decoded.state) return;
+      const st = decoded.state;
+      setPrizePool(st.pool);
+      setPrizePoolRaw(String(st.pool));
+      setCurrency(st.cur);
+      setMethod(st.method);
+      if (st.method === "equal") {
+        if (st.equalCount) setEqualCount(st.equalCount);
+      } else {
+        setPlacements(st.placements.length ? st.placements : DEFAULT_PLACEMENTS);
+        // try to detect preset for ranked
+        if (st.method === "ranked") {
+          const matched = RANKED_PRESETS.find((p) => p.count === st.placements.length && p.percentages.every((pct, i) => Math.abs(pct - (st.placements[i]?.percentage ?? 0)) < 0.01));
+          if (matched) setRankedPreset(matched.id);
+        }
+      }
+      if (st.ctx) {
+        if (st.ctx.tournamentName) setTournamentName(st.ctx.tournamentName);
+        if (st.ctx.date) setDate(st.ctx.date);
+        if (st.ctx.sponsorName) setSponsorName(st.ctx.sponsorName);
+      }
+    } catch {
+      // ignore malformed
+    }
+  }, []);
+
   const applyPreset = React.useCallback(
     (presetId: string) => {
       const preset = RANKED_PRESETS.find((p) => p.id === presetId);
@@ -57,16 +120,6 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
     },
     []
   );
-
-  React.useEffect(() => {
-    if (method === "ranked") {
-      // ensure placements reflect preset if length mismatch
-      const preset = RANKED_PRESETS.find((p) => p.id === rankedPreset);
-      if (preset && placements.length !== preset.count) {
-        // keep if user edited? only if still default-like; simple sync on method entry handled via preset apply
-      }
-    }
-  }, [method, rankedPreset, placements.length]);
 
   const handleMethodChange = (next: DistributionMethod) => {
     setMethod(next);
@@ -110,29 +163,79 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
 
   const totalPct = React.useMemo(() => {
     if (method === "equal") return 100;
-    return placements.reduce((a, p) => a + (Number.isFinite(p.percentage) ? p.percentage : 0), 0);
+    return placements.reduce((a, p) => a + (Number.isFinite(p.percentage) ? canonicalPct(p.percentage) : 0), 0);
   }, [method, placements]);
 
   const isBalanced = validation.valid && result?.isBalanced;
 
-  const handleCopy = async () => {
-    if (!result) return;
-    const text = buildCopyText(result);
+  const doCopy = async (text: string, key: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch {
-      // fallback
       const ta = document.createElement("textarea");
       ta.value = text;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
       ta.remove();
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     }
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+    setCopyMenuOpen(false);
+  };
+
+  const handleCopy = (style: AnnouncementStyle) => {
+    if (!result) return;
+    const text = formatPayoutAnnouncement(result, publishCtx, style);
+    void doCopy(text, style);
+  };
+
+  const handleCopyLink = async () => {
+    // Build share state from current inputs
+    const shareState = {
+      v: 1 as const,
+      pool: prizePool,
+      cur: currency,
+      method,
+      placements: method === "equal" ? [] as PlacementInput[] : placements.map((p) => ({ label: p.label, percentage: canonicalPct(p.percentage) })),
+      ...(method === "equal" ? { equalCount } : {}),
+      ...(publishCtx ? { ctx: publishCtx } : {}),
+    };
+    // Validate before encoding — if invalid, don't copy
+    const testInput = {
+      prizePool: shareState.pool,
+      currency: shareState.cur,
+      method: shareState.method,
+      placements: shareState.method === "equal" ? [] : shareState.placements,
+      equalCount: shareState.method === "equal" ? shareState.equalCount : undefined,
+    };
+    const v = validateInput(testInput as never);
+    if (!v.valid) return;
+    const encoded = encodeShareState(shareState as never);
+    const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+
+  const handleDownloadCsv = () => {
+    if (!result) return;
+    const csv = buildCsv(result, publishCtx);
+    const base = tournamentName.trim() ? tournamentName.trim().replace(/[^a-z0-9\-_]+/gi, "-").slice(0, 40) : "payout";
+    downloadCsv(csv, `${base}-${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const handleReset = () => {
@@ -143,7 +246,18 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
     setPlacements(DEFAULT_PLACEMENTS);
     setEqualCount(5);
     setRankedPreset("top3");
-    setCopied(false);
+    setCopied(null);
+    setLinkCopied(false);
+    setCopyMenuOpen(false);
+    setTournamentName("");
+    setDate("");
+    setSponsorName("");
+    // clear share param without reload
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("s");
+      window.history.replaceState({}, "", url.toString());
+    } catch {}
   };
 
   const updatePlacementPct = (idx: number, value: string) => {
@@ -159,7 +273,6 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
   const removePlacement = (idx: number) => {
     setPlacements((prev) => {
       const next = prev.filter((_, i) => i !== idx);
-      // re-label sequentially
       return next.map((p, i) => ({ ...p, label: ordinalLabel(i + 1) }));
     });
   };
@@ -201,7 +314,7 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
                       inputMode="decimal"
                       value={prizePoolRaw}
                       onChange={(e) => {
-                        const v = e.target.value.replace(/[^0-9.]/g, "");
+                        const v = sanitizePoolInput(e.target.value);
                         setPrizePoolRaw(v);
                         const n = Number(v);
                         if (v !== "" && Number.isFinite(n)) setPrizePool(n);
@@ -235,6 +348,30 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tournament Context */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Tournament context</CardTitle>
+              <CardDescription>Optional — appears on copy, CSV, and print. Leave empty if not needed.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="tournament-name">Tournament name</Label>
+                <Input id="tournament-name" value={tournamentName} onChange={(e) => setTournamentName(e.target.value)} placeholder="Valorant Champions Cup" maxLength={80} />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="tournament-date">Date</Label>
+                  <Input id="tournament-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sponsor-name">Sponsor</Label>
+                  <Input id="sponsor-name" value={sponsorName} onChange={(e) => setSponsorName(e.target.value)} placeholder="Acme Esports" maxLength={80} />
                 </div>
               </div>
             </CardContent>
@@ -276,7 +413,6 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
                 })}
               </div>
 
-              {/* Method-specific config */}
               <div className="pt-2">
                 {method === "equal" ? (
                   <div className="space-y-2">
@@ -381,10 +517,11 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
           </Card>
         </div>
 
-        {/* Right: result */}
+        {/* Right: result + publish */}
         <div className="lg:col-span-2">
           <div className="lg:sticky lg:top-6 space-y-4">
-            <Card className={`overflow-hidden transition-colors ${isBalanced ? "border-success/40" : validation.valid ? "border-border" : "border-warning/40"}`}>
+            {/* Distribution Preview */}
+            <Card id="payout-sheet" className={`overflow-hidden transition-colors print:shadow-none print:border ${isBalanced ? "border-success/40" : validation.valid ? "border-border" : "border-warning/40"}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-sm flex items-center gap-2">
@@ -403,6 +540,15 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
+                {/* Print header — visible only in print */}
+                <div className="hidden print:block px-6 pt-6 pb-3 border-b border-border">
+                  <p className="text-sm font-semibold">MicroNest — Prize Pool Splitter</p>
+                  {publishCtx?.tournamentName && <p className="mt-1 text-lg font-bold">{publishCtx.tournamentName}</p>}
+                  {publishCtx?.sponsorName && <p className="text-xs text-muted-foreground">Presented by {publishCtx.sponsorName}</p>}
+                  {publishCtx?.date && <p className="text-xs text-muted-foreground">{publishCtx.date}</p>}
+                  {result && <p className="mt-2 font-mono text-xs">Prize Pool: {formatMoney(result.prizePool, currency)} • {result?.currency}</p>}
+                </div>
+
                 {!validation.valid || !result ? (
                   <div className="px-6 py-8 text-center">
                     <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-warning-soft border border-warning/20">
@@ -415,7 +561,6 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
                   </div>
                 ) : (
                   <div className="divide-y divide-border/60">
-                    {/* total bar */}
                     <div className={`flex items-center justify-between px-4 py-2.5 text-xs ${isBalanced ? "bg-success-soft text-success" : "bg-warning-soft text-warning"}`}>
                       <span className="font-medium flex items-center gap-1.5">{isBalanced ? <Check className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />} {totalPct.toFixed(2)}% distributed</span>
                       <span className="font-mono">{formatMoney(result.remaining, currency)} remaining</span>
@@ -442,22 +587,87 @@ export function PrizeSplitterCalculator({ orgSlug: _orgSlug }: Props) {
               </CardContent>
             </Card>
 
-            <div className="flex gap-2">
-              <Button onClick={handleCopy} disabled={!result} className="flex-1 min-h-[44px]">
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                {copied ? "Copied" : "Copy Results"}
-              </Button>
-              <Button variant="outline" onClick={handleReset} className="min-h-[44px]">
-                <RotateCcw className="h-4 w-4" /> Reset
-              </Button>
+            {/* Publish */}
+            <div className="space-y-3 rounded-[16px] border border-border bg-card p-4">
+              <p className="text-xs font-semibold tracking-wide">Publish</p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Button onClick={() => handleCopy("plain")} disabled={!result} className="w-full min-h-[44px] justify-between" aria-haspopup="menu" aria-expanded={copyMenuOpen} aria-label="Copy results menu">
+                    <span className="flex items-center gap-2">{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}{copied ? `Copied ${copied}` : "Copy Results"}</span>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Open copy options"
+                      onClick={(e) => { e.stopPropagation(); setCopyMenuOpen((v) => !v); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setCopyMenuOpen((v) => !v); } }}
+                      className="ml-2 flex h-7 w-7 items-center justify-center rounded-full hover:bg-primary-foreground/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/30"
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform ${copyMenuOpen ? "rotate-180" : ""}`} />
+                    </span>
+                  </Button>
+                  {copyMenuOpen && (
+                    <div role="menu" className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-[12px] border border-border bg-popover shadow-md">
+                      {([
+                        { id: "plain", label: "Copy Results" },
+                        { id: "discord", label: "Copy for Discord" },
+                        { id: "whatsapp", label: "Copy for WhatsApp" },
+                        { id: "x", label: "Copy for X" },
+                      ] as const).map((opt) => (
+                        <button
+                          key={opt.id}
+                          role="menuitem"
+                          disabled={!result}
+                          onClick={() => handleCopy(opt.id)}
+                          className="flex min-h-[44px] w-full items-center px-4 text-left text-sm hover:bg-surface-muted disabled:opacity-50 focus-visible:outline-none focus-visible:bg-surface-muted"
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Button variant="outline" onClick={handleReset} className="min-h-[44px]" aria-label="Reset calculator">
+                  <RotateCcw className="h-4 w-4" /> Reset
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <Button variant="outline" size="sm" onClick={handleCopyLink} disabled={!result} className="min-h-[44px] flex-col gap-0.5 py-1 text-xs" aria-label="Copy share link">
+                  {linkCopied ? <Check className="h-4 w-4 text-success" /> : <Link2 className="h-4 w-4" />}
+                  {linkCopied ? "Link copied" : "Copy Link"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleDownloadCsv} disabled={!result} className="min-h-[44px] flex-col gap-0.5 py-1 text-xs" aria-label="Download CSV">
+                  <Download className="h-4 w-4" /> CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={handlePrint} disabled={!result} className="min-h-[44px] flex-col gap-0.5 py-1 text-xs" aria-label="Print payout sheet">
+                  <Printer className="h-4 w-4" /> Print
+                </Button>
+              </div>
+
+              <Link href="/pricing" className="flex items-center justify-center gap-1 rounded-[10px] border border-border bg-surface-muted/50 px-3 py-2.5 text-xs text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-colors text-center leading-relaxed">
+                Need Sponsorship Tracking too? <span className="font-medium text-primary">Explore All Access → ₹2,499/month</span>
+              </Link>
             </div>
 
-            <p className="text-center text-xs leading-relaxed text-muted-foreground px-2">
+            <p className="text-center text-xs leading-relaxed text-muted-foreground px-2 print:hidden">
               The calculator reconciles rounding to the last {symbol}0.01 — displayed payouts always sum to the prize pool.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Print-only footer */}
+      <div className="hidden print:block text-center text-[11px] text-muted-foreground pt-6 border-t border-border mt-4">
+        Generated with MicroNest — Prize Pool Splitter • micronest.example • No escrow • No payments held
+      </div>
+
+      <style>{`@media print {
+        body * { visibility: hidden; }
+        #payout-sheet, #payout-sheet * { visibility: visible; }
+        #payout-sheet { position: absolute; left: 0; top: 0; width: 100%; border: 1px solid #e5e7eb; }
+        .print\\:block { display: block !important; }
+        .print\\:hidden { display: none !important; }
+      }`}</style>
     </div>
   );
 }

@@ -19,7 +19,7 @@ export default async function PrizeSplitterPage({ params }: { params: Promise<{ 
         title="Prize Pool Splitter"
         description={`Split a tournament prize pool in seconds — ${ctx.organization.name}. Deterministic payouts, reconciled to the last cent.`}
       />
-      <PrizeSplitterCalculator orgSlug={orgSlug} />
+      <PrizeSplitterCalculator />
     </div>
   );
 }

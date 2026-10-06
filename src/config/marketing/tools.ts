@@ -51,7 +51,14 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     longDescription:
       "Prize Pool Splitter is subscription software that helps tournament operators calculate and organize prize-pool distributions. Choose percentage, equal, ranked, or custom splits and generate reconciled, shareable payout tables in your workspace. MicroNest does not hold, escrow, or transfer prize money.",
     audience: ["Tournament organizers", "Esports teams"],
-    features: ["Prize input", "Automatic split calculation", "Shareable breakdown"],
+    features: [
+      "Exact totals — reconciled to the last cent, no rounding drift",
+      "INR / USD / EUR / GBP with correct locale formatting",
+      "Percentage, equal, ranked (Top 3–Top 10) and custom splits",
+      "Discord / WhatsApp / X-ready copy with one click",
+      "Shareable payout link (stateless URL) + CSV + Print",
+      "Live 100% validation — Total must equal 100%",
+    ],
     status: "available",
     internalSlug: "prize-splitter",
     icon: "Split",
