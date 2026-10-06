@@ -8,7 +8,7 @@ export function Footer() {
       <div className="container-nest">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <Logo height={26} />
+            <Logo height={28} />
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Subscription software for esports operations — focused tools for the business of esports.</p>
             <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground">The toolbox behind esports. We provide the software; you run your esports operations.</p>
           </div>

@@ -15,6 +15,7 @@ interface LogoProps {
  * Use CSS sizing (height) with w-auto to preserve aspect ratio (viewBox 0 0 1500 1500)
  */
 export function Logo({ className, height = 28, priority = false, href = "/" }: LogoProps) {
+  const isLinked = typeof href === "string" && href.length > 0;
   const img = (
     <Image
       src="/Final_MicroNest_Logo.svg"
@@ -27,7 +28,7 @@ export function Logo({ className, height = 28, priority = false, href = "/" }: L
     />
   );
 
-  if (href) {
+  if (isLinked) {
     return (
       <Link href={href as never} className="inline-flex items-center shrink-0" aria-label="MicroNest home">
         {img}

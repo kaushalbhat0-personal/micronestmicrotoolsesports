@@ -5,7 +5,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container-nest flex h-14 items-center justify-between gap-4">
-        <Logo height={28} priority />
+        <Logo height={32} priority className="!h-7 sm:!h-8" />
         <nav className="hidden items-center gap-1 sm:flex" aria-label="Primary">
           <Link
             href="/tools"

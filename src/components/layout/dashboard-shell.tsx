@@ -263,7 +263,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
       <aside className="hidden w-[272px] shrink-0 border-r border-border bg-card lg:flex lg:flex-col">
         <div className="sticky top-0 flex h-full flex-col">
           <div className="flex h-[56px] items-center border-b border-border px-4">
-            <Logo height={26} priority />
+            <Logo height={28} priority />
           </div>
           <div className="p-3">
             {organizations.length > 0 && <OrgSwitcher organizations={organizations} activeOrgId={activeOrg?.id} variant="sidebar" />}
@@ -286,7 +286,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
             <SheetContent className="w-[300px] p-0" aria-describedby={undefined}>
             <SheetHeader>
               <SheetTitle>
-                <Logo height={24} />
+                <Logo height={28} />
               </SheetTitle>
             </SheetHeader>
               <div className="flex-1 overflow-y-auto p-3">
