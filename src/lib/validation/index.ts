@@ -45,3 +45,23 @@ export function isSafeRedirect(path: string | null | undefined): boolean {
   if (!path) return false;
   return path.startsWith("/") && !path.startsWith("//") && !path.includes("://");
 }
+
+// ── Password lifecycle ─────────────────────────────────────
+export const passwordSchema = z.string().min(8, "Password must be at least 8 characters").max(72, "Password must be at most 72 characters");
+
+export const emailSchema = z.string().trim().email("Please enter a valid email address");
+
+export const resetPasswordSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
+
+export function validatePassword(password: string): string | null {
+  const r = passwordSchema.safeParse(password);
+  return r.success ? null : r.error.issues[0]?.message ?? "Invalid password";
+}
