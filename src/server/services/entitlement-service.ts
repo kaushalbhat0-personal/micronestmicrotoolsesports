@@ -1,11 +1,22 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hasEntitlement, listEntitlementsForOrg } from "@/server/repositories/entitlements";
 import { listActiveTools } from "@/server/repositories/tools";
+import { TOOLS } from "@/config/app/tools";
 
 /**
  * Service: entitlement resolution logic
  * Pure business logic — no direct auth, no rendering.
+ *
+ * Availability rule (RCCF-SPONSOR-FINAL-02):
+ * DB active state determines whether a tool is operationally active;
+ * the tool registry's comingSoon flag determines whether it is
+ * commercially available. All-Access (and per-tool resolution) must
+ * never surface a Coming-Soon tool, even if the DB still marks it active.
  */
+
+const COMMERCIALLY_AVAILABLE_SLUGS: ReadonlySet<string> = new Set(
+  TOOLS.filter((t) => !t.comingSoon).map((t) => t.slug)
+);
 
 export interface EntitlementResolution {
   organizationId: string;
@@ -32,7 +43,7 @@ export async function resolveEntitlements(
     return {
       organizationId,
       hasAllAccess: true,
-      entitledToolSlugs: tools.map((t) => t.slug),
+      entitledToolSlugs: tools.map((t) => t.slug).filter((s) => COMMERCIALLY_AVAILABLE_SLUGS.has(s)),
       entitlements,
     };
   }
@@ -44,7 +55,7 @@ export async function resolveEntitlements(
   );
 
   const toolMap = new Map(tools.map((t) => [t.id, t.slug]));
-  const entitledToolSlugs = [...entitledIds].map((id) => toolMap.get(id)).filter((s): s is string => Boolean(s));
+  const entitledToolSlugs = [...entitledIds].map((id) => toolMap.get(id)).filter((s): s is string => s !== undefined && COMMERCIALLY_AVAILABLE_SLUGS.has(s));
 
   return { organizationId, hasAllAccess: false, entitledToolSlugs, entitlements };
 }

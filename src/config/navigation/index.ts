@@ -34,7 +34,9 @@ export function getDashboardNav(orgSlug: string): NavItem[] {
   const comingSoonTools = TOOLS.filter((t) => t.comingSoon).map(
     (t): NavItem => ({
       label: t.name,
-      href: `/dashboard/${orgSlug}/${t.slug}` as Route,
+      // Coming-Soon items must never expose a live route href (RCCF-SPONSOR-FINAL-02).
+      // "#" is the repository's safe non-navigation target (see dashboard-shell).
+      href: "#" as Route,
       icon: t.icon,
       comingSoon: true,
     })
@@ -75,4 +77,21 @@ export function getDashboardNavGroups(orgSlug: string): NavGroup[] {
       items: [byLabel.get("Organizations")].filter(Boolean) as NavItem[],
     },
   ];
+}
+
+/**
+ * Legacy Coming-Soon link behavior (RCCF-SPONSOR-FINAL-02).
+ * Mirrors the newer disabled implementation in dashboard-shell:
+ * safe non-navigation target, aria-disabled semantics, and activation
+ * must be suppressed (preventDefault). Pure helper so it is unit-testable.
+ */
+export function getLegacyNavLinkProps(item: NavItem): {
+  href: Route;
+  ariaDisabled: true | undefined;
+  shouldPreventDefault: boolean;
+} {
+  if (item.comingSoon) {
+    return { href: "#" as Route, ariaDisabled: true, shouldPreventDefault: true };
+  }
+  return { href: item.href, ariaDisabled: undefined, shouldPreventDefault: false };
 }

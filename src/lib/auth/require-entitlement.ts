@@ -2,17 +2,32 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { entitlementError } from "@/lib/errors";
 import { requireOrganizationMember } from "./require-membership";
+import { TOOLS } from "@/config/app/tools";
 
 /**
  * Entitlement authorization — separate from membership.
  * Checks: does organization have access to toolSlug (per-tool OR all-access)?
  *
  * Uses DB helper has_tool_access() where possible, plus app-level resolution for richer errors.
+ *
+ * Availability rule (RCCF-SPONSOR-FINAL-02): the registry's comingSoon flag
+ * is commercially authoritative. Unreleased tools are never granted, even
+ * when the RPC/fallback path is used.
  */
+
+const COMMERCIALLY_AVAILABLE_SLUGS: ReadonlySet<string> = new Set(
+  TOOLS.filter((t) => !t.comingSoon).map((t) => t.slug)
+);
 
 export const requireEntitlement = cache(async (organizationId: string, toolSlug: string) => {
   // Ensure membership first — entitlement without membership is meaningless (deduped via cached member)
   const ctx = await requireOrganizationMember(organizationId);
+
+  // Coming-Soon tools are never commercially available, regardless of DB/RPC state.
+  if (!COMMERCIALLY_AVAILABLE_SLUGS.has(toolSlug)) {
+    throw entitlementError(`Organization does not have access to ${toolSlug}`);
+  }
+
   const supabase = await createClient();
 
   // Prefer RPC if available, fallback to query
@@ -28,9 +43,10 @@ export const requireEntitlement = cache(async (organizationId: string, toolSlug:
   }
 
   // Fallback — manual entitlement resolution
-  const { data: tool } = await supabase.from("tools").select("id, slug").eq("slug", toolSlug).single();
+  const { data: tool } = await supabase.from("tools").select("id, slug, is_active").eq("slug", toolSlug).single();
 
   if (!tool) throw entitlementError(`Unknown tool: ${toolSlug}`);
+  if (tool.is_active === false) throw entitlementError(`Organization does not have access to ${toolSlug}`);
 
   const { data: entitlements } = await supabase
     .from("tool_entitlements")
@@ -67,11 +83,11 @@ export async function getAccessibleToolSlugs(organizationId: string): Promise<st
   if (hasAllAccess) {
     const supabase = await createClient();
     const { data: tools } = await supabase.from("tools").select("slug").eq("is_active", true);
-    return (tools ?? []).map((t) => t.slug);
+    return (tools ?? []).map((t) => t.slug).filter((s): s is string => typeof s === "string" && COMMERCIALLY_AVAILABLE_SLUGS.has(s));
   }
 
   return entitlements
     .filter((e) => !e.is_all_access && (!e.expires_at || new Date(e.expires_at) > new Date()))
     .map((e) => (e.tool as unknown as { slug: string } | null)?.slug)
-    .filter((s): s is string => Boolean(s));
+    .filter((s): s is string => s !== undefined && COMMERCIALLY_AVAILABLE_SLUGS.has(s));
 }

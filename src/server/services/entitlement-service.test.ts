@@ -147,4 +147,90 @@ describe("resolveEntitlements", () => {
     const result = await resolveEntitlements(supabase, "org-5");
     expect(result.entitledToolSlugs).toEqual([]);
   });
+
+  // RCCF-SPONSOR-FINAL-02: All-Access must never grant Coming-Soon tools,
+  // even when the DB still reports them as active (stale pre-migration state).
+  it("all-access excludes coming-soon tools even when DB reports them active", async () => {
+    const supabase = mockSupabase({
+      from: (table: string) => {
+        if (table === "tool_entitlements") {
+          return {
+            select: () => ({
+              eq: () => Promise.resolve({ data: [{ is_all_access: true, tool_id: null, expires_at: null, tool: null }], error: null }),
+            }),
+          };
+        }
+        if (table === "tools") {
+          return {
+            select: () => ({
+              eq: () => ({
+                order: () =>
+                  Promise.resolve({
+                    data: [
+                      { id: "1", slug: "sponsor-sentinel" },
+                      { id: "2", slug: "prize-splitter" },
+                      { id: "3", slug: "scrim-matchmaker" },
+                      { id: "4", slug: "vod-clipper" },
+                      { id: "5", slug: "roster-sentinel" },
+                    ],
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+        return { select: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }) };
+      },
+    });
+
+    const result = await resolveEntitlements(supabase, "org-all-access");
+    expect(result.hasAllAccess).toBe(true);
+    expect(result.entitledToolSlugs).toContain("sponsor-sentinel");
+    expect(result.entitledToolSlugs).toContain("prize-splitter");
+    expect(result.entitledToolSlugs).not.toContain("scrim-matchmaker");
+    expect(result.entitledToolSlugs).not.toContain("vod-clipper");
+    expect(result.entitledToolSlugs).not.toContain("roster-sentinel");
+  });
+
+  it("per-tool entitlement to a coming-soon tool does not surface in slugs", async () => {
+    const supabase = mockSupabase({
+      from: (table: string) => {
+        if (table === "tool_entitlements") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    { is_all_access: false, tool_id: "1", expires_at: null, tool: null },
+                    { is_all_access: false, tool_id: "3", expires_at: null, tool: null },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "tools") {
+          return {
+            select: () => ({
+              eq: () => ({
+                order: () =>
+                  Promise.resolve({
+                    data: [
+                      { id: "1", slug: "sponsor-sentinel" },
+                      { id: "3", slug: "scrim-matchmaker" },
+                    ],
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+        return { select: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }) };
+      },
+    });
+
+    const result = await resolveEntitlements(supabase, "org-per-tool-soon");
+    expect(result.hasAllAccess).toBe(false);
+    expect(result.entitledToolSlugs).toEqual(["sponsor-sentinel"]);
+  });
 });

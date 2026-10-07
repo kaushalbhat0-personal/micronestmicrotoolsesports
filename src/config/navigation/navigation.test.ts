@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getDashboardNav, dashboardNav } from "./index";
+import { getDashboardNav, getDashboardNavGroups, getLegacyNavLinkProps, dashboardNav } from "./index";
 
 describe("Navigation", () => {
   it("org nav uses Campaigns label not Sponsor Sentinel", () => {
@@ -63,5 +63,56 @@ describe("Navigation", () => {
     expect(overviewIdx).toBeLessThan(campaignsIdx);
     expect(campaignsIdx).toBeLessThan(checkIdx);
     expect(checkIdx).toBeLessThan(channelsIdx);
+  });
+
+  // RCCF-SPONSOR-FINAL-02: legacy Coming-Soon controls must not navigate.
+  it("coming-soon nav items expose no live route href", () => {
+    const nav = getDashboardNav("org1");
+    const future = nav.filter((n) => n.comingSoon);
+    expect(future.length).toBeGreaterThan(0);
+    for (const item of future) {
+      expect(item.href).toBe("#");
+      expect(item.href).not.toContain("scrim-matchmaker");
+      expect(item.href).not.toContain("vod-clipper");
+      expect(item.href).not.toContain("roster-sentinel");
+    }
+  });
+
+  it("available nav items keep live route hrefs", () => {
+    const nav = getDashboardNav("my-org");
+    const live = nav.filter((n) => !n.comingSoon);
+    expect(live.length).toBeGreaterThan(0);
+    for (const item of live) {
+      expect(item.href).not.toBe("#");
+    }
+  });
+
+  it("legacy coming-soon link props disable navigation", () => {
+    const nav = getDashboardNav("org1");
+    const future = nav.filter((n) => n.comingSoon);
+    for (const item of future) {
+      const props = getLegacyNavLinkProps(item);
+      expect(props.href).toBe("#");
+      expect(props.ariaDisabled).toBe(true);
+      expect(props.shouldPreventDefault).toBe(true);
+    }
+  });
+
+  it("legacy available link props preserve navigation", () => {
+    const nav = getDashboardNav("my-org");
+    const campaigns = nav.find((n) => n.label === "Campaigns");
+    expect(campaigns).toBeDefined();
+    const props = getLegacyNavLinkProps(campaigns!);
+    expect(props.href).toBe("/dashboard/my-org/sponsor-sentinel/campaigns");
+    expect(props.ariaDisabled).toBeUndefined();
+    expect(props.shouldPreventDefault).toBe(false);
+  });
+
+  it("coming-soon group survives as disabled indication", () => {
+    const groups = getDashboardNavGroups("org1");
+    const coming = groups.find((g) => g.label === "Coming soon");
+    expect(coming).toBeDefined();
+    expect(coming!.items.length).toBeGreaterThan(0);
+    expect(coming!.items.every((i) => i.comingSoon)).toBe(true);
   });
 });

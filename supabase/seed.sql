@@ -4,8 +4,8 @@
 -- Ensure tools exist (duplicate of migration for local)
 insert into public.tools (slug, name, description, is_active) values
   ('sponsor-sentinel', 'Sponsor Proof-of-Performance Sentinel', 'Automated Twitch VOD proof and sponsor exposure tracking', true),
-  ('scrim-matchmaker', 'Cross-Timezone Scrim Matchmaker & Pinger', 'Find scrims across timezones with smart pinging', true),
+  ('scrim-matchmaker', 'Cross-Timezone Scrim Matchmaker & Pinger', 'Find scrims across timezones with smart pinging', false),
   ('prize-splitter', 'Prize Pool Splitter & Escrow', 'Split prize pools and manage escrow transparently', true),
-  ('vod-clipper', 'VOD Timestamp & Voice-Note Clipper', 'Clip VODs with timestamps and voice notes', true),
-  ('roster-sentinel', 'Roster Visa & Contract Sentinel', 'Track visas and contracts for rosters', true)
+  ('vod-clipper', 'VOD Timestamp & Voice-Note Clipper', 'Clip VODs with timestamps and voice notes', false),
+  ('roster-sentinel', 'Roster Visa & Contract Sentinel', 'Track visas and contracts for rosters', false)
 on conflict (slug) do nothing;

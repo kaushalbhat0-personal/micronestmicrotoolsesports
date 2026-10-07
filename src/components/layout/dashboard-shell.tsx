@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
-import { getDashboardNavGroups } from "@/config/navigation";
+import { getDashboardNavGroups, getLegacyNavLinkProps } from "@/config/navigation";
 import { dashboardNav } from "@/config/navigation";
 import { OrgSwitcher } from "@/components/shared/org-switcher";
 import { Breadcrumb, type BreadcrumbItem } from "@/components/ui/breadcrumb";
@@ -232,20 +232,25 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
           {group.label ? <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{group.label}</p> : null}
           <div className="space-y-1">
             {group.items.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+              const linkProps = getLegacyNavLinkProps(item);
+              const isActive = !item.comingSoon && (pathname === item.href || pathname.startsWith(item.href + "/"));
               const isConnectionsLegacyActive = item.label === "Connections" && pathname.includes("/settings/integrations");
               const active = isActive || isConnectionsLegacyActive;
               const Icon = iconMap[item.icon] ?? LayoutDashboard;
               return (
                 <Link
                   key={item.href + item.label}
-                  href={item.href}
+                  href={linkProps.href}
                   aria-current={active ? "page" : undefined}
-                  onClick={() => setMobileOpen(false)}
+                  aria-disabled={linkProps.ariaDisabled}
+                  onClick={(e) => {
+                    if (linkProps.shouldPreventDefault) e.preventDefault();
+                    else setMobileOpen(false);
+                  }}
                   className={cn(
                     "group flex items-center gap-2.5 rounded-[12px] px-3 py-2 text-sm font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     active ? "bg-[hsl(24_85%_52%_/_0.08)] text-foreground border border-[hsl(24_85%_52%_/_0.12)]" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent",
-                    item.comingSoon && "opacity-60"
+                    item.comingSoon && "text-muted-foreground opacity-70 cursor-default"
                   )}
                 >
                   <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />

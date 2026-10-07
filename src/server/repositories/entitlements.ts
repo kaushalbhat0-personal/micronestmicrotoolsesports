@@ -22,8 +22,9 @@ export async function hasEntitlement(
   if (!error && typeof data === "boolean") return data;
 
   // Fallback if RPC not deployed yet
-  const { data: tool } = await supabase.from("tools").select("id").eq("slug", toolSlug).single();
+  const { data: tool } = await supabase.from("tools").select("id, is_active").eq("slug", toolSlug).single();
   if (!tool) return false;
+  if (tool.is_active === false) return false;
 
   const { data: ents } = await supabase
     .from("tool_entitlements")
