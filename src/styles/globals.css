@@ -223,3 +223,12 @@ html {
     transform: none !important;
   }
 }
+
+/* Print — official shared records (browser Print → Save as PDF).
+   Page chrome is hidden per-page with the `print:hidden` utility.
+   Only margins are set here so A4 and Letter both stay friendly. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+}

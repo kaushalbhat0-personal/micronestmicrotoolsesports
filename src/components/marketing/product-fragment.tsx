@@ -175,6 +175,36 @@ export function T05RosterFragment() {  return (
   );
 }
 
+export function T07TieBreakerFragment() {
+  // Static sample only — illustrative example, not a real customer record.
+  const rows = [
+    { pos: "1", team: "Falcons", detail: "9 pts · H2H", note: "Placed by head-to-head" },
+    { pos: "2", team: "Sentinels", detail: "9 pts · H2H", note: "Tied group resolved" },
+    { pos: "3", team: "Wolves", detail: "3 pts", note: "Placed on points" },
+  ];
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold">Group A · Final standings</p>
+        <span className="rounded-full border border-border bg-card px-2 py-0.5 font-mono text-[11px]">Record no. TB-2026-00042</span>
+      </div>
+      <ol className="space-y-1.5">
+        {rows.map((r) => (
+          <li key={r.pos} className="flex flex-wrap items-center gap-x-2 rounded-[8px] bg-surface-muted/60 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">{r.pos}.</span>
+            <span className="font-medium">{r.team}</span>
+            <span className="font-mono text-[11px] text-muted-foreground">{r.detail}</span>
+            <span className="inline-flex rounded-full bg-success px-2 py-0.5 text-[10px] font-medium text-success-foreground">
+              {r.note}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="text-[11px] text-muted-foreground">Finished records are locked and can&apos;t be changed. Sample record — illustrative example.</p>
+    </div>
+  );
+}
+
 export function ProductFragment({ slug }: { slug: string }) {
   switch (slug) {
     case "sponsorship-tracking":
@@ -189,6 +219,8 @@ export function ProductFragment({ slug }: { slug: string }) {
       return <T05RosterFragment />;
     case "draft-ban":
       return <T06DraftBanFragment />;
+    case "tie-breaker":
+      return <T07TieBreakerFragment />;
     default:
       return null;
   }

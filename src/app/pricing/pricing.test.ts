@@ -39,6 +39,11 @@ describe("pricing display — INR formatting and catalog", () => {
     expect(2499000).toBe(2499000);
   });
 
+  it("tie-breaker mapping", () => {
+    expect(79900).toBe(79900);
+    expect(799000).toBe(799000);
+  });
+
   it("yearly savings derived deterministically from catalog", () => {
     expect(savingsLabel(149900, 1499000)).toBe("Save ₹2,998/year vs monthly");
     expect(savingsLabel(69900, 699000)).toBe("Save ₹1,398/year vs monthly");

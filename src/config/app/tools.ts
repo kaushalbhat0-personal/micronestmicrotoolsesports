@@ -44,6 +44,13 @@ export const TOOLS: ToolConfig[] = [
     icon: "Swords",
   },
   {
+    slug: "tie-breaker",
+    name: "Tie-Breaker Resolver",
+    description: "Official standings for tied competitions — explained, locked, shareable",
+    href: "/dashboard/tie-breaker",
+    icon: "Scale",
+  },
+  {
     slug: "vod-clipper",
     name: "VOD Clipper",
     description: "Timestamp & voice-note clipping",

@@ -12,19 +12,19 @@ import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, ArrowR
 export const metadata: Metadata = {
   title: "MicroNest — Subscription Software for Esports Operations",
     description:
-      "MicroNest is a subscription software platform providing focused tools for the business of esports — Sponsorship Tracking, Prize Pool Splitter, and Draft & Ban available now; more tools coming soon. Customers subscribe for digital access per workspace.",
+      "MicroNest is a subscription software platform providing focused tools for the business of esports — Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, and Tie-Breaker Resolver available now; more tools coming soon. Customers subscribe for digital access per workspace.",
   alternates: { canonical: "/" },
     openGraph: {
       title: "MicroNest — Focused Tools for the Business of Esports",
       description:
-        "A growing collection of focused tools for the business of esports. Sponsorship Tracking, Prize Pool Splitter, and Draft & Ban available now — more coming soon.",
+        "A growing collection of focused tools for the business of esports. Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, and Tie-Breaker Resolver available now — more coming soon.",
       type: "website",
       url: "/",
     },
     twitter: {
       card: "summary_large_image",
       title: "MicroNest — Focused Tools for the Business of Esports",
-      description: "Focused tools for the business of esports. Sponsorship Tracking, Prize Pool Splitter, and Draft & Ban available now.",
+      description: "Focused tools for the business of esports. Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, and Tie-Breaker Resolver available now.",
     },
 };
 
@@ -75,7 +75,7 @@ export default function MarketingPage() {
               repetitive work behind competitive gaming. Customers subscribe for digital access to the tools they need. Start with one tool, add more as you need them.
             </p>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Sponsorship Tracking, Prize Pool Splitter, and Draft &amp; Ban are available now. Scrim Matchmaker, VOD Clipper, and Roster Sentinel are coming soon.
+              Sponsorship Tracking, Prize Pool Splitter, Draft &amp; Ban, and Tie-Breaker Resolver are available now. Scrim Matchmaker, VOD Clipper, and Roster Sentinel are coming soon.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link

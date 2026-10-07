@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Split, Layers, Check, Swords } from "lucide-react";
+import { ShieldCheck, Split, Layers, Check, Swords, Scale } from "lucide-react";
 import type { Route } from "next";
 import type { Plan } from "@/types/database";
 
@@ -52,6 +52,13 @@ const CARD_META: Record<string, { name: string; positioning: string; icon: React
     href: "/tools/draft-ban" as Route,
     cta: "Get Draft & Ban",
   },
+  "tie-breaker": {
+    name: "Tie-Breaker Resolver",
+    positioning: "Official standings for tied competitions — explained, locked, shareable.",
+    icon: Scale,
+    href: "/tools/tie-breaker" as Route,
+    cta: "Get Tie-Breaker Resolver",
+  },
   "all-access": {
     name: "All Access",
     positioning: "Get every currently available paid MicroNest esports tool in one plan.",
@@ -70,6 +77,7 @@ export function PricingClient({ plans }: PricingClientProps) {
     { key: "sponsorship-tracking", monthly: bySlug.get("sponsorship-tracking-monthly"), yearly: bySlug.get("sponsorship-tracking-yearly") },
     { key: "prize-pool-splitter", monthly: bySlug.get("prize-pool-splitter-monthly"), yearly: bySlug.get("prize-pool-splitter-yearly") },
     { key: "draft-ban", monthly: bySlug.get("draft-ban-monthly"), yearly: bySlug.get("draft-ban-yearly") },
+    { key: "tie-breaker", monthly: bySlug.get("tie-breaker-monthly"), yearly: bySlug.get("tie-breaker-yearly") },
     { key: "all-access", monthly: bySlug.get("all-access-monthly"), yearly: bySlug.get("all-access-yearly") },
   ];
 
@@ -161,9 +169,16 @@ export function PricingClient({ plans }: PricingClientProps) {
                           <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Shareable official results</li>
                         </ul>
                       )}
+                      {key === "tie-breaker" && (
+                        <ul className="space-y-1.5">
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Ordered ranking rules with presets</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Explained standings and locked records</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Shareable official results</li>
+                        </ul>
+                      )}
                       {key === "all-access" && (
                         <ul className="space-y-1.5">
-                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Sponsorship Tracking + Prize Pool Splitter + Draft & Ban</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Sponsorship Tracking + Prize Pool Splitter + Draft & Ban + Tie-Breaker Resolver</li>
                           <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Single plan, single workspace access</li>
                           <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Manual renewal · No AutoPay</li>
                         </ul>

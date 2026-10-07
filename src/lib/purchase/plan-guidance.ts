@@ -43,6 +43,14 @@ const GUIDES: ReadonlyArray<{ prefix: string; guide: PurchaseGuide }> = [
     },
   },
   {
+    prefix: "tie-breaker",
+    guide: {
+      toolName: "Tie-Breaker Resolver",
+      toolRoute: (orgSlug: string) => `/dashboard/${orgSlug}/tie-breaker`,
+      firstStep: "Next: create a competition, set your rule order, add teams, and enter results.",
+    },
+  },
+  {
     prefix: "all-access",
     guide: {
       toolName: "All Access",
@@ -72,6 +80,7 @@ export function coveredToolSlugs(planSlug: string | null | undefined): string[] 
   if (!found) return [];
   if (found.prefix === "sponsorship-tracking") return ["sponsor-sentinel"];
   if (found.prefix === "prize-pool-splitter") return ["prize-splitter"];
+  if (found.prefix === "tie-breaker") return ["tie-breaker"];
   return ["draft-ban"];
 }
 

@@ -88,6 +88,30 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     motif: "Ban · Pick · Lock",
   },
   {
+    slug: "tie-breaker",
+    name: "Tie-Breaker Resolver",
+    shortDescription: "Resolve tied standings with official, explainable records.",
+    longDescription:
+      "Tie-Breaker Resolver is subscription software that helps tournament organizers apply ranking rules in order, explain every tied placement in plain language, and lock a shareable official result with its own record number. Available now.",
+    audience: ["Tournament organizers", "League administrators", "Esports teams"],
+    features: [
+      "Ordered ranking rules with editable presets",
+      "Deterministic tie resolution with plain-language explanations",
+      "Locked official records with their own record numbers",
+      "Shareable result links",
+      "Competition history and copy for the next event",
+    ],
+    status: "available",
+    internalSlug: "tie-breaker",
+    icon: "Scale",
+    seoTitle: "Esports Tie-Breaker Resolver | MicroNest",
+    seoDescription:
+      "Subscription software to resolve tied standings with official, explainable records. Tie-Breaker Resolver for tournament organizers — available now.",
+    number: "T07",
+    accent: "teal",
+    motif: "Pts · H2H · Lock",
+  },
+  {
     slug: "scrim-matchmaker",
     name: "Scrim Matchmaker",
     shortDescription: "Coordinate scrims across teams, schedules, and time zones.",

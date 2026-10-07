@@ -23,6 +23,7 @@ const CUSTOMER_NAMES: Record<string, string> = {
   "sponsor-sentinel": "Sponsorship Tracking",
   "prize-splitter": "Prize Pool Splitter",
   "draft-ban": "Draft & Ban",
+  "tie-breaker": "Tie-Breaker Resolver",
 };
 
 function customerName(cfg: ToolConfig): string {

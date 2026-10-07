@@ -6,7 +6,7 @@ import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import { toWorkspaceTools } from "@/server/services/workspace-tools";
 
 const UNRELEASED = ["scrim-matchmaker", "vod-clipper", "roster-sentinel"] as const;
-const AVAILABLE = ["sponsor-sentinel", "prize-splitter", "draft-ban"] as const;
+const AVAILABLE = ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"] as const;
 
 function src(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -32,6 +32,7 @@ describe("frontend availability truth — RCCF-AVAILABILITY-UI-02", () => {
     expect(byInternal.get("sponsor-sentinel")).toBe("available");
     expect(byInternal.get("prize-splitter")).toBe("available");
     expect(byInternal.get("draft-ban")).toBe("available");
+    expect(byInternal.get("tie-breaker")).toBe("available");
     for (const slug of UNRELEASED) expect(byInternal.get(slug)).toBe("coming-soon");
   });
 
@@ -42,7 +43,7 @@ describe("frontend availability truth — RCCF-AVAILABILITY-UI-02", () => {
   });
 
   it("workspace view-model propagates comingSoon so nav renders disabled", () => {
-    const { entitled, available } = toWorkspaceTools(TOOLS, ["sponsor-sentinel", "prize-splitter", "draft-ban"], "acme");
+    const { entitled, available } = toWorkspaceTools(TOOLS, ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"], "acme");
     const all = [...entitled, ...available];
     for (const slug of UNRELEASED) {
       const tool = all.find((t) => t.slug === slug);
@@ -54,6 +55,12 @@ describe("frontend availability truth — RCCF-AVAILABILITY-UI-02", () => {
       expect(tool).toBeDefined();
       expect(tool!.comingSoon).toBe(false);
     }
+  });
+
+  it("footer links the newly available tool without touching coming-soon teasers", () => {
+    const footer = src("src/components/layout/footer.tsx");
+    expect(footer).toContain('href="/tools/tie-breaker"');
+    expect(footer).toContain("Tie-Breaker Resolver");
   });
 
   it("billing surfaces state the at-purchase-time policy without promising future tools", () => {

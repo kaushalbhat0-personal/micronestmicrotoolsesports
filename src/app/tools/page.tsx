@@ -6,12 +6,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import type { ToolAccent } from "@/config/marketing/tools";
-import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, ArrowRight } from "lucide-react";
+import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Esports Tools — MicroNest Collection",
   description:
-    "Explore MicroNest's subscription software for esports: Sponsorship Tracking, Prize Pool Splitter, and Draft & Ban, available now. Scrim Matchmaker, VOD Clipper, and Roster Sentinel are coming soon.",
+    "Explore MicroNest's subscription software for esports: Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, and Tie-Breaker Resolver, available now. Scrim Matchmaker, VOD Clipper, and Roster Sentinel are coming soon.",
   alternates: { canonical: "/tools" },
   openGraph: {
     title: "Esports Tools — MicroNest",
@@ -33,6 +33,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Scissors,
   FileCheck,
   Swords,
+  Scale,
 };
 
 function accentClass(accent: ToolAccent): string {

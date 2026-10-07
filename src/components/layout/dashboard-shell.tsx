@@ -23,6 +23,7 @@ import {
   Scissors,
   FileCheck,
   Swords,
+  Scale,
   ChevronRight,
   CreditCard,
   House,
@@ -47,6 +48,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Scissors,
   FileCheck,
   Swords,
+  Scale,
   CreditCard,
 };
 
