@@ -97,3 +97,36 @@ export async function getDeliverable(
   if (row.organization_id !== organizationId) throw forbiddenError("Cross-organization access denied");
   return row;
 }
+
+export interface RequirementCounts {
+  /** Per-campaign requirement counts. Empty when failed or when there are none. */
+  readonly counts: ReadonlyMap<string, number>;
+  /** True when the count query failed — callers must render an unavailable state, never 0. */
+  readonly failed: boolean;
+}
+
+/**
+ * Requirement counts per campaign for the campaigns list.
+ * Never throws: a failed query is reported via `failed` so the UI can
+ * distinguish "couldn't load" from an actual zero. Supabase returns query
+ * errors in `{ error }` (not as exceptions), so both are handled.
+ */
+export async function getRequirementCounts(
+  supabase: SupabaseClient,
+  organizationId: string,
+): Promise<RequirementCounts> {
+  const counts = new Map<string, number>();
+  try {
+    const { data, error } = await supabase
+      .from("deliverables")
+      .select("campaign_id")
+      .eq("organization_id", organizationId);
+    if (error) return { counts, failed: true };
+    for (const r of (data ?? []) as Array<{ campaign_id: string }>) {
+      counts.set(r.campaign_id, (counts.get(r.campaign_id) ?? 0) + 1);
+    }
+    return { counts, failed: false };
+  } catch {
+    return { counts, failed: true };
+  }
+}

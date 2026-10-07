@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { DeliverableForm } from "@/features/sponsor-sentinel/components/deliverable-form";
 import { DeleteRequirementButton } from "@/features/sponsor-sentinel/components/delete-requirement-button";
 import { ActivateCampaignButton } from "@/features/sponsor-sentinel/components/activate-campaign-button";
+import { ArchiveCampaignButton } from "@/features/sponsor-sentinel/components/archive-campaign-button";
 import { CheckNowButton } from "@/features/sponsor-sentinel/components/check-now-button";
 import { CompleteCampaignButton } from "@/features/sponsor-sentinel/components/complete-campaign-button";
 import { CampaignProofSection, CampaignProofSkeleton } from "@/features/sponsor-sentinel/components/campaign-proof-section";
@@ -112,6 +113,14 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                 <CheckNowButton orgSlug={orgSlug} campaignId={campaignId} />
               </>
             ) : null}
+            {isDraft ? (
+              <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${campaignId}/edit` as Route}>
+                <Button variant="outline" size="sm" aria-label="Edit draft campaign" className="min-h-[44px]">
+                  Edit
+                </Button>
+              </Link>
+            ) : null}
+            {!isArchived ? <ArchiveCampaignButton orgSlug={orgSlug} campaignId={campaignId} /> : null}
           </div>
         }
       />

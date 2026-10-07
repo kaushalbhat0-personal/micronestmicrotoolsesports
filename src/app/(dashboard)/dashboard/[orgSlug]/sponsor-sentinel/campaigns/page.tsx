@@ -2,6 +2,7 @@ import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createClient } from "@/lib/supabase/server";
 import { listCampaigns } from "@/features/sponsor-sentinel/services/campaign-service";
+import { getRequirementCounts } from "@/features/sponsor-sentinel/services/deliverable-service";
 import { getScanHistory } from "@/features/sponsor-sentinel/services/scan-history";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -21,16 +22,7 @@ export default async function CampaignsPage({ params }: { params: Promise<{ orgS
   const [campaigns, scanHistory, reqCounts] = await Promise.all([
     listCampaigns(supabase, ctx.organization.id),
     getScanHistory(supabase, ctx.organization.id).catch(() => ({ scans: [], total: 0 }) as never),
-    (async () => {
-      const m = new Map<string, number>();
-      try {
-        const { data } = await supabase.from("deliverables").select("campaign_id").eq("organization_id", ctx.organization.id);
-        for (const r of (data ?? []) as Array<{ campaign_id: string }>) {
-          m.set(r.campaign_id, (m.get(r.campaign_id) ?? 0) + 1);
-        }
-      } catch {}
-      return m;
-    })(),
+    getRequirementCounts(supabase, ctx.organization.id),
   ]);
   const scanByCampaign = new Map<string, (typeof scanHistory.scans)[number]>();
   for (const item of scanHistory.scans) {
@@ -65,7 +57,7 @@ export default async function CampaignsPage({ params }: { params: Promise<{ orgS
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {campaigns.map((c) => {
-            const reqCount = reqCounts.get(c.id) ?? 0;
+            const reqCount = reqCounts.failed ? null : (reqCounts.counts.get(c.id) ?? 0);
             const last = scanByCampaign.get(c.id);
             return (
               <Link key={c.id} href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${c.id}` as Route} className="group rounded-[16px] border border-border bg-card p-5 hover:bg-surface-muted/50 transition-colors">
@@ -77,7 +69,13 @@ export default async function CampaignsPage({ params }: { params: Promise<{ orgS
                     </div>
                     <p className="line-clamp-2 text-xs text-muted-foreground">{c.description ?? "No description"}</p>
                     <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <Badge variant="secondary" className="text-[11px]">{reqCount} requirements</Badge>
+                      {reqCount === null ? (
+                        <Badge variant="secondary" className="text-[11px]" title="Requirement counts couldn't be loaded">
+                          Requirements unavailable
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[11px]">{reqCount} requirements</Badge>
+                      )}
                       {last ? (
                         <Badge variant={last.scan.platform === "youtube" ? "platform-youtube" : last.scan.platform === "twitch" ? "platform-twitch" : "platform-kick"} className="capitalize text-[10px]">{last.scan.platform}</Badge>
                       ) : null}

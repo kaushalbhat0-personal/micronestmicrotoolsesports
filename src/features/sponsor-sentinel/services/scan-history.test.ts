@@ -194,7 +194,7 @@ describe("getScanHistory - per-scan attribution (PROOF-08)", () => {
     expect(res.scans.find((s) => s.scan.id === "scan-2")!.evaluationSummary["PASS"]).toBe(1);
   });
 
-  it("avoids N+1: 1 scan query + 1 evidence batch + 1 evaluation batch, not per-scan queries", async () => {
+  it("avoids N+1: 1 scan page query + 1 count query + 1 evidence batch + 1 evaluation batch, not per-scan queries", async () => {
     let scanQueries = 0;
     let evidenceQueries = 0;
     let evaluationQueries = 0;
@@ -215,7 +215,7 @@ describe("getScanHistory - per-scan attribution (PROOF-08)", () => {
       },
     } as unknown as import("@supabase/supabase-js").SupabaseClient;
     await getScanHistory(supabase, "org-a");
-    expect(scanQueries).toBe(1);
+    expect(scanQueries).toBe(2); // page + exact total (both single batched queries)
     expect(evidenceQueries).toBe(1); // not per-scan
     expect(evaluationQueries).toBe(1);
   });
@@ -242,5 +242,37 @@ describe("getScanHistory - per-scan attribution (PROOF-08)", () => {
     expect(captured.some((c) => c.table === "evidence" && c.col === "organization_id" && c.val === "org-trusted")).toBe(true);
     // evaluations already had it
     expect(captured.some((c) => c.table === "evaluations" && c.col === "organization_id" && c.val === "org-trusted")).toBe(true);
+  });
+
+  it("total is the true org-wide count, not the page length", async () => {
+    const supabase = {
+      from: (table: string) => ({
+        select: (_cols: string, opts?: { count?: string; head?: boolean }) => ({
+          eq: () => {
+            if (opts?.head) return Promise.resolve({ data: [], count: 120, error: null });
+            return {
+              order: () => ({ limit: () => Promise.resolve({ data: [{ id: "s1", campaign_id: "c1", organization_id: "org-a" }], error: null }) }),
+              in: () => Promise.resolve({ data: [], error: null }),
+            };
+          },
+          in: () => Promise.resolve({ data: [], error: null }),
+        }),
+      }),
+    } as unknown as import("@supabase/supabase-js").SupabaseClient;
+    const res = await getScanHistory(supabase, "org-a");
+    expect(res.scans.length).toBe(1);
+    expect(res.total).toBe(120);
+  });
+
+  it("total falls back to page length when the count is unavailable", async () => {
+    const supabase = makeSupabaseMock({
+      scans: [{ id: "scan-1", campaign_id: "camp-1", organization_id: "org-a" }],
+      campaigns: [{ id: "camp-1", name: "Camp" }],
+      evidence: [],
+      evaluations: [],
+    });
+    const res = await getScanHistory(supabase, "org-a");
+    expect(res.scans.length).toBe(1);
+    expect(res.total).toBe(1);
   });
 });

@@ -77,6 +77,10 @@ export async function updateCampaign(
   const existing = await repo.findSponsorCampaignById(supabase, campaignId);
   if (!existing) throw notFoundError("Campaign not found");
   if (existing.organization_id !== organizationId) throw forbiddenError("Cross-organization access denied");
+  // Draft-only editing: lifecycle transitions (activate/complete/archive) own all
+  // status changes. Editing a tracking/completed/archived campaign is rejected
+  // server-side even if the UI is bypassed.
+  if (existing.status !== "draft") throw validationError(`Only draft campaigns can be edited (current: ${existing.status})`);
   // Optional window validation if both provided or one changed
   if (input.starts_at !== undefined || input.ends_at !== undefined) {
     const starts = input.starts_at ?? existing.starts_at;

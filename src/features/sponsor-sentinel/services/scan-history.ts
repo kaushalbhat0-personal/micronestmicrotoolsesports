@@ -18,24 +18,32 @@ const HISTORY_LIMIT = 50;
 /**
  * Get scan history for an organization — organization-scoped, read-only.
  * - Uses trusted organizationId from requireOrganizationContext, never client input.
- * - Avoids N+1: 1 scan query + 1 campaign query + 1 evidence batch + 1 evaluation batch.
+ * - Avoids N+1: 1 scan query + 1 count query + 1 campaign query + 1 evidence batch + 1 evaluation batch.
  * - Returns newest first, limited to HISTORY_LIMIT for MVP (dataset small, no silent infinite scroll).
+ * - `total` is the true org-wide scan count so "Showing X of Y" stays honest when capped.
  */
 export async function getScanHistory(
   supabase: SupabaseClient,
   organizationId: string,
 ): Promise<ScanHistoryResult> {
-  // 1. Scans (constrained to org)
-  const { data: scans, error: scanError } = await supabase
-    .from("scans")
-    .select("id, organization_id, campaign_id, platform, status, started_at, completed_at, scanner_version, error_code, error_message, created_at")
-    .eq("organization_id", organizationId)
-    .order("created_at", { ascending: false })
-    .limit(HISTORY_LIMIT);
+  // 1. Scans (constrained to org) + true total for the honest "Showing X of Y" label.
+  // The count is a single head query — no per-row/per-scan fan-out.
+  const [pageRes, countRes] = await Promise.all([
+    supabase
+      .from("scans")
+      .select("id, organization_id, campaign_id, platform, status, started_at, completed_at, scanner_version, error_code, error_message, created_at")
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false })
+      .limit(HISTORY_LIMIT),
+    supabase.from("scans").select("id", { count: "exact", head: true }).eq("organization_id", organizationId),
+  ]);
+
+  const { data: scans, error: scanError } = pageRes;
+  const exactTotal = typeof (countRes as { count?: unknown }).count === "number" ? (countRes as { count: number }).count : null;
 
   if (scanError) throw scanError;
   const scanRows = (scans ?? []) as Scan[];
-  if (scanRows.length === 0) return { scans: [], total: 0 };
+  if (scanRows.length === 0) return { scans: [], total: exactTotal ?? 0 };
 
   const campaignIds = [...new Set(scanRows.map((s) => s.campaign_id))];
 
@@ -92,5 +100,5 @@ export async function getScanHistory(
     evaluationSummary: evalSummaryByScan.get(scan.id) ?? {},
   }));
 
-  return { scans: items, total: scanRows.length };
+  return { scans: items, total: exactTotal ?? scanRows.length };
 }
