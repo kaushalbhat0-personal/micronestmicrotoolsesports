@@ -32,7 +32,7 @@ export default async function BillingPage({
   // Enrich entitlements with tool metadata for display
   const toolMap = new Map(TOOLS.map((t) => [t.slug, t]));
   const enriched = overview.entitlements.map((e) => {
-    if (e.isAllAccess) return { ...e, displayName: "All Access", description: "All current and future tools" };
+    if (e.isAllAccess) return { ...e, displayName: "All Access", description: "All currently available tools" };
     const cfg = e.toolSlug ? toolMap.get(e.toolSlug) : undefined;
     return { ...e, displayName: cfg?.name ?? e.toolName, description: cfg?.description ?? "" };
   });

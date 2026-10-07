@@ -219,7 +219,7 @@ export function BillingClient({
                     {e.status === "expiring_soon" && <Badge variant="warning">Expiring soon</Badge>}
                     {e.status === "expired" && <Badge variant="destructive">Expired</Badge>}
                   </CardTitle>
-                  <CardDescription className="text-xs">{e.description || (e.isAllAccess ? "All current and future tools" : "")}</CardDescription>
+                  <CardDescription className="text-xs">{e.description || (e.isAllAccess ? "All currently available tools" : "")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -291,7 +291,7 @@ export function BillingClient({
             {upgradePlans.length > 0 && (
               <div className="rounded-[12px] border border-border bg-card p-4">
                 <p className="text-sm font-medium">Upgrade to All Access</p>
-                <p className="mt-1 text-xs text-muted-foreground">All current and future tools — {formatAmount(upgradePlans.find((p) => p.billing_period === "monthly")?.amount_minor ?? 249900, "INR")} / month</p>
+                <p className="mt-1 text-xs text-muted-foreground">All currently available tools — {formatAmount(upgradePlans.find((p) => p.billing_period === "monthly")?.amount_minor ?? 249900, "INR")} / month</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {upgradePlans.map((p) => (
                     <Button key={p.id} variant={selectedPlanId === p.id ? "default" : "outline"} size="sm" onClick={() => setSelectedPlanId(p.id)}>

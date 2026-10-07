@@ -69,7 +69,8 @@ export default async function DashboardPage() {
       )}
 
       <div>
-        <h2 className="font-display text-xl font-normal tracking-tight">Available tools</h2>
+        <h2 className="font-display text-xl font-normal tracking-tight">Tools</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Available now, plus what&apos;s coming soon — upcoming tools stay disabled until release.</p>
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {TOOLS.map((t, idx) => (
             <Card

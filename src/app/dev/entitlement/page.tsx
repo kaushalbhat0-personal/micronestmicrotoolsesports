@@ -23,7 +23,7 @@ const workspaceToolsBySlug = {
     ],
     available: [
       { slug: "scrim-matchmaker", name: "Scrim Matchmaker", internalSlug: "scrim-matchmaker", description: "Cross-timezone scrim", icon: "CalendarSearch", href: "/dashboard/tag-esports/scrim-matchmaker", entitled: false, comingSoon: true },
-      { slug: "prize-splitter", name: "Prize Pool Splitter", internalSlug: "prize-splitter", description: "Prize pool", icon: "Split", href: "/dashboard/tag-esports/prize-splitter", entitled: false, comingSoon: true },
+      { slug: "prize-splitter", name: "Prize Pool Splitter", internalSlug: "prize-splitter", description: "Prize pool", icon: "Split", href: "/dashboard/tag-esports/prize-splitter", entitled: false, comingSoon: false },
       { slug: "vod-clipper", name: "VOD Clipper", internalSlug: "vod-clipper", description: "Clip VODs", icon: "Scissors", href: "/dashboard/tag-esports/vod-clipper", entitled: false, comingSoon: true },
       { slug: "roster-sentinel", name: "Roster Sentinel", internalSlug: "roster-sentinel", description: "Visa & contracts", icon: "FileCheck", href: "/dashboard/tag-esports/roster-sentinel", entitled: false, comingSoon: true },
     ],
