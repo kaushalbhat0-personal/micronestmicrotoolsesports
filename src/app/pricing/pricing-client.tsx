@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Split, Layers, Check } from "lucide-react";
+import { ShieldCheck, Split, Layers, Check, Swords } from "lucide-react";
 import type { Route } from "next";
 import type { Plan } from "@/types/database";
 
@@ -45,6 +45,13 @@ const CARD_META: Record<string, { name: string; positioning: string; icon: React
     href: "/tools/prize-pool-splitter" as Route,
     cta: "Get Prize Pool Splitter",
   },
+  "draft-ban": {
+    name: "Draft & Ban",
+    positioning: "Run match drafts and keep locked, shareable official records.",
+    icon: Swords,
+    href: "/tools/draft-ban" as Route,
+    cta: "Get Draft & Ban",
+  },
   "all-access": {
     name: "All Access",
     positioning: "Get every currently available paid MicroNest esports tool in one plan.",
@@ -62,6 +69,7 @@ export function PricingClient({ plans }: PricingClientProps) {
   const groups: Array<{ key: string; monthly: Plan | undefined; yearly: Plan | undefined }> = [
     { key: "sponsorship-tracking", monthly: bySlug.get("sponsorship-tracking-monthly"), yearly: bySlug.get("sponsorship-tracking-yearly") },
     { key: "prize-pool-splitter", monthly: bySlug.get("prize-pool-splitter-monthly"), yearly: bySlug.get("prize-pool-splitter-yearly") },
+    { key: "draft-ban", monthly: bySlug.get("draft-ban-monthly"), yearly: bySlug.get("draft-ban-yearly") },
     { key: "all-access", monthly: bySlug.get("all-access-monthly"), yearly: bySlug.get("all-access-yearly") },
   ];
 
@@ -93,7 +101,7 @@ export function PricingClient({ plans }: PricingClientProps) {
       <p className="mt-3 text-center text-xs text-muted-foreground">Prices in INR. No automatic renewal — manual renewal only.</p>
 
       {/* Cards */}
-      <div id="pricing-cards" className="mt-8 grid gap-6 lg:grid-cols-3">
+      <div id="pricing-cards" className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {groups.map(({ key, monthly, yearly }) => {
           const meta = CARD_META[key]!;
           const Icon = meta.icon;
@@ -115,7 +123,7 @@ export function PricingClient({ plans }: PricingClientProps) {
                 </div>
                 <CardTitle className="mt-3 text-base">{meta.name}</CardTitle>
                 <CardDescription className="leading-relaxed">{meta.positioning}</CardDescription>
-                {isAllAccess && <p className="mt-2 text-xs text-muted-foreground">Includes all currently available paid esports tools.</p>}
+                {isAllAccess && <p className="mt-2 text-xs text-muted-foreground">Includes all currently available paid esports tools. All Access covers only the tools available at the time of purchase — future tools are not automatically included.</p>}
               </CardHeader>
               <CardContent className="flex flex-1 flex-col">
                 {plan ? (
@@ -125,7 +133,7 @@ export function PricingClient({ plans }: PricingClientProps) {
                         <span className="font-display text-3xl font-normal tracking-tight">{formatINR(plan.amount_minor)}</span>
                         <span className="text-sm text-muted-foreground">/ {periodLabel(plan.billing_period as BillingPeriod)} · INR</span>
                       </p>
-                      <p className="mt-1 font-mono text-[11px] text-muted-foreground">Billing: {plan.billing_period} · Currency: INR · Plan: {plan.slug}</p>
+                      <p className="mt-1 font-mono text-[11px] text-muted-foreground">Billing: {plan.billing_period} · Currency: INR · {meta.name} — {plan.billing_period === "monthly" ? "Monthly" : "Yearly"}</p>
                       {savings && <p className="mt-2 text-xs font-medium text-success">{savings} — calculated from published monthly/yearly prices.</p>}
                       {period === "monthly" && other && (
                         <p className="mt-1 text-xs text-muted-foreground">Yearly: {formatINR(other.amount_minor)} / year</p>
@@ -146,10 +154,17 @@ export function PricingClient({ plans }: PricingClientProps) {
                           <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Shareable payout tables</li>
                         </ul>
                       )}
+                      {key === "draft-ban" && (
+                        <ul className="space-y-1.5">
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Template-first draft room</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Locked records with their own record numbers</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Shareable official results</li>
+                        </ul>
+                      )}
                       {key === "all-access" && (
                         <ul className="space-y-1.5">
-                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Sponsorship Tracking + Prize Pool Splitter</li>
-                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Single plan, single workspace entitlement</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Sponsorship Tracking + Prize Pool Splitter + Draft & Ban</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Single plan, single workspace access</li>
                           <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Manual renewal · No AutoPay</li>
                         </ul>
                       )}

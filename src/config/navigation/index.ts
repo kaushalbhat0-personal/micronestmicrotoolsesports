@@ -21,7 +21,7 @@ export const marketingNav: { label: string; href: string; icon: string }[] = [
 
 export const dashboardNav: NavItem[] = [
   { label: "Overview", href: "/dashboard" as Route, icon: "LayoutDashboard" },
-  { label: "Organizations", href: "/dashboard/organizations" as Route, icon: "Building2" },
+  { label: "Workspaces", href: "/dashboard/organizations" as Route, icon: "Building2" },
 ];
 
 /**
@@ -50,7 +50,7 @@ export function getDashboardNav(orgSlug: string): NavItem[] {
     { label: "Connections", href: `/dashboard/${orgSlug}/connections` as Route, icon: "Plug" },
     { label: "Settings", href: `/dashboard/${orgSlug}/settings` as Route, icon: "Settings2" },
     ...comingSoonTools,
-    { label: "Organizations", href: "/dashboard/organizations" as Route, icon: "Building2" },
+    { label: "Workspaces", href: "/dashboard/organizations" as Route, icon: "Building2" },
   ];
 }
 
@@ -74,7 +74,7 @@ export function getDashboardNavGroups(orgSlug: string): NavGroup[] {
     ...(coming.length > 0 ? [{ label: "Coming soon", items: coming }] : []),
     {
       label: "",
-      items: [byLabel.get("Organizations")].filter(Boolean) as NavItem[],
+      items: [byLabel.get("Workspaces")].filter(Boolean) as NavItem[],
     },
   ];
 }

@@ -32,7 +32,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ orgSl
             <CardTitle className="flex items-center gap-2 text-base">
               <Plug className="h-4 w-4 text-muted-foreground" /> Connections
             </CardTitle>
-            <CardDescription>Which platforms are connected via OAuth?</CardDescription>
+            <CardDescription>Which accounts are connected?</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href={`/dashboard/${orgSlug}/connections` as Route}>
@@ -71,7 +71,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ orgSl
             <CardTitle className="flex items-center gap-2 text-base">
               <Settings2 className="h-4 w-4 text-muted-foreground" /> Workspace
             </CardTitle>
-            <CardDescription>Workspace {ctx.organization.name} · {ctx.organization.slug}</CardDescription>
+            <CardDescription>Workspace {ctx.organization.name}</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">More settings coming in later phases.</p>

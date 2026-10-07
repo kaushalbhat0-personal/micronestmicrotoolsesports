@@ -152,7 +152,7 @@ function ProviderCard({
                 Connected as <span className="font-medium">{masked.externalAccountLogin}</span>
               </p>
             ) : (
-              <p className="text-sm text-muted-foreground">Connect your Twitch account with one click — no Client ID needed.</p>
+              <p className="text-sm text-muted-foreground">Connect your Twitch account with one click — nothing to set up.</p>
             )}
             <Link href={`/api/auth/twitch/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
               <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect Twitch" : "Connect Twitch"}>
@@ -171,7 +171,7 @@ function ProviderCard({
                 Connected as <span className="font-medium">{masked.externalAccountLogin}</span>
               </p>
             ) : (
-              <p className="text-sm text-muted-foreground">Connect your YouTube account with one click — no API key needed.</p>
+              <p className="text-sm text-muted-foreground">Connect your YouTube account with one click — nothing to set up.</p>
             )}
             <Link href={`/api/auth/youtube/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
               <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect YouTube" : "Connect YouTube"}>
@@ -190,7 +190,7 @@ function ProviderCard({
                 Connected as <span className="font-medium">{masked.externalAccountLogin}</span>
               </p>
             ) : (
-              <p className="text-sm text-muted-foreground">Connect your Kick account with one click — no Client ID needed.</p>
+              <p className="text-sm text-muted-foreground">Connect your Kick account with one click — nothing to set up.</p>
             )}
             <Link href={`/api/auth/kick/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
               <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect Kick" : "Connect Kick"}>
@@ -207,7 +207,7 @@ function ProviderCard({
             {masked.lastTestedAt ? (
               <p className="text-xs text-muted-foreground">Last tested: {formatDateTimeKolkata(masked.lastTestedAt)}</p>
             ) : masked.hasOAuth ? (
-              <p className="text-xs text-muted-foreground">OAuth connection authorized — test the connection before adding creator channels.</p>
+              <p className="text-xs text-muted-foreground">Your account is connected — test the connection before adding creator channels.</p>
             ) : (
               <p className="text-xs text-muted-foreground">Not yet tested — test the connection before adding creator channels.</p>
             )}
@@ -224,10 +224,10 @@ function ProviderCard({
             <p className="text-sm font-medium">{title} isn’t connected</p>
             <p className="text-xs text-muted-foreground mt-1">
               {provider === "youtube"
-                ? "Connect your YouTube account via OAuth to verify creator channels."
+                ? "Connect your YouTube account to verify creator channels."
                 : provider === "twitch"
-                  ? "Connect your Twitch account via OAuth to verify creator channels."
-                  : "Connect your Kick account via OAuth to verify creator channels."}
+                  ? "Connect your Twitch account to verify creator channels."
+                  : "Connect your Kick account to verify creator channels."}
             </p>
           </div>
         )}

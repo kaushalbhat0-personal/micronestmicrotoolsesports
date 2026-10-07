@@ -25,7 +25,7 @@ export function ConnectKickForm({ orgSlug, hasCredentials }: { orgSlug: string; 
     e.preventDefault();
     setMessage(null);
     if (!hasCredentials) {
-      setMessage("Connect your Kick API access first.");
+      setMessage("Connect your Kick account first (in Connections).");
       setIsError(true);
       return;
     }
@@ -65,7 +65,7 @@ export function ConnectKickForm({ orgSlug, hasCredentials }: { orgSlug: string; 
           autoComplete="off"
           disabled={pending}
         />
-        <p className="text-xs text-muted-foreground">Enter the Kick slug, e.g., creator handle. Do not enter a URL.</p>
+        <p className="text-xs text-muted-foreground">Enter the Kick channel name, e.g., creator handle. Do not enter a URL.</p>
       </div>
       <Button type="submit" disabled={pending} loading={pending} aria-busy={pending} aria-label={pending ? "Connecting" : "Connect Kick"}>
         {pending ? "Connecting…" : "Connect Kick"}

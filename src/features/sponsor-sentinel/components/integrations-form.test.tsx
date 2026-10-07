@@ -14,11 +14,11 @@ describe("IntegrationsForm", () => {
     const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: false }} kick={{ configured: false }} />);
     expect(html).toContain("YouTube");
     expect(html).toContain("isn’t connected");
-    expect(html).toContain("Connect your YouTube account via OAuth");
+    expect(html).toContain("Connect your YouTube account to verify creator channels");
     expect(html).toContain("Connect YouTube");
   });
 
-  it("renders YouTube configured state with OAuth", () => {
+  it("renders YouTube configured state with connected account", () => {
     const html = renderToString(
       <IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: true, hasOAuth: true, externalAccountLogin: "@mystic", authorizedAt: "2026-10-02T00:00:00Z", lastTestStatus: "success" }} kick={{ configured: false }} />
     );
@@ -35,7 +35,7 @@ describe("IntegrationsForm", () => {
     expect(html).toContain("Test: Failed");
   });
 
-  it("renders Kick OAuth-only — no legacy fields", () => {
+  it("renders Kick connect-only — no legacy fields", () => {
     const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: false }} kick={{ configured: false }} />);
     expect(html).toContain("Kick");
     expect(html).toContain("Connect Kick");
@@ -51,7 +51,7 @@ describe("IntegrationsForm", () => {
     expect(html).toContain("Connected as");
   });
 
-  it("OAuth connected Twitch shows Connected as and Test available", () => {
+  it("connected Twitch shows Connected as and Test available", () => {
     const html = renderToString(
       <IntegrationsForm
         orgSlug="tag-esports"
@@ -68,11 +68,11 @@ describe("IntegrationsForm", () => {
     expect(html).toContain("Authorized:");
   });
 
-  it("OAuth authorized without test shows OAuth message not legacy", () => {
+  it("connected account without test shows connected message not legacy", () => {
     const html = renderToString(
       <IntegrationsForm orgSlug="tag-esports" twitch={{ configured: true, hasOAuth: true, externalAccountLogin: "divine1701" }} youtube={{ configured: false }} kick={{ configured: false }} />,
     );
-    expect(html).toContain("OAuth connection authorized");
+    expect(html).toContain("Your account is connected");
     expect(html).not.toContain("Not yet tested — test the connection before adding creator channels.");
   });
 

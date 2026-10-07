@@ -63,12 +63,12 @@ export default function ContactPage() {
 
               <section className="rounded-[12px] border border-border bg-surface-muted/30 p-4">
                 <h2 className="text-sm font-semibold">Do not send by email</h2>
-                <p className="mt-1 text-muted-foreground">Do not send passwords, API secrets, OAuth credentials, Razorpay signatures, or other sensitive credentials by email.</p>
+                <p className="mt-1 text-muted-foreground">Do not send passwords, payment details, connection secrets, or other sensitive details by email.</p>
                 <ul className="mt-3 list-disc space-y-1 pl-5 text-muted-foreground">
                   <li>Razorpay payment signatures or secrets</li>
-                  <li>OAuth client secrets, access tokens, or refresh tokens</li>
+                  <li>Account connection secrets</li>
                   <li>Full card numbers</li>
-                  <li>Passwords or API keys</li>
+                  <li>Passwords</li>
                 </ul>
                 <p className="mt-3 text-xs text-muted-foreground">If you experienced a duplicate or erroneous charge, include the Razorpay payment ID (starting <code className="rounded bg-muted px-1 py-0.5">pay_</code>) and order receipt so support can investigate — refund eligibility follows the <a href="/refund" className="underline underline-offset-4 hover:text-foreground">Refund &amp; Cancellation Policy</a> (no refunds after purchase and provisioning, duplicate charges investigated).</p>
               </section>

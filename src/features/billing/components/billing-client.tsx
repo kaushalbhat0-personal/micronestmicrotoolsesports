@@ -2,10 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Split, Calendar, CreditCard, RefreshCw, Check, AlertCircle, Infinity as InfinityIcon } from "lucide-react";
+import { ShieldCheck, Split, Calendar, CreditCard, RefreshCw, Check, AlertCircle, Infinity as InfinityIcon, ArrowRight } from "lucide-react";
+import { getPurchaseGuide } from "@/lib/purchase/plan-guidance";
 
 type EntitlementView = {
   toolSlug: string | null;
@@ -90,6 +92,8 @@ export function BillingClient({
   const [showRenew, setShowRenew] = React.useState(Boolean(initialHintedPlanId));
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [purchase, setPurchase] = React.useState<{ toolName: string; toolHref: string; firstStep: string; accessUntil: string } | null>(null);
+  const router = useRouter();
 
   // Keep selected plan in sync if hint arrives after mount (client navigation)
   React.useEffect(() => {
@@ -173,9 +177,17 @@ export function BillingClient({
             });
             const vData = await verifyRes.json();
             if (!verifyRes.ok) throw new Error(vData.error?.message ?? "Verification failed");
-            setMessage({ type: "success", text: `Payment successful — access active until ${vData.expiresAt ? formatDate(vData.expiresAt) : "permanent"}.` });
-            // Refresh to show updated billing state
-            window.location.reload();
+            const paidPlan = plans.find((p) => p.id === planId) ?? null;
+            const paidGuide = getPurchaseGuide(paidPlan?.slug);
+            setPurchase({
+              toolName: paidGuide?.toolName ?? paidPlan?.name ?? "MicroNest",
+              toolHref: paidGuide ? paidGuide.toolRoute(organizationSlug) : `/dashboard/${organizationSlug}`,
+              firstStep: paidGuide?.firstStep ?? "Open your workspace to start.",
+              accessUntil: vData.expiresAt ? formatDate(vData.expiresAt) : "permanent",
+            });
+            setMessage(null);
+            // Refresh billing state without destroying the success guidance
+            router.refresh();
           } catch (err) {
             setMessage({ type: "error", text: err instanceof Error ? err.message : "Verification failed" });
           } finally {
@@ -195,6 +207,29 @@ export function BillingClient({
 
   return (
     <div className="space-y-8">
+      {purchase ? (
+        <section aria-label="Purchase complete" className="rounded-[16px] border border-success/30 bg-success-soft/40 p-4 sm:p-5" role="status" aria-live="polite">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-success text-success-foreground">
+              <Check className="h-4 w-4" aria-hidden />
+            </span>
+            <h2 className="text-sm font-semibold">Your {purchase.toolName} access is ready.</h2>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">Payment successful — access active until {purchase.accessUntil}.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{purchase.firstStep}</p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Link
+              href={purchase.toolHref as never}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Open {purchase.toolName} <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
+            </Link>
+            <Button variant="outline" className="min-h-[44px]" onClick={() => setPurchase(null)}>
+              Back to Billing
+            </Button>
+          </div>
+        </section>
+      ) : null}
       {/* Current Access */}
       <section>
         <h2 className="font-display text-lg font-normal tracking-tight">Current Access</h2>
@@ -203,7 +238,7 @@ export function BillingClient({
           {entitlements.length === 0 ? (
             <Card>
               <CardContent className="py-6">
-                <p className="text-sm text-muted-foreground">No active entitlements.</p>
+                <p className="text-sm text-muted-foreground">No active access yet.</p>
               </CardContent>
             </Card>
           ) : (
@@ -226,7 +261,7 @@ export function BillingClient({
                     {e.status === "permanent" ? <InfinityIcon className="h-3.5 w-3.5" /> : <Calendar className="h-3.5 w-3.5" />}
                     {expiryLabel(e.expiresAt, e.status)}
                   </p>
-                  {e.isAllAccess && <p className="mt-1 text-xs text-muted-foreground">Includes Sponsorship Tracking and Prize Pool Splitter.</p>}
+                  {e.isAllAccess && <p className="mt-1 text-xs text-muted-foreground">Includes Sponsorship Tracking, Prize Pool Splitter, and Draft & Ban.</p>}
                 </CardContent>
               </Card>
             ))
@@ -291,7 +326,7 @@ export function BillingClient({
             {upgradePlans.length > 0 && (
               <div className="rounded-[12px] border border-border bg-card p-4">
                 <p className="text-sm font-medium">Upgrade to All Access</p>
-                <p className="mt-1 text-xs text-muted-foreground">All currently available tools — {formatAmount(upgradePlans.find((p) => p.billing_period === "monthly")?.amount_minor ?? 249900, "INR")} / month</p>
+                <p className="mt-1 text-xs text-muted-foreground">All currently available tools — {formatAmount(upgradePlans.find((p) => p.billing_period === "monthly")?.amount_minor ?? 249900, "INR")} / month. Covers only the tools available at the time of purchase; future tools are not automatically included.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {upgradePlans.map((p) => (
                     <Button key={p.id} variant={selectedPlanId === p.id ? "default" : "outline"} size="sm" onClick={() => setSelectedPlanId(p.id)}>

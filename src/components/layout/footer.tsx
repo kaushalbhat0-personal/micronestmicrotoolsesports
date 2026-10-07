@@ -16,10 +16,11 @@ export function Footer() {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Tools</p>
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link href="/tools/sponsorship-tracking" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Sponsorship Tracking</Link></li>
-              <li><Link href="/tools/scrim-matchmaker" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Scrim Matchmaker</Link></li>
               <li><Link href="/tools/prize-pool-splitter" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Prize Pool Splitter</Link></li>
-              <li><Link href="/tools/vod-clipper" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">VOD Clipper</Link></li>
-              <li><Link href="/tools/roster-sentinel" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Roster Sentinel</Link></li>
+              <li><Link href="/tools/draft-ban" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Draft &amp; Ban</Link></li>
+              <li><Link href="/tools/scrim-matchmaker" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Scrim Matchmaker <span className="text-xs">· Coming soon</span></Link></li>
+              <li><Link href="/tools/vod-clipper" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">VOD Clipper <span className="text-xs">· Coming soon</span></Link></li>
+              <li><Link href="/tools/roster-sentinel" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Roster Sentinel <span className="text-xs">· Coming soon</span></Link></li>
             </ul>
           </div>
           <div>

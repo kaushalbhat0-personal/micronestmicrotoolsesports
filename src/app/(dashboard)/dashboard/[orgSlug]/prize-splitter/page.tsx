@@ -1,5 +1,7 @@
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
+import { isEntitlementDenied } from "@/lib/errors";
+import { AccessDenied } from "@/components/shared/access-denied";
 import { PageHeader } from "@/components/ui/page-header";
 import { PrizeSplitterCalculator } from "@/features/prize-splitter/components/prize-splitter-calculator";
 
@@ -11,7 +13,12 @@ export const metadata = {
 export default async function PrizeSplitterPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requireOrganizationContext(orgSlug);
-  await requireEntitlement(ctx.organization.id, "prize-splitter");
+  try {
+    await requireEntitlement(ctx.organization.id, "prize-splitter");
+  } catch (e) {
+    if (isEntitlementDenied(e)) return <AccessDenied orgSlug={orgSlug} />;
+    throw e;
+  }
 
   return (
     <div className="space-y-6">

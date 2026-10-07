@@ -53,6 +53,7 @@ export interface Organization {
   name: string;
   slug: string;
   owner_id: string;
+  logo_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -265,3 +266,43 @@ export interface Payment {
 // Joined helpers
 export type OrganizationWithRole = Organization & { role: OrganizationRole };
 export type EntitlementWithTool = ToolEntitlement & { tool: Tool | null };
+
+export type DraftMatchStatus = "in_progress" | "completed" | "abandoned";
+
+export interface DraftMatch {
+  id: string;
+  organization_id: string;
+  created_by: string;
+  ref_code: string;
+  match_name: string | null;
+  event_name: string | null;
+  format_label: string | null;
+  notes: string | null;
+  team_a: string;
+  team_b: string;
+  template_id: string | null;
+  sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" }>;
+  pool: string[];
+  actions: Array<{ stepIndex: number; team: "A" | "B"; type: "ban" | "pick"; item: string; at: string }>;
+  status: DraftMatchStatus;
+  share_token: string;
+  cloned_from: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DraftTemplate {
+  id: string;
+  organization_id: string;
+  name: string;
+  config: {
+    sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" }>;
+    pool: string[];
+    teamA: string | null;
+    teamB: string | null;
+  };
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}

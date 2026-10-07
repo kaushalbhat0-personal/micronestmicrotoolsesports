@@ -25,7 +25,7 @@ export function ConnectTwitchForm({ orgSlug, hasCredentials }: { orgSlug: string
     e.preventDefault();
     setMessage(null);
     if (!hasCredentials) {
-      setMessage("Connect your Twitch API access first.");
+      setMessage("Connect your Twitch account first (in Connections).");
       setIsError(true);
       return;
     }

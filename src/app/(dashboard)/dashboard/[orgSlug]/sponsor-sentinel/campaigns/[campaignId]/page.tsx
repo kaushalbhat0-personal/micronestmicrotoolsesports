@@ -1,6 +1,8 @@
 import * as React from "react";
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
+import { isEntitlementDenied } from "@/lib/errors";
+import { AccessDenied } from "@/components/shared/access-denied";
 import { createClient } from "@/lib/supabase/server";
 import { getCampaign } from "@/features/sponsor-sentinel/services/campaign-service";
 import { listDeliverablesByCampaign } from "@/server/repositories/deliverables";
@@ -46,7 +48,12 @@ function platformLabel(platform: string): string {
 export default async function CampaignDetailPage({ params }: { params: Promise<{ orgSlug: string; campaignId: string }> }) {
   const { orgSlug, campaignId } = await params;
   const ctx = await requireOrganizationContext(orgSlug);
-  await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  try {
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  } catch (e) {
+    if (isEntitlementDenied(e)) return <AccessDenied orgSlug={orgSlug} />;
+    throw e;
+  }
   const supabase = await createClient();
 
   const [campaign, deliverables, channels, campaignScans] = await Promise.all([

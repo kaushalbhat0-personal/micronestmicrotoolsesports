@@ -16,7 +16,7 @@ export interface ToolConfig {
 export const TOOLS: ToolConfig[] = [
   {
     slug: "sponsor-sentinel",
-    name: "Sponsor Sentinel",
+    name: "Sponsorship Tracking",
     description: "Proof-of-performance for sponsors — Twitch VOD scanning",
     href: "/dashboard/sponsor-sentinel",
     icon: "ShieldCheck",
@@ -35,6 +35,13 @@ export const TOOLS: ToolConfig[] = [
     description: "Split a prize pool in seconds — deterministic payouts",
     href: "/dashboard/prize-splitter",
     icon: "Split",
+  },
+  {
+    slug: "draft-ban",
+    name: "Draft & Ban",
+    description: "Professional match draft room — run vetoes and lock official records",
+    href: "/dashboard/draft-ban",
+    icon: "Swords",
   },
   {
     slug: "vod-clipper",

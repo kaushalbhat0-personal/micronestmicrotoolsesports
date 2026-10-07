@@ -41,7 +41,7 @@ export default async function BillingPage({
     <div className="space-y-8">
       <PageHeader
         title="Billing"
-        description={`Subscription software billing and workspace access for ${ctx.organization.name} — digital service, billed per organization workspace.`}
+        description={`Subscription software billing and workspace access for ${ctx.organization.name} — digital service, billed per workspace.`}
       />
       <BillingClient
         organizationId={ctx.organization.id}

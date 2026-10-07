@@ -6,12 +6,19 @@ import Link from "next/link";
 import { TOOLS } from "@/config/app/tools";
 import { getUserOrganizations } from "@/lib/auth/require-membership";
 import { getCurrentUser } from "@/lib/auth/get-user";
+import { createClient } from "@/lib/supabase/server";
+import { getPlanContext } from "@/server/billing/plan-context";
+import { formatPlanPrice, getPurchaseGuide, periodLabel } from "@/lib/purchase/plan-guidance";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Building2 } from "lucide-react";
+import { Building2, ArrowRight } from "lucide-react";
 
 // Route page orchestrates — obtains context via lib/auth, delegates to services, renders UI.
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams?: Promise<{ plan?: string }> }) {
   const user = await getCurrentUser();
+  const supabase = await createClient();
+  const sp = searchParams ? await searchParams : undefined;
+  const plan = await getPlanContext(supabase, sp?.plan);
+  const guide = getPurchaseGuide(plan?.slug);
 
   let orgs: Awaited<ReturnType<typeof getUserOrganizations>> = [];
   try {
@@ -24,30 +31,50 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <PageHeader
         title={`Welcome${user?.email ? `, ${user.email}` : ""}`}
-        description="Your esports command center. Select a tool or manage your organizations."
+        description="Your esports command center. Select a tool or manage your workspaces."
         action={
-          <Link href="/dashboard/organizations/new" className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            Create organization
+          <Link href={plan ? `/dashboard/organizations/new?plan=${plan.slug}` : "/dashboard/organizations/new"} className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Create workspace
           </Link>
         }
       />
 
+      {plan && guide ? (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-base">Continue getting {guide.toolName}</CardTitle>
+            <CardDescription>
+              {plan.name} · {formatPlanPrice(plan.amountMinor, plan.currency)} / {periodLabel(plan.billingPeriod)} · Manual renewal, no automatic charge. Create a
+              workspace to continue — you&apos;ll pay in Billing.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href={`/dashboard/organizations/new?plan=${plan.slug}`}
+              className="inline-flex min-h-[44px] items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Create workspace and continue <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
+            </Link>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {orgs.length === 0 ? (
         <EmptyState
           icon={<Building2 className="h-8 w-8" />}
-          title="No organization yet"
-          description="Create an organization to unlock tools and subscriptions. You can join multiple orgs from one account."
+          title="No workspace yet"
+          description="Create a workspace to unlock tools and subscriptions. You can join multiple workspaces from one account."
           action={
-            <Link href="/dashboard/organizations/new" className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)]">
-              Create organization
+            <Link href={plan ? `/dashboard/organizations/new?plan=${plan.slug}` : "/dashboard/organizations/new"} className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)]">
+              Create workspace
             </Link>
           }
         />
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Your organizations</CardTitle>
-            <CardDescription>{orgs.length} organization(s) — switch context to access tools per org.</CardDescription>
+            <CardTitle className="text-base">Your workspaces</CardTitle>
+            <CardDescription>{orgs.length} workspace(s) — switch context to access tools per workspace.</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">

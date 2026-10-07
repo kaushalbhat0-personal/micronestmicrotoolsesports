@@ -54,8 +54,18 @@ export function conflictError(message: string) {
   return new AppError({ code: "CONFLICT", status: 409, message, safeMessage: message });
 }
 
-export function entitlementError(message = "Entitlement required") {
+export function entitlementError(message = "This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.") {
   return new AppError({ code: "ENTITLEMENT_REQUIRED", status: 403, message, safeMessage: message });
+}
+
+/**
+ * Typed access-denied check for tool-page gates.
+ * Lets server pages render a customer-facing access screen for the expected
+ * entitlement case without relying on error-boundary message sniffing
+ * (which production error redaction defeats). Any other error must rethrow.
+ */
+export function isEntitlementDenied(error: unknown): boolean {
+  return error instanceof AppError && error.code === "ENTITLEMENT_REQUIRED";
 }
 
 export function integrationError(message: string, cause?: unknown) {

@@ -16,7 +16,7 @@ vi.mock("@/features/sponsor-sentinel/actions/channel-actions", () => ({
 }));
 
 describe("Kick integrations UI", () => {
-  it("Kick OAuth-only — no legacy fields, shows OAuth connect", () => {
+  it("Kick connect-only — no legacy fields, shows account connect", () => {
     const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: false }} kick={{ configured: false }} />);
     expect(html).toContain("Kick");
     expect(html).toContain("Connect Kick");
@@ -25,10 +25,10 @@ describe("Kick integrations UI", () => {
     expect(html).not.toContain('aria-label="Save Kick connection"');
   });
 
-  it("Kick OAuth card shows Connect without legacy form", () => {
+  it("Kick connect card shows Connect without legacy form", () => {
     const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: false }} youtube={{ configured: false }} kick={{ configured: false }} />);
     expect(html).toContain('aria-label="Connect Kick"');
-    expect(html).toContain("Connect your Kick account via OAuth");
+    expect(html).toContain("Connect your Kick account to verify creator channels");
   });
 
   it("Kick channel connect form renders with a11y", () => {
@@ -36,7 +36,7 @@ describe("Kick integrations UI", () => {
     expect(html).toContain("Kick channel");
     expect(html).toContain("kick-handle");
     expect(html).toContain('aria-label="Connect Kick"');
-    expect(html).toContain("Enter the Kick slug");
+    expect(html).toContain("Enter the Kick channel name");
   });
 
   it("Kick channel form hasCredentials false shows error path", () => {
@@ -44,7 +44,7 @@ describe("Kick integrations UI", () => {
     expect(html).toContain("Kick channel");
   });
 
-  it("Twitch/YouTube UI regression — still render OAuth", () => {
+  it("Twitch/YouTube UI regression — still render account connect", () => {
     const html = renderToString(<IntegrationsForm orgSlug="org-1" twitch={{ configured: true, hasOAuth: true, externalAccountLogin: "twitchUser" }} youtube={{ configured: true, hasOAuth: true, externalAccountLogin: "@mystic" }} kick={{ configured: false }} />);
     expect(html).toContain("Twitch");
     expect(html).toContain("YouTube");

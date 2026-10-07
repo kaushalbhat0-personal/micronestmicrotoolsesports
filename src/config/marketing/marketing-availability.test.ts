@@ -6,7 +6,7 @@ import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import { toWorkspaceTools } from "@/server/services/workspace-tools";
 
 const UNRELEASED = ["scrim-matchmaker", "vod-clipper", "roster-sentinel"] as const;
-const AVAILABLE = ["sponsor-sentinel", "prize-splitter"] as const;
+const AVAILABLE = ["sponsor-sentinel", "prize-splitter", "draft-ban"] as const;
 
 function src(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -31,6 +31,7 @@ describe("frontend availability truth — RCCF-AVAILABILITY-UI-02", () => {
     const byInternal = new Map(MARKETING_TOOLS.map((t) => [t.internalSlug, t.status]));
     expect(byInternal.get("sponsor-sentinel")).toBe("available");
     expect(byInternal.get("prize-splitter")).toBe("available");
+    expect(byInternal.get("draft-ban")).toBe("available");
     for (const slug of UNRELEASED) expect(byInternal.get(slug)).toBe("coming-soon");
   });
 
@@ -41,7 +42,7 @@ describe("frontend availability truth — RCCF-AVAILABILITY-UI-02", () => {
   });
 
   it("workspace view-model propagates comingSoon so nav renders disabled", () => {
-    const { entitled, available } = toWorkspaceTools(TOOLS, ["sponsor-sentinel", "prize-splitter"], "acme");
+    const { entitled, available } = toWorkspaceTools(TOOLS, ["sponsor-sentinel", "prize-splitter", "draft-ban"], "acme");
     const all = [...entitled, ...available];
     for (const slug of UNRELEASED) {
       const tool = all.find((t) => t.slug === slug);
@@ -55,22 +56,23 @@ describe("frontend availability truth — RCCF-AVAILABILITY-UI-02", () => {
     }
   });
 
-  it("billing surfaces never promise future tools", () => {
-    for (const path of [
-      "src/features/billing/components/billing-client.tsx",
-      "src/app/(dashboard)/dashboard/[orgSlug]/settings/billing/page.tsx",
-    ]) {
-      expect(src(path)).not.toMatch(/future tools/i);
-    }
-    expect(src("src/features/billing/components/billing-client.tsx")).toMatch(/currently available tools/);
+  it("billing surfaces state the at-purchase-time policy without promising future tools", () => {
+    const billing = src("src/features/billing/components/billing-client.tsx");
+    // Explicit policy only: future tools are NOT automatically included.
+    expect(billing).toContain("not automatically included");
+    expect(billing).not.toMatch(/future tools are included|future tools included automatically|all future tools/i);
+    expect(billing).toMatch(/currently available tools/);
+    // Pricing card carries the same policy.
+    expect(src("src/app/pricing/pricing-client.tsx")).toContain("not automatically included");
   });
 
   it("pricing offers no unreleased tool", () => {
     for (const path of ["src/app/pricing/pricing-client.tsx", "src/app/pricing/page.tsx"]) {
       const content = src(path);
-      for (const slug of [...UNRELEASED, "draft-ban", "draft_ban"]) {
+      for (const slug of [...UNRELEASED, "draft_ban"]) {
         expect(content).not.toContain(slug);
       }
+      expect(content).toContain("draft-ban");
     }
   });
 

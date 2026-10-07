@@ -23,6 +23,7 @@ describe("tool availability — RCCF-SPONSOR-FINAL-02", () => {
   it("fresh seeds mark only available tools active", () => {
     expect(activeFlag(seedSql, "sponsor-sentinel")).toBe(true);
     expect(activeFlag(seedSql, "prize-splitter")).toBe(true);
+    expect(activeFlag(seedSql, "draft-ban")).toBe(true);
     expect(activeFlag(seedSql, "scrim-matchmaker")).toBe(false);
     expect(activeFlag(seedSql, "vod-clipper")).toBe(false);
     expect(activeFlag(seedSql, "roster-sentinel")).toBe(false);
@@ -50,14 +51,15 @@ describe("tool availability — RCCF-SPONSOR-FINAL-02", () => {
     expect(correctiveSql).toMatch(/is_active\s*=\s*true/);
   });
 
-  it("registry keeps all five tools with honest coming-soon flags", () => {
+  it("registry keeps all six tools with honest coming-soon flags", () => {
     // Future tools are NOT deleted — they remain as labelled teasers.
     expect(TOOLS.map((t) => t.slug).sort()).toEqual(
-      ["prize-splitter", "roster-sentinel", "scrim-matchmaker", "sponsor-sentinel", "vod-clipper"].sort()
+      ["prize-splitter", "draft-ban", "roster-sentinel", "scrim-matchmaker", "sponsor-sentinel", "vod-clipper"].sort()
     );
     const flag = new Map(TOOLS.map((t) => [t.slug, Boolean(t.comingSoon)]));
     expect(flag.get("sponsor-sentinel")).toBe(false);
     expect(flag.get("prize-splitter")).toBe(false);
+    expect(flag.get("draft-ban")).toBe(false);
     expect(flag.get("scrim-matchmaker")).toBe(true);
     expect(flag.get("vod-clipper")).toBe(true);
     expect(flag.get("roster-sentinel")).toBe(true);

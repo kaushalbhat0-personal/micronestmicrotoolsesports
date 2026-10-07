@@ -30,7 +30,7 @@ export async function activateCampaign(supabase: SupabaseClient, organizationId:
 
   // Entitlement check — use has_tool_access RPC directly for server-side
   const has = await checkEntitlement(supabase, organizationId);
-  if (!has) throw entitlementError("Sponsor Sentinel entitlement required");
+  if (!has) throw entitlementError("Sponsorship Tracking isn't active for your workspace yet. Check your plan or open Billing to activate access.");
 
   // Must have at least one usable connected channel
   const channels = await channelRepo.listConnectedChannelsByOrg(supabase, organizationId);

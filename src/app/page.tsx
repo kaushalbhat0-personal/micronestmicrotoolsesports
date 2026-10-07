@@ -7,25 +7,25 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import type { ToolAccent } from "@/config/marketing/tools";
-import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, ArrowRight, Users, Trophy, Video, Layers } from "lucide-react";
+import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, ArrowRight, Users, Trophy, Video, Layers } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "MicroNest — Subscription Software for Esports Operations",
-  description:
-    "MicroNest is a subscription software platform providing focused tools for the business of esports — sponsorship tracking, prize pool calculations, scrim coordination and more. Customers subscribe for digital access per workspace.",
-  alternates: { canonical: "/" },
-  openGraph: {
-    title: "MicroNest — Focused Tools for the Business of Esports",
     description:
-      "A growing collection of focused tools for the business of esports. Sponsorship Tracking, Scrim Matchmaker, Prize Pool Splitter, VOD Clipper, Roster Sentinel.",
-    type: "website",
-    url: "/",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "MicroNest — Focused Tools for the Business of Esports",
-    description: "Focused tools for the business of esports. Sponsorships. Scrims. Prizes. Content. Rosters.",
-  },
+      "MicroNest is a subscription software platform providing focused tools for the business of esports — Sponsorship Tracking, Prize Pool Splitter, and Draft & Ban available now; more tools coming soon. Customers subscribe for digital access per workspace.",
+  alternates: { canonical: "/" },
+    openGraph: {
+      title: "MicroNest — Focused Tools for the Business of Esports",
+      description:
+        "A growing collection of focused tools for the business of esports. Sponsorship Tracking, Prize Pool Splitter, and Draft & Ban available now — more coming soon.",
+      type: "website",
+      url: "/",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "MicroNest — Focused Tools for the Business of Esports",
+      description: "Focused tools for the business of esports. Sponsorship Tracking, Prize Pool Splitter, and Draft & Ban available now.",
+    },
 };
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -34,6 +34,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Split,
   Scissors,
   FileCheck,
+  Swords,
 };
 
 function accentClass(accent: ToolAccent): string {
@@ -72,6 +73,9 @@ export default function MarketingPage() {
             <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground">
               MicroNest is a subscription software platform — a growing collection of focused tools for the business of esports — designed to remove
               repetitive work behind competitive gaming. Customers subscribe for digital access to the tools they need. Start with one tool, add more as you need them.
+            </p>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Sponsorship Tracking, Prize Pool Splitter, and Draft &amp; Ban are available now. Scrim Matchmaker, VOD Clipper, and Roster Sentinel are coming soon.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
@@ -159,7 +163,7 @@ export default function MarketingPage() {
               <div className="rounded-[16px] border border-border bg-card p-5">
                 <Users className="h-5 w-5 text-primary" />
                 <h3 className="mt-3 text-sm font-semibold">Start with what you need</h3>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Use Sponsorship Tracking today, add Scrim or Prize tools when you need them.</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Use Sponsorship Tracking today, add Prize or Draft tools when you need them.</p>
               </div>
               <div className="rounded-[16px] border border-border bg-card p-5">
                 <Trophy className="h-5 w-5 text-primary" />

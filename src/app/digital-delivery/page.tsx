@@ -29,7 +29,7 @@ export default function DigitalDeliveryPage() {
               <section>
                 <h2 className="text-lg font-semibold">2. What delivery means</h2>
                 <p className="mt-2 text-muted-foreground">
-                  Delivery is the provisioning of software access to your organization/workspace. After you select a plan (monthly or yearly) and complete checkout via Razorpay, MicroNest verifies the payment server-side and grants an entitlement for the selected tool or All Access to that workspace. You can confirm delivery in Dashboard → Settings → Billing, where current access and “Active until” are displayed.
+                  Delivery is the activation of software access for your workspace. After you select a plan (monthly or yearly) and complete checkout via Razorpay, MicroNest verifies the payment and gives the selected tool or All Access to that workspace. You can confirm delivery in Dashboard → Settings → Billing, where current access and “Active until” are displayed.
                 </p>
               </section>
 
@@ -38,8 +38,8 @@ export default function DigitalDeliveryPage() {
                 <ol className="mt-3 list-decimal space-y-2 pl-5 text-muted-foreground">
                   <li>Choose a plan (e.g., Sponsorship Tracking — Monthly ₹1,499 or All Access — Monthly ₹2,499) in Settings → Billing.</li>
                   <li>Complete checkout via Razorpay — you will see the plan name, amount in INR, currency, and billing period before confirming.</li>
-                  <li>MicroNest creates an order and Razorpay order server-side (receipt = MicroNest order ID).</li>
-                  <li>After payment, Razorpay signature is verified server-side and MicroNest provisions the entitlement to your organization/workspace.</li>
+                  <li>MicroNest creates an order with Razorpay (receipt = MicroNest order ID).</li>
+                  <li>After payment, MicroNest confirms the payment and activates access for your workspace.</li>
                   <li>Access becomes available immediately after verification — no manual activation or shipping delay.</li>
                 </ol>
               </section>
@@ -54,7 +54,7 @@ export default function DigitalDeliveryPage() {
               <section>
                 <h2 className="text-lg font-semibold">5. Access association</h2>
                 <p className="mt-2 text-muted-foreground">
-                  Access is associated with the organization/workspace you selected at checkout (organization_id). It is not tied to a single device or email beyond workspace membership. Only members of that organization can use the entitled tools.
+                  Access belongs to the workspace you selected at checkout. It is not tied to a single device or email beyond workspace membership. Only members of that workspace can use the active tools.
                 </p>
               </section>
 
@@ -70,7 +70,7 @@ export default function DigitalDeliveryPage() {
                 <p className="mt-2 text-muted-foreground">
                   For delivery questions, check Dashboard → Settings → Billing for current access status or contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a>. Location: Pune, Maharashtra, India.
                 </p>
-                <p className="mt-2 text-xs text-muted-foreground">Do not send Razorpay signatures or OAuth secrets by email. No refunds after purchase and provisioning — see <a href="/refund" className="underline underline-offset-4 hover:text-foreground">Refund &amp; Cancellation Policy</a>.</p>
+                <p className="mt-2 text-xs text-muted-foreground">Do not send payment details or passwords by email. No refunds after purchase and provisioning — see <a href="/refund" className="underline underline-offset-4 hover:text-foreground">Refund &amp; Cancellation Policy</a>.</p>
               </section>
             </div>
           </div>

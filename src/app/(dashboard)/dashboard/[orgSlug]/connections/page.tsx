@@ -1,5 +1,7 @@
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
+import { isEntitlementDenied } from "@/lib/errors";
+import { AccessDenied } from "@/components/shared/access-denied";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listProviderCredentialsByOrg, toMaskedView } from "@/server/credentials/repository";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,7 +15,12 @@ import { Plug, ShieldCheck, Info } from "lucide-react";
 export default async function ConnectionsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requireOrganizationContext(orgSlug);
-  await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  try {
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  } catch (e) {
+    if (isEntitlementDenied(e)) return <AccessDenied orgSlug={orgSlug} />;
+    throw e;
+  }
 
   const admin = createAdminClient();
   const providerRows = await listProviderCredentialsByOrg(admin as never, ctx.organization.id);
@@ -54,7 +61,7 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ or
     <div className="space-y-8">
       <PageHeader
         title="Platform Connections"
-        description={`Which platforms are connected for ${ctx.organization.name}? Authorize once per platform — tokens are securely stored for your workspace.`}
+        description={`Which accounts are connected for ${ctx.organization.name}? Connect once per platform — we keep your connection secure.`}
       />
 
       <div className="rounded-[12px] border border-border bg-surface-muted/40 p-4 text-sm">
@@ -62,7 +69,7 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ or
           <Plug className="h-4 w-4 text-muted-foreground" /> How it works
         </p>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
-          <li>Authorize YouTube, Twitch or Kick via OAuth — one click, no manual keys.</li>
+            <li>Connect your YouTube, Twitch, or Kick account — one click, nothing to set up.</li>
           <li>
             Add creator channels in{" "}
             <Link href={`/dashboard/${orgSlug}/channels` as Route} className="text-primary underline">
@@ -107,7 +114,7 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ or
       <section className="space-y-4">
         <SectionHeader
           title="Manage connections"
-          description="Connect with one click — we securely store your platform account connection. No manual keys needed."
+          description="Connect with one click — we keep your account connection secure. Nothing to set up."
         />
         <p className="text-xs text-muted-foreground">Connections are securely stored and never exposed. Re-connect if a platform account expires or is revoked.</p>
       </section>

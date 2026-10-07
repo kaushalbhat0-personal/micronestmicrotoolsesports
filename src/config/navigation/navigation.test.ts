@@ -47,10 +47,10 @@ describe("Navigation", () => {
     expect(campaigns?.comingSoon).toBeFalsy();
   });
 
-  it("Organizations remains accessible as global", () => {
+  it("Workspaces remains accessible as global", () => {
     const nav = getDashboardNav("org1");
-    expect(nav.some((n) => n.label === "Organizations" && n.href === "/dashboard/organizations")).toBe(true);
-    expect(dashboardNav.some((n) => n.label === "Organizations")).toBe(true);
+    expect(nav.some((n) => n.label === "Workspaces" && n.href === "/dashboard/organizations")).toBe(true);
+    expect(dashboardNav.some((n) => n.label === "Workspaces")).toBe(true);
   });
 
   it("ordering: Overview before Campaigns before Checks before Channels", () => {

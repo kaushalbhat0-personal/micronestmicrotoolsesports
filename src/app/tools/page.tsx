@@ -6,12 +6,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import type { ToolAccent } from "@/config/marketing/tools";
-import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, ArrowRight } from "lucide-react";
+import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Esports Tools — MicroNest Collection",
   description:
-    "Explore MicroNest's subscription software for esports: Sponsorship Tracking, Scrim Matchmaker, Prize Pool Splitter, VOD Clipper, Roster Sentinel. Customers subscribe for digital access to the tools they need.",
+    "Explore MicroNest's subscription software for esports: Sponsorship Tracking, Prize Pool Splitter, and Draft & Ban, available now. Scrim Matchmaker, VOD Clipper, and Roster Sentinel are coming soon.",
   alternates: { canonical: "/tools" },
   openGraph: {
     title: "Esports Tools — MicroNest",
@@ -32,6 +32,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Split,
   Scissors,
   FileCheck,
+  Swords,
 };
 
 function accentClass(accent: ToolAccent): string {
@@ -98,7 +99,7 @@ export default function ToolsPage() {
                       href={`/tools/${tool.slug}`}
                       className="inline-flex h-9 items-center rounded-full border border-border bg-card px-4 text-sm font-medium hover:bg-muted min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]"
                     >
-                      View tool <ArrowRight className="ml-2 h-4 w-4" />
+                      {isAvailable ? "View tool" : "Preview concept"} <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </CardContent>
                 </Card>

@@ -11,7 +11,7 @@ export async function requestManualScan(supabase: SupabaseClient, organizationId
 
   // Entitlement check
   const has = await checkEntitlement(supabase, organizationId);
-  if (!has) throw entitlementError("Sponsor Sentinel entitlement required");
+  if (!has) throw entitlementError("Sponsorship Tracking isn't active for your workspace yet. Check your plan or open Billing to activate access.");
 
   // Call existing scanner — DISCOVER→FETCH→NORMALIZE→EVALUATE→PERSIST
   const result = await executeScan({ supabase, input: { organizationId, campaignId } });

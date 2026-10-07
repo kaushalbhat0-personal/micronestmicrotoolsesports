@@ -180,7 +180,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
               <p>Group proof by content. One video should appear once with the requirements it satisfies, not as duplicated rows per requirement. Keep check history for the campaign so reporting is a timeline, not a folder of screenshots.</p>
 
               <h2>How Sponsorship Tracking fits</h2>
-              <p>Create a campaign, connect creator channels (YouTube/Twitch/Kick), define requirements, run checks, and review proof and results in one place. Checks are read-only; proof is immutable for auditability.</p>
+              <p>Create a campaign, connect creator channels (YouTube/Twitch/Kick), define requirements, run checks, and review proof and results in one place. Checks are read-only; proof can&apos;t be changed after it is recorded.</p>
             </div>
 
             <Card className="mt-10 border-primary/20 bg-primary/5">

@@ -29,13 +29,13 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold">2. What MicroNest provides</h2>
               <p className="mt-2 text-muted-foreground">
-                MicroNest (“MicroNest MicroTools — Esports”) is a subscription software platform that provides focused workflow tools for esports teams, organizations, creators, and tournament operators. MicroNest hosts independent micro-tools for esports organizations (for example, Sponsorship Tracking). Features are provided on an organization/workspace basis. No tool is intended to replace platform-native dashboards; they provide narrow, independently valuable verification and tracking.
+                MicroNest (“MicroNest MicroTools — Esports”) is a subscription software platform that provides focused workflow tools for esports teams, organizations, creators, and tournament operators. MicroNest hosts independent micro-tools for esports organizations (for example, Sponsorship Tracking). Features are provided per workspace. No tool is intended to replace platform-native dashboards; they provide narrow, independently valuable verification and tracking.
               </p>
               <p className="mt-2 text-xs text-muted-foreground">Brand: MicroNest · Product: MicroNest MicroTools — Esports · Operating location: Pune, Maharashtra, India · Support: <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a> · MicroNest is currently not registered for GST.</p>
               <div className="mt-4 space-y-3 rounded-[12px] border border-border bg-surface-muted/30 p-4">
                 <h3 className="text-sm font-semibold">Service type — digital software</h3>
                 <p className="text-sm text-muted-foreground">
-                  MicroNest provides digital software services. Purchases grant subscription access to the selected tool or bundled All Access within your organization/workspace. No physical products are shipped.
+                  MicroNest provides digital software services. Purchases grant subscription access to the selected tool or bundled All Access within your workspace. No physical products are shipped.
                 </p>
                 <h3 className="text-sm font-semibold">Subscription — monthly and yearly</h3>
                 <p className="text-sm text-muted-foreground">
@@ -43,11 +43,11 @@ export default function TermsPage() {
                 </p>
                 <h3 className="text-sm font-semibold">Digital delivery</h3>
                 <p className="text-sm text-muted-foreground">
-                  No physical shipping occurs. Software access is provisioned digitally to your organization/workspace immediately after payment verification (Razorpay → webhook → entitlement). You can confirm access in Dashboard → Settings → Billing.
+                  No physical shipping occurs. Software access is activated for your workspace immediately after payment confirmation. You can confirm access in Dashboard → Settings → Billing.
                 </p>
                 <h3 className="text-sm font-semibold">Refunds</h3>
                 <p className="text-sm text-muted-foreground">
-                  No refunds after purchase and digital access provisioning. See <a href="/refund" className="underline underline-offset-4 hover:text-foreground">Refund &amp; Cancellation Policy</a>. Legitimate duplicate or erroneous payment issues can be reported to <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a> for investigation — this does not create an automatic refund entitlement.
+                  No refunds after purchase and digital access provisioning. See <a href="/refund" className="underline underline-offset-4 hover:text-foreground">Refund &amp; Cancellation Policy</a>. Legitimate duplicate or erroneous payment issues can be reported to <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a> for investigation — this does not create an automatic right to a refund.
                 </p>
               </div>
             </section>
@@ -60,10 +60,10 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold">4. Workspaces and organizations</h2>
+              <h2 className="text-lg font-semibold">4. Workspaces</h2>
               <p className="mt-2 text-muted-foreground">
-                Organizations contain campaigns, channels, scans, evidence, and integrations. Membership and entitlements control access. Only members of an organization may view or manage its
-                data, enforced by workspace isolation in the product.
+                Workspaces contain campaigns, channels, checks, proof, and connections. Your plan controls which tools you can use. Only members of a workspace may view or manage its
+                data.
               </p>
             </section>
 
@@ -72,8 +72,8 @@ export default function TermsPage() {
               <p className="mt-2 text-muted-foreground">You agree not to:</p>
               <ul className="mt-3 list-disc space-y-1 pl-5 text-muted-foreground">
                 <li>violate applicable laws or platform terms (Twitch, YouTube, Kick) when connecting creator channels;</li>
-                <li>attempt to access data of organizations you are not a member of;</li>
-                <li>abuse rate limits, quotas, or attempt to bypass YouTube Data API quotas; </li>
+                <li>attempt to access data of workspaces you are not a member of;</li>
+                <li>abuse rate limits or quotas;</li>
                 <li>upload malicious content or interfere with the service.</li>
               </ul>
             </section>
@@ -81,17 +81,16 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold">6. Third-party integrations</h2>
               <p className="mt-2 text-muted-foreground">
-                MicroNest connects to third-party platforms (YouTube, Twitch, Kick, and others) via their public APIs or OAuth where you have explicitly connected an account. Each integration is
+                MicroNest connects to third-party platforms (YouTube, Twitch, Kick, and others) where you have explicitly connected an account. Each integration is
                 subject to that platform’s terms:
               </p>
               <ul className="mt-3 list-disc space-y-1 pl-5 text-muted-foreground">
-                <li>YouTube features use the YouTube Data API v3 and `youtube.readonly` OAuth where connected;</li>
-                <li>Twitch features use Helix API;</li>
-                <li>Kick features use the Kick Public API.</li>
+                <li>YouTube features read your connected YouTube data with your permission;</li>
+                <li>Twitch features read your connected Twitch data with your permission;</li>
+                <li>Kick features read your connected Kick data with your permission.</li>
               </ul>
               <p className="mt-3 text-muted-foreground">
-                MicroNest’s ability to fetch channel or video data depends on those platforms remaining available and on you maintaining a valid connection (including valid OAuth
-                authorization where applicable). We do not control third-party availability, quotas, or approval.
+                MicroNest’s ability to fetch channel or video data depends on those platforms remaining available and on you keeping your account connected. We do not control third-party availability, quotas, or approval.
               </p>
             </section>
 
@@ -117,7 +116,7 @@ export default function TermsPage() {
               <h2 className="text-lg font-semibold">8. Your content and data</h2>
               <p className="mt-2 text-muted-foreground">
                 You retain ownership of content you provide. You grant MicroNest a limited license to process workspace content (campaign requirements, connected channel identifiers, and fetched
-                public or authorized video/channel metadata) solely to provide the requested tool functionality (scans, evidence, proof, results).
+                public or authorized video/channel metadata) solely to provide the requested tool functionality (checks, proof, results).
               </p>
             </section>
 
@@ -168,7 +167,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold">15. Contact</h2>
               <p className="mt-2 text-muted-foreground">
-                For questions about these Terms, billing, payments, or service issues, contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a>. Workspace members may also contact their workspace owner or check Dashboard → Settings → Billing for current access. Do not send passwords, OAuth secrets, Razorpay signatures, or payment credentials by email. Operating location: Pune, Maharashtra, India.
+                For questions about these Terms, billing, payments, or service issues, contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a>. Workspace members may also contact their workspace owner or check Dashboard → Settings → Billing for current access. Do not send passwords, payment details, or connection secrets by email. Operating location: Pune, Maharashtra, India.
               </p>
               <p className="mt-2 text-xs text-muted-foreground">MicroNest Services is the planned parent business and is not represented as an already registered entity. No CIN, GSTIN, or registration number is claimed.</p>
             </section>

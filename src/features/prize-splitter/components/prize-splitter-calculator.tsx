@@ -288,6 +288,7 @@ export function PrizeSplitterCalculator() {
           <p className="text-sm font-medium">Split a tournament prize pool in seconds.</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             Enter the prize pool, choose how it should be distributed, and get exact payouts — reconciled to the last {symbol}0.01.
+            Calculations aren&apos;t saved in your workspace — copy, print, or share the result when you&apos;re done.
           </p>
         </div>
       </div>

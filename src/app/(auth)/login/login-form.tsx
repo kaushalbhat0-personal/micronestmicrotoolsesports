@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function LoginForm() {
+export function LoginForm({ plan }: { plan?: { slug: string; name: string; amountMinor: number; currency: string; billingPeriod: string } | null }) {
   const searchParams = useSearchParams();
   const resetSuccess = searchParams.get("reset") === "success";
   const [email, setEmail] = React.useState("");
@@ -28,7 +28,7 @@ export function LoginForm() {
       setLoading(false);
       return;
     }
-    window.location.href = "/dashboard";
+    window.location.href = plan ? `/dashboard?plan=${plan.slug}` : "/dashboard";
   }
 
   return (

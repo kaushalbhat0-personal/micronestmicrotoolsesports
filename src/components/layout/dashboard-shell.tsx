@@ -22,6 +22,7 @@ import {
   Split,
   Scissors,
   FileCheck,
+  Swords,
   ChevronRight,
   CreditCard,
   House,
@@ -45,6 +46,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Split,
   Scissors,
   FileCheck,
+  Swords,
   CreditCard,
 };
 
@@ -122,7 +124,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Your Tools</p>
           <div className="space-y-3">
             {entitled.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-muted-foreground">No tools entitled — explore More Tools below.</p>
+              <p className="px-3 py-2 text-xs text-muted-foreground">No tools active yet — explore More Tools below.</p>
             ) : (
               entitled.map((tool) => {
                 const ToolIcon = iconMap[tool.icon] ?? ShieldCheck;

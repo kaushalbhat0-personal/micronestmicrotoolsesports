@@ -24,8 +24,9 @@ export const requireEntitlement = cache(async (organizationId: string, toolSlug:
   const ctx = await requireOrganizationMember(organizationId);
 
   // Coming-Soon tools are never commercially available, regardless of DB/RPC state.
+  // Customer-safe message: no tool slugs, no internal access-system wording.
   if (!COMMERCIALLY_AVAILABLE_SLUGS.has(toolSlug)) {
-    throw entitlementError(`Organization does not have access to ${toolSlug}`);
+    throw entitlementError("This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
   }
 
   const supabase = await createClient();
@@ -38,15 +39,15 @@ export const requireEntitlement = cache(async (organizationId: string, toolSlug:
 
   // If RPC exists and returns boolean, use it
   if (!rpcError && typeof hasAccess === "boolean") {
-    if (!hasAccess) throw entitlementError(`Organization does not have access to ${toolSlug}`);
+    if (!hasAccess) throw entitlementError("This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
     return { ...ctx, toolSlug, hasAccess: true as const };
   }
 
   // Fallback — manual entitlement resolution
   const { data: tool } = await supabase.from("tools").select("id, slug, is_active").eq("slug", toolSlug).single();
 
-  if (!tool) throw entitlementError(`Unknown tool: ${toolSlug}`);
-  if (tool.is_active === false) throw entitlementError(`Organization does not have access to ${toolSlug}`);
+  if (!tool) throw entitlementError("This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
+  if (tool.is_active === false) throw entitlementError("This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
 
   const { data: entitlements } = await supabase
     .from("tool_entitlements")
@@ -56,7 +57,7 @@ export const requireEntitlement = cache(async (organizationId: string, toolSlug:
 
   const valid = (entitlements ?? []).some((e) => !e.expires_at || new Date(e.expires_at) > new Date());
 
-  if (!valid) throw entitlementError(`Organization does not have access to ${toolSlug}`);
+  if (!valid) throw entitlementError("This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
 
   return { ...ctx, toolSlug, hasAccess: true as const };
 });

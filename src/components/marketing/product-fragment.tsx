@@ -119,8 +119,39 @@ export function T04VodFragment() {
   );
 }
 
-export function T05RosterFragment() {
+export function T06DraftBanFragment() {
+  // Static sample only — illustrative example, not a real customer record.
+  const steps = [
+    { n: "1", team: "Falcons", action: "Ban", item: "Ascent" },
+    { n: "2", team: "Sentinels", action: "Ban", item: "Lotus" },
+    { n: "3", team: "Falcons", action: "Pick", item: "Haven" },
+    { n: "4", team: "Sentinels", action: "Pick", item: "Bind" },
+  ];
   return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold">Falcons vs Sentinels</p>
+        <span className="rounded-full border border-border bg-card px-2 py-0.5 font-mono text-[11px]">Record no. DB-2026-00042</span>
+      </div>
+      <ol className="space-y-1.5">
+        {steps.map((s) => (
+          <li key={s.n} className="flex flex-wrap items-center gap-x-2 rounded-[8px] bg-surface-muted/60 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">{s.n}.</span>
+            <span className="font-medium">{s.team}</span>
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${s.action === "Ban" ? "bg-destructive text-destructive-foreground" : "bg-success text-success-foreground"}`}>
+              {s.action}
+            </span>
+            <span className="font-medium">{s.item}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="font-mono text-[11px] text-muted-foreground">Remaining pool: Split · Decider: Split</p>
+      <p className="text-[11px] text-muted-foreground">Finished records are locked and can&apos;t be changed. Sample record — illustrative example.</p>
+    </div>
+  );
+}
+
+export function T05RosterFragment() {  return (
     <div className="space-y-3">
       <p className="text-xs font-semibold">Roster · Conceptual</p>
       <div className="rounded-[12px] border border-border bg-card p-4">
@@ -156,6 +187,8 @@ export function ProductFragment({ slug }: { slug: string }) {
       return <T04VodFragment />;
     case "roster-sentinel":
       return <T05RosterFragment />;
+    case "draft-ban":
+      return <T06DraftBanFragment />;
     default:
       return null;
   }

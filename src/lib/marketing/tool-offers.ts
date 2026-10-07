@@ -22,4 +22,5 @@ export function buildOffers(
 export const TOOL_PLAN_PREFIX: Record<string, string> = {
   "sponsorship-tracking": "sponsorship-tracking",
   "prize-pool-splitter": "prize-pool-splitter",
+  "draft-ban": "draft-ban",
 };

@@ -1,5 +1,7 @@
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
+import { isEntitlementDenied } from "@/lib/errors";
+import { AccessDenied } from "@/components/shared/access-denied";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +12,12 @@ import type { Route } from "next";
 export default async function SponsorSentinelPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requireOrganizationContext(orgSlug);
-  await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  try {
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  } catch (e) {
+    if (isEntitlementDenied(e)) return <AccessDenied orgSlug={orgSlug} />;
+    throw e;
+  }
 
   return (
     <div className="space-y-6">

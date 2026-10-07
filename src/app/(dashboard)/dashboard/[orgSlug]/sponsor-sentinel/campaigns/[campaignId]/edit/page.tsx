@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
+import { isEntitlementDenied } from "@/lib/errors";
+import { AccessDenied } from "@/components/shared/access-denied";
 import { createClient } from "@/lib/supabase/server";
 import { getCampaign } from "@/features/sponsor-sentinel/services/campaign-service";
 import { PageHeader } from "@/components/ui/page-header";
@@ -10,7 +12,12 @@ import { CampaignEditForm } from "@/features/sponsor-sentinel/components/campaig
 export default async function EditCampaignPage({ params }: { params: Promise<{ orgSlug: string; campaignId: string }> }) {
   const { orgSlug, campaignId } = await params;
   const ctx = await requireOrganizationContext(orgSlug);
-  await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  try {
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  } catch (e) {
+    if (isEntitlementDenied(e)) return <AccessDenied orgSlug={orgSlug} />;
+    throw e;
+  }
   const supabase = await createClient();
   const campaign = await getCampaign(supabase, ctx.organization.id, campaignId);
 

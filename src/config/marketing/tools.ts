@@ -25,7 +25,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     name: "Sponsorship Tracking",
     shortDescription: "Verify sponsor requirements and keep proof organized.",
     longDescription:
-      "Sponsorship Tracking is subscription software that helps esports creators, teams and organizations verify that creator content meets sponsor requirements — and keeps proof organized. MicroNest provides the tracking tools; customers manage their sponsor relationships.",
+      "Sponsorship Tracking is subscription software that helps esports creators, teams and organizations verify that creator content meets sponsor requirements — and keeps proof organized. MicroNest provides the tracking tools; customers manage their sponsor relationships. Note: Kick live and channel checks are supported; Kick recorded-video (VOD) checks aren't supported yet.",
     audience: ["Esports creators", "Esports teams", "Esports organizations", "Sponsorship managers"],
     features: [
       "Create sponsor campaigns with clear requirements",
@@ -49,14 +49,14 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     name: "Prize Pool Splitter",
     shortDescription: "Calculate prize distributions without spreadsheet headaches.",
     longDescription:
-      "Prize Pool Splitter is subscription software that helps tournament operators calculate and organize prize-pool distributions. Choose percentage, equal, ranked, or custom splits and generate reconciled, shareable payout tables in your workspace. MicroNest does not hold, escrow, or transfer prize money.",
+      "Prize Pool Splitter is subscription software that helps tournament operators calculate and organize prize-pool distributions. Choose percentage, equal, ranked, or custom splits and generate reconciled, shareable payout tables in your workspace. Results aren't saved in your workspace — copy, print, or share the result when you're done. MicroNest does not hold, escrow, or transfer prize money.",
     audience: ["Tournament organizers", "Esports teams"],
     features: [
       "Exact totals — reconciled to the last cent, no rounding drift",
       "INR / USD / EUR / GBP with correct locale formatting",
       "Percentage, equal, ranked (Top 3–Top 10) and custom splits",
       "Discord / WhatsApp / X-ready copy with one click",
-      "Shareable payout link (stateless URL) + CSV + Print",
+      "Shareable payout link (the link carries your result, so no account is needed to view it) + CSV + Print",
       "Live 100% validation — Total must equal 100%",
     ],
     status: "available",
@@ -68,6 +68,24 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     number: "T02",
     accent: "charcoal",
     motif: "50 / 30 / 20",
+  },
+  {
+    slug: "draft-ban",
+    name: "Draft & Ban",
+    shortDescription: "Run match drafts and keep official records.",
+    longDescription:
+      "Draft & Ban is subscription software that helps esports teams and organizers run match drafts with a standard veto sequence — and keeps locked, shareable official records. Available now.",
+    audience: ["Esports teams", "Coaches and managers", "Tournament organizers"],
+    features: ["Template-first draft setup", "Deterministic ban/pick sequence", "Locked official records with their own record numbers", "Shareable result links", "Draft history and run-again workflow"],
+    status: "available",
+    internalSlug: "draft-ban",
+    icon: "Swords",
+    seoTitle: "Esports Draft & Ban | MicroNest",
+    seoDescription:
+      "Subscription software to run match drafts and keep official records. Draft & Ban for esports teams and organizers — available now.",
+    number: "T06",
+    accent: "teal",
+    motif: "Ban · Pick · Lock",
   },
   {
     slug: "scrim-matchmaker",

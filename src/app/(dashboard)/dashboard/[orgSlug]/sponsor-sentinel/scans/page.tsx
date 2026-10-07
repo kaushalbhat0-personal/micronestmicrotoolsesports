@@ -1,5 +1,7 @@
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
+import { isEntitlementDenied } from "@/lib/errors";
+import { AccessDenied } from "@/components/shared/access-denied";
 import { createClient } from "@/lib/supabase/server";
 import { getScanHistory } from "@/features/sponsor-sentinel/services/scan-history";
 import { PageHeader } from "@/components/ui/page-header";
@@ -17,7 +19,12 @@ export const dynamic = "force-dynamic";
 export default async function ScanHistoryPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requireOrganizationContext(orgSlug);
-  await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  try {
+    await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
+  } catch (e) {
+    if (isEntitlementDenied(e)) return <AccessDenied orgSlug={orgSlug} />;
+    throw e;
+  }
 
   const supabase = await createClient();
   const { scans, total } = await getScanHistory(supabase, ctx.organization.id);

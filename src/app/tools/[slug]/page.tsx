@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { MARKETING_TOOLS, getMarketingTool } from "@/config/marketing/tools";
 import type { ToolAccent } from "@/config/marketing/tools";
-import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Check, ArrowRight } from "lucide-react";
+import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Check, ArrowRight } from "lucide-react";
 import { BrowserFrame } from "@/components/marketing/browser-frame";
 import { ShapeCrop } from "@/components/marketing/shape-crop";
 import { ProductFragment } from "@/components/marketing/product-fragment";
@@ -36,6 +36,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Split,
   Scissors,
   FileCheck,
+  Swords,
 };
 
 function accentClass(accent: ToolAccent): string {
@@ -88,6 +89,22 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
   const Icon = iconMap[tool.icon] ?? ShieldCheck;
   const related = MARKETING_TOOLS.filter((t) => t.slug !== tool.slug).slice(0, 2);
   const { offers: toolOffers } = await getOffersForTool(tool.slug);
+  // Compact pricing connection — monthly price from the authoritative catalog, never hardcoded.
+  const offerList = Array.isArray(toolOffers) ? toolOffers : [];
+  const monthlyOffer = offerList.find((o) => (o as { category?: string }).category === "monthly" && typeof (o as { price?: unknown }).price === "string") as
+    | { price: string; priceCurrency?: string }
+    | undefined;
+  const monthlyPrice =
+    monthlyOffer && tool.status === "available"
+      ? (() => {
+          try {
+            return new Intl.NumberFormat("en-IN", { style: "currency", currency: monthlyOffer.priceCurrency ?? "INR", maximumFractionDigits: 0 }).format(Number(monthlyOffer.price));
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+  const monthlyPlanSlug = tool.status === "available" && TOOL_PLAN_PREFIX[tool.slug] ? `${TOOL_PLAN_PREFIX[tool.slug]}-monthly` : null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -135,7 +152,7 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
                 </BrowserFrame>
               </div>
               <p className="mt-3 font-mono text-[11px] text-muted-foreground">
-                {tool.status === "available" ? "Real product fragment" : "Conceptual preview — feature not yet live"} · {tool.motif}
+                {tool.slug === "draft-ban" ? "Sample record — illustrative example" : tool.status === "available" ? "Real product fragment" : "Conceptual preview — feature not yet live"} · {tool.motif}
               </p>
             </div>
           </section>
@@ -182,9 +199,21 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2"><Check className="h-4 w-4 text-success" /> Available now</CardTitle>
                   <CardDescription>Try {tool.name} in your workspace — create a workspace and get started.</CardDescription>
+                  {monthlyPrice ? (
+                    <p className="mt-2 text-sm font-medium text-foreground">
+                      {monthlyPrice} / month · Manual renewal, no automatic charge.{" "}
+                      <Link href="/pricing" className="font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+                        See all plans →
+                      </Link>
+                    </p>
+                  ) : null}
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-3">
-                  <Link href="/signup" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Get started</Link>
+                  {monthlyPlanSlug ? (
+                    <Link href={`/signup?plan=${monthlyPlanSlug}`} className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Get {tool.name}</Link>
+                  ) : (
+                    <Link href="/signup" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Get started</Link>
+                  )}
                   <Link href="/dashboard" className="inline-flex h-10 items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Go to dashboard</Link>
                 </CardContent>
               </Card>
@@ -265,6 +294,47 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
                   <p className="mt-1 text-sm font-medium">For Tournament Organizers</p>
                   <p className="mt-1 text-xs text-muted-foreground line-clamp-2">Define, validate, and communicate payouts.</p>
                 </Link>
+              </div>
+            </section>
+          )}
+
+          {/* Draft & Ban — education cluster */}
+          {tool.slug === "draft-ban" && (
+            <section className="mt-10">
+              <h2 className="text-sm font-semibold">Learn more about Draft &amp; Ban</h2>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-[12px] border border-border bg-card p-4">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">What you need</p>
+                  <ul className="mt-2 space-y-1 text-sm leading-relaxed text-muted-foreground">
+                    <li>Two team names.</li>
+                    <li>A draft setup — start with Standard Veto, a ban-and-pick order both teams agree on.</li>
+                    <li>A map pool — the list of maps you can ban or pick from.</li>
+                  </ul>
+                </div>
+                <div className="rounded-[12px] border border-border bg-card p-4">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">What you get</p>
+                  <ul className="mt-2 space-y-1 text-sm leading-relaxed text-muted-foreground">
+                    <li>A finished draft record both teams can trust.</li>
+                    <li>A record number you can quote later.</li>
+                    <li>A shareable result link — people view it without signing in.</li>
+                    <li>A saved history entry, plus Run Again for the next match.</li>
+                  </ul>
+                </div>
+                <div className="rounded-[12px] border border-border bg-card p-4">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Finished means locked</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    When the draft is complete, you finish the record. Finished records are locked and can&apos;t be changed. To correct a
+                    mistake, use Run Again to create a fresh record with the same teams and map pool.
+                  </p>
+                </div>
+                <div className="rounded-[12px] border border-border bg-card p-4">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">Words you&apos;ll see</p>
+                  <ul className="mt-2 space-y-1 text-sm leading-relaxed text-muted-foreground">
+                    <li>Veto — the process of banning and picking maps before a match.</li>
+                    <li>Decider — the map left over at the end, played if picks are tied.</li>
+                    <li>Record number — the number on your finished draft, for referring to it later.</li>
+                  </ul>
+                </div>
               </div>
             </section>
           )}

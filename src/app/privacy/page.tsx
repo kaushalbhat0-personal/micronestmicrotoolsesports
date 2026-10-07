@@ -4,7 +4,7 @@ import { Footer } from "@/components/layout/footer";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — MicroNest",
-  description: "MicroNest MicroTools — Esports privacy policy. Contact: info.micronest@gmail.com, Pune, Maharashtra, India. How we handle YouTube youtube.readonly OAuth tokens and workspace data.",
+  description: "MicroNest MicroTools — Esports privacy policy. Contact: info.micronest@gmail.com, Pune, Maharashtra, India. How we handle your YouTube connection and workspace data.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -22,13 +22,13 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lg font-semibold">1. Overview</h2>
               <p className="mt-2 text-muted-foreground">
-                MicroNest Esports Micro-SaaS (“MicroNest”) hosts independent micro-tools for esports organizations, including Sponsorship Tracking (Sponsor Sentinel). This policy
+                MicroNest Esports Micro-SaaS (“MicroNest”) hosts independent micro-tools for esports organizations, including Sponsorship Tracking. This policy
                 describes how MicroNest handles data when you connect a YouTube account.
               </p>
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold">2. YouTube OAuth — scope requested</h2>
+              <h2 className="text-lg font-semibold">2. YouTube connection — permission requested</h2>
               <p className="mt-2 text-muted-foreground">
                 When you click <strong className="font-medium text-foreground">Connect YouTube</strong> in MicroNest, the application redirects to Google via
                 <code className="rounded bg-muted px-1 py-0.5">https://accounts.google.com/o/oauth2/v2/auth</code> and requests a single scope:
@@ -87,31 +87,29 @@ export default function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold">6. How OAuth tokens are protected</h2>
+              <h2 className="text-lg font-semibold">6. How your YouTube connection is protected</h2>
               <ul className="mt-3 list-disc space-y-2 pl-5 text-muted-foreground">
                 <li>
-                  OAuth access tokens and refresh tokens are <strong className="font-medium text-foreground">encrypted at rest</strong> before persistence (per-organization row in{" "}
-                  <code className="rounded bg-muted px-1 py-0.5">organization_provider_credentials</code>, AES-256-GCM equivalent via application secret).
+                  YouTube connection details are <strong className="font-medium text-foreground">encrypted</strong> before they are stored. They belong to your
+                  workspace only.
                 </li>
-                <li>Tokens are organization-scoped: they are retrieved only via the organization you authenticated for; no cross-organization reuse.</li>
-                <li>Tokens are never exposed in URLs, are not intentionally logged, and are transmitted only as <code className="rounded bg-muted px-1 py-0.5">Authorization: Bearer</code> over HTTPS to Google.</li>
+                <li>Connection details are never shown in web addresses, are not written to logs, and travel only over secure HTTPS to Google.</li>
                 <li>
-                  Refresh occurs server-side with a 5-minute expiry buffer and concurrency protection; rotation is encrypted and old refresh tokens are preserved when Google does not
-                  rotate.
+                  Refresh happens securely on our servers; old details are kept only when Google does not rotate them.
                 </li>
               </ul>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold">7. Where YouTube-related data is stored</h2>
-              <p className="mt-2 text-muted-foreground">When YouTube is connected, the following may be stored in your workspace/organization scope:</p>
+              <p className="mt-2 text-muted-foreground">When YouTube is connected, the following may be stored in your workspace:</p>
               <ul className="mt-3 list-disc space-y-2 pl-5 text-muted-foreground">
                 <li>Connected creator channel information (YouTube channel ID, handle/custom URL, display name, `youtube.com/channel/UC…` URL).</li>
                 <li>Sponsorship checks (scans), discovered video evidence (title/description/category/duration subset), and evaluations/results derived for that scan.</li>
               </ul>
               <p className="mt-3 text-muted-foreground">
-                Evidence and evaluations are tenant-scoped by organization and campaign. They are not shared across workspaces. No retention period is currently enforced beyond normal scan history;
-                disconnecting YouTube does not retroactively delete historical scan evidence, which remains for auditability unless the workspace is removed.
+                Evidence and evaluations are kept separate for each workspace and campaign. They are not shared across workspaces. No retention period is currently enforced beyond normal check history;
+                disconnecting YouTube does not retroactively delete historical check evidence, which remains unless the workspace is removed.
               </p>
             </section>
 
@@ -120,8 +118,8 @@ export default function PrivacyPage() {
               <p className="mt-2 text-muted-foreground">You can stop MicroNest from reading your YouTube data at any time:</p>
               <ul className="mt-3 list-disc space-y-2 pl-5 text-muted-foreground">
                 <li>
-                  In MicroNest: go to <strong className="font-medium text-foreground">Dashboard → Settings → Integrations</strong> → Remove connection for YouTube. This clears encrypted
-                  tokens in your organization.
+                  In MicroNest: go to <strong className="font-medium text-foreground">Dashboard → Settings → Integrations</strong> → Remove connection for YouTube. This clears your saved
+                  connection in your workspace.
                 </li>
                 <li>
                   In Google: revoke MicroNest’s access at{" "}
@@ -136,15 +134,15 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lg font-semibold">9. Third-party disclosure</h2>
               <p className="mt-2 text-muted-foreground">
-                YouTube data is fetched directly from the YouTube Data API v3 and is not sold or shared with third parties. Aggregated proof/result is shown only inside your workspace to
-                members of that organization (enforced by row-level security).
+                YouTube data is fetched directly from YouTube and is not sold or shared with third parties. Aggregated proof/result is shown only inside your workspace to
+                members of that workspace.
               </p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold">10. Contact</h2>
               <p className="mt-2 text-muted-foreground">
-                For privacy questions, contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a>. Workspace members may also contact their workspace owner or MicroNest administrator via the dashboard. Operating location: Pune, Maharashtra, India. MicroNest is currently not registered for GST. Do not submit OAuth client secrets, access tokens, or refresh tokens via email or chat.
+                For privacy questions, contact <a href="mailto:info.micronest@gmail.com" className="underline underline-offset-4 hover:text-foreground">info.micronest@gmail.com</a>. Workspace members may also contact their workspace owner or MicroNest administrator via the dashboard. Operating location: Pune, Maharashtra, India. MicroNest is currently not registered for GST. Do not submit passwords, payment details, or connection secrets via email or chat.
               </p>
               <p className="mt-2 text-xs text-muted-foreground">Brand: MicroNest · Product: MicroNest MicroTools — Esports. Do not send passwords or payment signatures by email.</p>
             </section>

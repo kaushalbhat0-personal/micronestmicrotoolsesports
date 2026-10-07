@@ -14,7 +14,10 @@ import { DashboardRecentProof, DashboardRecentProofSkeleton } from "@/features/s
 import { getKolkataTodayRange } from "@/lib/utils/format";
 import Link from "next/link";
 import type { Route } from "next";
-import { ShieldCheck, Tv, History, TriangleAlert, CheckCircle, ArrowRight, Sparkles, Clock3 } from "lucide-react";
+import { ShieldCheck, Tv, History, TriangleAlert, CheckCircle, ArrowRight, Sparkles, Clock3, CreditCard } from "lucide-react";
+import { getAccessibleToolSlugs } from "@/lib/auth/require-entitlement";
+import { getPlanContext } from "@/server/billing/plan-context";
+import { coveredToolSlugs, formatPlanPrice, getPurchaseGuide, periodLabel } from "@/lib/purchase/plan-guidance";
 
 function formatRelative(iso: string): string {
   try {
@@ -33,10 +36,16 @@ function formatRelative(iso: string): string {
   }
 }
 
-export default async function OrgDashboardPage({ params }: { params: Promise<{ orgSlug: string }> }) {
+export default async function OrgDashboardPage({ params, searchParams }: { params: Promise<{ orgSlug: string }>; searchParams?: Promise<{ plan?: string }> }) {
   const { orgSlug } = await params;
   const ctx = await requireOrganizationContext(orgSlug);
   const supabase = await createClient();
+  const sp = searchParams ? await searchParams : undefined;
+  const plan = await getPlanContext(supabase, sp?.plan);
+  const guide = getPurchaseGuide(plan?.slug);
+  const covered = coveredToolSlugs(plan?.slug);
+  const accessible = covered.length > 0 ? await getAccessibleToolSlugs(ctx.organization.id).catch(() => [] as string[]) : [];
+  const planReady = covered.length > 0 && covered.every((s) => accessible.includes(s));
 
   const [campaigns, channels, scanHistory, deliverables, proofTodayCount] = await Promise.all([
     listCampaigns(supabase, ctx.organization.id).catch(() => []),
@@ -122,6 +131,38 @@ export default async function OrgDashboardPage({ params }: { params: Promise<{ o
         <h1 className="font-display text-[30px] leading-tight tracking-[-0.02em] sm:text-[32px]">{ctx.organization.name}</h1>
         <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">Sponsorship tracking at a glance.</p>
       </div>
+
+      {plan && guide ? (
+        <section aria-label="Purchase progress" className="rounded-[16px] border border-primary/20 bg-primary/5 p-4 sm:p-5">
+          {planReady ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium">Your {guide.toolName} is ready.</p>
+                <p className="mt-1 text-xs text-muted-foreground">{guide.firstStep}</p>
+              </div>
+              <Link
+                href={guide.toolRoute(orgSlug) as Route}
+                className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Open {guide.toolName}
+              </Link>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium">Continue getting {guide.toolName} — {formatPlanPrice(plan.amountMinor, plan.currency)} / {periodLabel(plan.billingPeriod)}.</p>
+                <p className="mt-1 text-xs text-muted-foreground">You&apos;ll pay in Billing. Access starts right after payment.</p>
+              </div>
+              <Link
+                href={`/dashboard/${orgSlug}/settings/billing?plan=${plan.slug}` as Route}
+                className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <CreditCard className="mr-2 h-4 w-4" aria-hidden /> Continue to Billing
+              </Link>
+            </div>
+          )}
+        </section>
+      ) : null}
 
       {/* Hero metrics — 3 compact editorial tiles */}
       <div className="grid gap-3 sm:grid-cols-3">

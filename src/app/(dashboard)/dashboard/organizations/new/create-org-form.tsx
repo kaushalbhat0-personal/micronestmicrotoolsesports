@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 
-export function CreateOrgForm({ action }: { action: (fd: FormData) => Promise<void> }) {
+export function CreateOrgForm({ action, planName }: { action: (fd: FormData) => Promise<void>; planName?: string | null }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +26,12 @@ export function CreateOrgForm({ action }: { action: (fd: FormData) => Promise<vo
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Create workspace" description="Create a new workspace. You will be the owner. Slug is URL-friendly and must be unique." />
+      <PageHeader title="Create workspace" description="Create a new workspace. You will be the owner." />
+      {planName ? (
+        <p className="rounded-[12px] border border-primary/20 bg-primary/5 p-4 text-sm" role="status" aria-live="polite">
+          Continuing with {planName} — after creating your workspace you&apos;ll continue to payment in Billing.
+        </p>
+      ) : null}
       <Card className="max-w-lg">
         <CardHeader>
           <CardTitle className="text-base">Workspace details</CardTitle>
@@ -38,9 +43,9 @@ export function CreateOrgForm({ action }: { action: (fd: FormData) => Promise<vo
               <Input id="name" name="name" required minLength={2} maxLength={80} placeholder="Acme Esports" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="slug">Slug (optional, auto-generated from name if empty)</Label>
+              <Label htmlFor="slug">Web address name (optional, filled in from the name if empty)</Label>
               <Input id="slug" name="slug" pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$" placeholder="acme-esports" />
-              <p className="text-xs text-muted-foreground">Lowercase letters, numbers, hyphens. 2–40 chars.</p>
+              <p className="text-xs text-muted-foreground">Used in your workspace web address. Lowercase letters, numbers, hyphens. 2–40 chars.</p>
             </div>
             {error ? (
               <p role="alert" className="text-sm text-destructive">
