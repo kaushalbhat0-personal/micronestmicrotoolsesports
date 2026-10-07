@@ -4,7 +4,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plug, ShieldCheck, Info } from "lucide-react";
+import { Plug, Info } from "lucide-react";
 
 const mockOrgs = [{ id: "9790375e-5ebb-4bab-b8a4-e36e8f7f7381", name: "TAG Esports", slug: "tag-esports" }];
 

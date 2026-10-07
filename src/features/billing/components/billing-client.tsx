@@ -50,7 +50,6 @@ function formatDate(dateStr: string): string {
 
 function expiryLabel(expiresAt: string | null, status: string): string {
   if (status === "permanent" || !expiresAt) return "Permanent access";
-  const d = new Date(expiresAt);
   if (status === "expired") return `Expired on ${formatDate(expiresAt)}`;
   if (status === "expiring_soon") return `Expiring soon — ${formatDate(expiresAt)}`;
   return `Active until ${formatDate(expiresAt)}`;
@@ -100,7 +99,6 @@ export function BillingClient({
     }
   }, [initialHintedPlanId, selectedPlanId]);
 
-  const activePlans = plans.filter((p) => p.slug.includes("monthly") || p.slug.includes("yearly"));
   const hasPermanent = entitlements.some((e) => e.status === "permanent");
   const hasFinite = entitlements.some((e) => e.status === "active" || e.status === "expiring_soon");
   const hasAllAccess = entitlements.some((e) => e.isAllAccess);

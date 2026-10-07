@@ -167,7 +167,7 @@ export async function getAdminEntitlements(
         cur = (cur as never as { lte: (c:string,v:string)=>never }).lte("expires_at", serverNowIso);
       }
       if (orgIdsForSearch) cur = (cur as never as { in: (c:string,v:string[])=>never }).in("organization_id", orgIdsForSearch);
-      return cur as never as { then: (on:any)=>Promise<{count:number|null,error:unknown}> };
+      return cur as never as { then: (on:unknown)=>Promise<{count:number|null,error:unknown}> };
     })();
     const { count, error } = (await (filtered as unknown as Promise<{ count: number | null; error: unknown }>)) as { count: number | null; error: unknown };
     if (error) throw error;
@@ -234,9 +234,6 @@ export async function getAdminEntitlements(
     items = rows.map((r) => {
       const isPermanent = r.expires_at === null;
       const isActive = isPermanent || new Date(r.expires_at as string) > now;
-      // Detect inconsistent: is_all_access true must have tool_id null, false must have tool_id
-      const inconsistent =
-        (r.is_all_access && r.tool_id !== null) || (!r.is_all_access && r.tool_id === null && !isPermanent && false);
       // We display safe invalid state but don't mutate
       let toolName: string | null = null;
       let toolSlug: string | null = null;

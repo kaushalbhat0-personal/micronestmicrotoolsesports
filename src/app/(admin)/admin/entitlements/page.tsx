@@ -33,20 +33,6 @@ export default async function AdminEntitlementsPage({
   const totalPages = result.total !== null ? Math.max(1, Math.ceil(result.total / result.pageSize)) : null;
   const showPagination = result.total !== null ? result.total > result.pageSize : result.hasMore || result.page > 1;
 
-  const buildHref = (overrides: Partial<Record<string, string>>) => {
-    const p = new URLSearchParams();
-    const q = overrides.q !== undefined ? overrides.q : result.query;
-    const tool = overrides.tool !== undefined ? overrides.tool : result.tool;
-    const status = overrides.status !== undefined ? overrides.status : result.status;
-    const page = overrides.page !== undefined ? overrides.page : String(result.page);
-    if (q) p.set("q", q);
-    if (tool) p.set("tool", tool);
-    if (status && status !== "all") p.set("status", status);
-    if (page && page !== "1") p.set("page", page);
-    const qs = p.toString();
-    return `/admin/entitlements${qs ? `?${qs}` : ""}`;
-  };
-
   const buildPageHref = (page: number) => {
     const p = new URLSearchParams();
     if (result.query) p.set("q", result.query);

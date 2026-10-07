@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
 
 const mockOrgs = [{ id: "1", name: "TAG Esports", slug: "tag-esports" }];
 

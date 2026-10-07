@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Search, Trophy, Tv, History, CheckCircle, AlertTriangle, Clock, ShieldCheck } from "lucide-react";
+import { Search, Trophy, Tv, History, Clock, ShieldCheck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 

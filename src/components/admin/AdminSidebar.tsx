@@ -11,7 +11,6 @@ import {
   KeyRound,
   CreditCard,
   ShieldCheck,
-  Trophy,
   Settings2,
   ScrollText,
 } from "lucide-react";

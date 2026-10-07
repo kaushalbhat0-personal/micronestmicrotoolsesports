@@ -17,7 +17,7 @@ const mockAdminFrom = vi.fn();
 const mockAdminRpc = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
-    from: vi.fn((table: string) => ({
+    from: vi.fn((_table: string) => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
           maybeSingle: vi.fn(async () => ({ data: null, error: null })),
@@ -69,7 +69,6 @@ vi.mock("@/server/integrations/razorpay/client", async (importOriginal) => {
 
 import { createCheckoutOrder } from "./checkout-service";
 import { verifyPaymentAndActivate } from "./verify-service";
-import * as razorpay from "./razorpay";
 
 function mockPlanRow(plan: Record<string, unknown>) {
   return {
@@ -448,7 +447,7 @@ describe("billing verify — payment verification", () => {
       if (table === "tool_entitlements") {
         return {
           select: vi.fn(() => ({
-            eq: vi.fn((col: string, val: unknown) => {
+            eq: vi.fn((col: string, _val: unknown) => {
               // Capture scoped query — ensure tool_id = tool-1 and is_all_access false
               if (col === "organization_id") {
                 return {

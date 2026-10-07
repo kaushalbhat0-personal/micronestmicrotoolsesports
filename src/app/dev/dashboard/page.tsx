@@ -2,11 +2,10 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SectionHeader } from "@/components/ui/section-header";
 import Link from "next/link";
-import { ShieldCheck, Tv, History, TriangleAlert, CheckCircle, ArrowRight, Sparkles, Clock3, ExternalLink, Video } from "lucide-react";
+import { ShieldCheck, Tv, History, TriangleAlert, CheckCircle, ArrowRight, Sparkles, ExternalLink, Video } from "lucide-react";
 
 const mockOrgs = [{ id: "1", name: "TAG Esports", slug: "tag-esports" }];
 

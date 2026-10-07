@@ -5,7 +5,6 @@ import { listCampaigns } from "@/features/sponsor-sentinel/services/campaign-ser
 import { getRequirementCounts } from "@/features/sponsor-sentinel/services/deliverable-service";
 import { getScanHistory } from "@/features/sponsor-sentinel/services/scan-history";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";

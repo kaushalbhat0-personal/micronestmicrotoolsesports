@@ -28,7 +28,6 @@ vi.mock("./get-user", () => ({
 }));
 
 import { requireSuperAdmin, isSuperAdmin } from "./require-super-admin";
-import { requireUser } from "./get-user";
 
 describe("requireSuperAdmin — platform authorization", () => {
   beforeEach(() => {

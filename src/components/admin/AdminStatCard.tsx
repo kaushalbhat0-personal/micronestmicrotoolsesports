@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils/cn";
+import { Card } from "@/components/ui/card";
 
 interface AdminStatCardProps {
   label: string;

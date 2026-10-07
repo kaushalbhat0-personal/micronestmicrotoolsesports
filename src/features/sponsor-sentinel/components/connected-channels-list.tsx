@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import type { ConnectedChannel } from "@/types/database";
 
 export function ConnectedChannelsList({ orgSlug, channels }: { orgSlug: string; channels: ConnectedChannel[] }) {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   let router: ReturnType<typeof useRouter> | null = null;
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks

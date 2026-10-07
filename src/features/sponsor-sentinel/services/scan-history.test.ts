@@ -246,7 +246,7 @@ describe("getScanHistory - per-scan attribution (PROOF-08)", () => {
 
   it("total is the true org-wide count, not the page length", async () => {
     const supabase = {
-      from: (table: string) => ({
+      from: (_table: string) => ({
         select: (_cols: string, opts?: { count?: string; head?: boolean }) => ({
           eq: () => {
             if (opts?.head) return Promise.resolve({ data: [], count: 120, error: null });

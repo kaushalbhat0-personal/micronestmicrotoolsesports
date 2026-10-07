@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 
 const mockFrom = vi.fn();
-const mockRpc = vi.fn();
 
 vi.mock("@/lib/auth/require-super-admin", () => ({
   requireSuperAdmin: vi.fn(async () => ({ id: "admin-1", email: "admin@example.com" })),
@@ -15,15 +14,6 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 import { getAdminOverview } from "./overview";
-
-function makeCountMock(count: number | null, error: unknown = null) {
-  return {
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({ select: vi.fn(() => ({ count, error })) })),
-      or: vi.fn(() => ({ count, error })),
-    })),
-  } as unknown as ReturnType<typeof mockFrom>;
-}
 
 describe("getAdminOverview — read model", () => {
   beforeEach(() => {
@@ -107,7 +97,6 @@ describe("getAdminOverview — read model", () => {
       return { select: vi.fn(() => Promise.resolve({ count: 1, error: null })) } as never;
     });
     // audit also needs mock
-    const original = mockFrom;
     mockFrom.mockImplementation((table: string) => {
       if (table === "scans") {
         return {

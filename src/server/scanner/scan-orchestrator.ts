@@ -7,7 +7,6 @@ import type { CanonicalLiveStream, CanonicalVideo } from "@/features/sponsor-sen
 import type { ProviderBudget } from "@/features/sponsor-sentinel/types/budget";
 import type { ScanStage, ScanInput, ScanResult } from "./scan-types";
 import { budgetExceededError, providerError } from "./scan-errors";
-import { AppError } from "@/lib/errors";
 import * as campaignRepo from "@/server/repositories/sponsor-campaigns";
 import * as deliverableRepo from "@/server/repositories/deliverables";
 import * as channelRepo from "@/server/repositories/connected-channels";

@@ -1,11 +1,10 @@
 import * as React from "react";
 import { createClient } from "@/lib/supabase/server";
 import { groupProofByContent } from "@/features/sponsor-sentinel/services/proof-grouping";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CheckCircle, Sparkles, ArrowRight, ExternalLink, Video } from "lucide-react";
+import { CheckCircle, Sparkles, ExternalLink, Video } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 

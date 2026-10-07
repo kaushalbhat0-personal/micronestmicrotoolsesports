@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CanonicalWebhookEvent } from "@/features/sponsor-sentinel/types/events";
-import type { ScanResult } from "./scan-types";
 import * as scanRepo from "@/server/repositories/scans";
 import * as campaignRepo from "@/server/repositories/sponsor-campaigns";
 import * as deliverableRepo from "@/server/repositories/deliverables";

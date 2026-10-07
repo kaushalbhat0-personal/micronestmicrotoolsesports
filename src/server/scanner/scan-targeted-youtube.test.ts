@@ -10,39 +10,6 @@ import { executeTargetedYouTubeScan } from "./scan-targeted-youtube";
 import * as tokenService from "@/server/credentials/token-service";
 import { YouTubeClient } from "@/server/integrations/youtube/client";
 
-function makeSupabaseWithChannel(orgId: string, channelId: string) {
-  const mockFrom = (table: string) => {
-    if (table === "connected_channels") {
-      return {
-        select: () => ({
-          eq: () => ({
-            eq: () => ({
-              limit: () => ({
-                maybeSingle: async () => ({ data: { organization_id: orgId, external_channel_id: channelId, external_handle: "@handle", display_name: "Test", canonical_url: `https://youtube.com/channel/${channelId}` }, error: null }),
-              }),
-            }),
-          }),
-        }),
-      } as never;
-    }
-    if (table === "sponsor_campaigns") {
-      return {
-        select: () => ({
-          eq: () => ({
-            eq: () => ({
-              limit: () => ({
-                maybeSingle: async () => ({ data: null, error: null }),
-              }),
-            }),
-          }),
-        }),
-      } as never;
-    }
-    return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }) } as never;
-  };
-  return { from: mockFrom } as unknown as SupabaseClient;
-}
-
 describe("targeted YouTube WebSub", () => {
   beforeEach(() => vi.restoreAllMocks());
 
@@ -50,7 +17,6 @@ describe("targeted YouTube WebSub", () => {
     const orgId = "org-a";
     const channelId = "UC123";
     const videoId = "vid123";
-    const supabase = makeSupabaseWithChannel(orgId, channelId);
     vi.spyOn(campaignRepo, "listSponsorCampaignsByOrg").mockResolvedValue([
       { id: "camp-1", organization_id: orgId, name: "Camp", description: null, status: "active", starts_at: "2026-03-01T00:00:00Z", ends_at: "2026-12-31T00:00:00Z", created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as never,
     ]);
@@ -100,7 +66,6 @@ describe("targeted YouTube WebSub", () => {
     const orgId = "org-a";
     const channelId = "UC123";
     const videoId = "vid123";
-    const supabase = makeSupabaseWithChannel(orgId, channelId);
     vi.spyOn(campaignRepo, "listSponsorCampaignsByOrg").mockResolvedValue([
       { id: "camp-1", organization_id: orgId, name: "Camp", description: null, status: "active", starts_at: "2026-04-01T00:00:00Z", ends_at: "2026-04-30T00:00:00Z", created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as never,
     ]);
@@ -131,7 +96,6 @@ describe("targeted YouTube WebSub", () => {
     const orgId = "org-a";
     const channelId = "UC123";
     const videoId = "vid123";
-    const supabase = makeSupabaseWithChannel(orgId, channelId);
     vi.spyOn(campaignRepo, "listSponsorCampaignsByOrg").mockResolvedValue([
       { id: "camp-1", organization_id: orgId, name: "Camp", description: null, status: "active", starts_at: "2026-03-01T00:00:00Z", ends_at: "2026-12-31T00:00:00Z", created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as never,
     ]);
@@ -171,7 +135,6 @@ describe("targeted YouTube WebSub", () => {
     const orgId = "org-a";
     const channelId = "UC123";
     const videoId = "vid123";
-    const supabase = makeSupabaseWithChannel(orgId, channelId);
     vi.spyOn(campaignRepo, "listSponsorCampaignsByOrg").mockResolvedValue([
       { id: "camp-1", organization_id: orgId, name: "Camp", description: null, status: "active", starts_at: "2026-03-01T00:00:00Z", ends_at: "2026-12-31T00:00:00Z", created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as never,
     ]);
@@ -192,7 +155,7 @@ describe("targeted YouTube WebSub", () => {
       return (inputs as unknown[]).map((inp, i) => ({ id: `ev-${i}`, ...(inp as Record<string, unknown>) })) as never;
     });
     vi.spyOn(evaluationRepo, "createEvaluationsBatch").mockImplementation(async (_s, inputs) => (inputs as unknown[]).map((inp, i) => ({ id: `eval-${i}`, ...(inp as Record<string, unknown>) })) as never);
-    vi.spyOn(evidenceRepo, "createEvidence").mockImplementation(async (_s, inp) => { throw new Error('duplicate key value violates unique constraint "evidence_idempotency_unique"'); });
+    vi.spyOn(evidenceRepo, "createEvidence").mockImplementation(async (_s, _inp) => { throw new Error('duplicate key value violates unique constraint "evidence_idempotency_unique"'); });
     vi.spyOn(scanRepo, "tryCreateScanWithLock").mockImplementation(async (_s, input) => ({ id: `scan-${evidenceCalls}`, ...input, created_at: new Date().toISOString(), started_at: new Date().toISOString() } as never));
     vi.spyOn(scanRepo, "updateScanStatus").mockImplementation(async (_s, id, patch) => ({ id, ...patch } as never));
     const mockSupabase = {

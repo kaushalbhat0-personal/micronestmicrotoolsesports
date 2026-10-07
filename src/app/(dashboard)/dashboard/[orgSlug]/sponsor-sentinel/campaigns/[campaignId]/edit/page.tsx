@@ -6,7 +6,6 @@ import { getCampaign } from "@/features/sponsor-sentinel/services/campaign-servi
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { CampaignEditForm } from "@/features/sponsor-sentinel/components/campaign-edit-form";
-import type { Route } from "next";
 
 export default async function EditCampaignPage({ params }: { params: Promise<{ orgSlug: string; campaignId: string }> }) {
   const { orgSlug, campaignId } = await params;
