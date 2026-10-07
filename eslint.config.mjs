@@ -17,6 +17,24 @@ const eslintConfig = [
     },
   },
   {
+    // Super Admin: prevent service_role client in future admin client components
+    files: ["src/app/(admin)/**/*"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/supabase/admin",
+              importNames: ["createAdminClient"],
+              message: "createAdminClient is server-only and must be used only after requireSuperAdmin(). Do not import in admin client components.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     ignores: [".next/**", "node_modules/**", "out/**", "dist/**", "next-env.d.ts"],
   },
 ];

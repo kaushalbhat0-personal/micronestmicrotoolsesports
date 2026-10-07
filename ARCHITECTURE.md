@@ -220,6 +220,34 @@ Create route under /dashboard/[orgSlug]/my-tool/page.tsx
 
 See `supabase/migrations/20250930000002_rls.sql` for full policies.
 
+### Super Admin & Audit (ADMIN-02 → ADMIN-09, hardened ADMIN-10A)
+
+**Platform role:**
+- `platform_admins (user_id PK → profiles.id)` — no anon/auth RLS policies (default deny); `is_super_admin() SECURITY DEFINER stable search_path=public` checks `auth.uid()`. Service_role bypasses RLS; app gate is `requireSuperAdmin()` → `rpc is_super_admin` (401 unauthenticated, 403 non-admin). No email/env/client flag.
+
+**Authorization boundary (defense in depth):**
+```
+request → layout requireSuperAdmin() → page requireSuperAdmin() → service requireSuperAdmin() → createAdminClient() → SELECT
+```
+`createAdminClient()` is server-only (`src/lib/supabase/admin.ts`) and is banned in `src/app/(admin)/**` client components via `eslint no-restricted-imports`. Tenant tables keep `is_org_member` RLS; admin uses service_role **after** app auth, no tenant policy broadening.
+
+**Audit log — append-only:**
+- Table `admin_audit_logs (id, actor_user_id → profiles, action ~ '^[a-z_]+\.[a-z_]+$', target_type 2–40, target_id, organization_id, reason, before jsonb, after jsonb, ip inet, created_at)` — RLS `admin_audit_select_super_admin using (is_super_admin())`, no anon/auth INSERT/UPDATE/DELETE.
+- **Database hardening** `20251014000002_admin_audit_append_only.sql` adds `BEFORE UPDATE/DELETE` triggers `prevent_admin_audit_mutation()` that `RAISE EXCEPTION 'admin_audit_logs is append-only'` for **all roles including service_role**. INSERT remains allowed via trusted path.
+- **Trusted write path only:**
+```
+authorized admin operation → requireSuperAdmin() → controlled server operation → recordAdminAudit({action:"resource.action", targetType, ... before/after safe}) → INSERT admin_audit_logs
+```
+Normal admin UI pages **never** write to `admin_audit_logs` (read-only). `recordAdminAudit()` validates `ACTION_RE`, `target_type` length, rejects `FORBIDDEN_KEYS` (password, token, secret, api_key, etc.) in before/after, validates IP.
+
+**Sensitive-data projection:**
+- Raw `before/after` jsonb is potentially sensitive and must never be rendered directly (`JSON.stringify(raw)` / `<pre>` is forbidden).
+- Mandatory boundary: `src/server/admin/audit-log.ts:15` `safeAuditProjection(raw)` → `{entries:[{key,value}], omitted, empty}`.
+- Contract: `FORBIDDEN_SUBSTRINGS` (password, password_hash, access_token, refresh_token, oauth_token, secret, webhook_secret, razorpay_signature, service_role, api_key, client_secret, private_key, credential, token, cookie, session, hash) — case-insensitive substring, one-level depth, 20-entry limit, 200-char truncation, nested forbidden → omitted. UI renders `entries` dl and shows `+ N sensitive field(s) omitted` when `omitted>0`. All 8 admin surfaces follow same pattern; audit detail uses this projection.
+- Metric vs data errors: metric failure → `Unavailable`; query failure → `Unable to load {resource}.` (with period); empty → `No {resource} found.` — raw Supabase/Postgres errors never exposed.
+
+See `supabase/migrations/20251014000001_platform_admin_foundation.sql` + `20251014000002_admin_audit_append_only.sql` and `src/server/admin/audit-log.ts`.
+
 ---
 
 ## 8. Environment Variables
