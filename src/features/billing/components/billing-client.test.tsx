@@ -19,8 +19,8 @@ describe("BillingClient", () => {
           { toolSlug: "prize-splitter", displayName: "Prize Pool Splitter", description: "Test", isAllAccess: false, source: "subscription", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), status: "active" },
         ]}
         yourTools={[
-          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "permanent", expiresAt: null, viaAllAccess: false },
-          { toolSlug: "prize-splitter", displayName: "Prize Pool Splitter", description: "Test", icon: "Split", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: false },
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "permanent", expiresAt: null, viaAllAccess: false, viaUserGrant: false },
+          { toolSlug: "prize-splitter", displayName: "Prize Pool Splitter", description: "Test", icon: "Split", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: false, viaUserGrant: false },
         ]}
         availableToAdd={[]}
         plans={[
@@ -113,7 +113,7 @@ describe("BillingClient", () => {
           { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "", isAllAccess: false, source: "manual", expiresAt: null, status: "permanent" },
         ]}
         yourTools={[
-          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "", icon: "ShieldCheck", status: "permanent", expiresAt: null, viaAllAccess: false },
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "", icon: "ShieldCheck", status: "permanent", expiresAt: null, viaAllAccess: false, viaUserGrant: false },
         ]}
         availableToAdd={[]}
         plans={[
@@ -134,7 +134,7 @@ describe("BillingClient", () => {
         organizationSlug="test-org"
         entitlements={[]}
         yourTools={[
-          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: true },
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: true, viaUserGrant: false },
         ]}
         availableToAdd={[]}
         plans={[]}
@@ -144,6 +144,48 @@ describe("BillingClient", () => {
     );
     expect(html).toContain("Included with All Access");
     expect(html).toContain("Active until");
+  });
+
+  it("user-grant Sponsorship card renders under Your Tools with provenance and no CTA", () => {
+    const html = renderToString(
+      <BillingClient
+        organizationId="org-a"
+        organizationSlug="test-org"
+        entitlements={[]}
+        yourTools={[
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: false, viaUserGrant: true },
+        ]}
+        availableToAdd={[]}
+        plans={[]}
+        history={[]}
+        currentPlan={null}
+      />
+    );
+    expect(html).toContain("Your Tools");
+    expect(html).toContain("Sponsorship Tracking");
+    expect(html).toContain("Included with your Sponsorship access");
+    // No purchase CTA for the covered tool (SSR inserts comments between text nodes).
+    expect(html).not.toMatch(/Add(\s|<!-- -->|&nbsp;)*monthly/);
+    expect(html).not.toMatch(/Add(\s|<!-- -->|&nbsp;)*yearly/);
+  });
+
+  it("uncovered Sponsorship still renders purchase CTA", () => {
+    const html = renderToString(
+      <BillingClient
+        organizationId="org-a"
+        organizationSlug="test-org"
+        entitlements={[]}
+        yourTools={[]}
+        availableToAdd={[
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", monthly: { planId: "p1", amountMinor: 149900, currency: "INR" }, yearly: null },
+        ]}
+        plans={[]}
+        history={[]}
+        currentPlan={null}
+      />
+    );
+    expect(html).toContain("Available to Add");
+    expect(html).toContain("Sponsorship Tracking");
   });
 
   it("purchase targets the current workspace org and reuses a single checkout path", async () => {

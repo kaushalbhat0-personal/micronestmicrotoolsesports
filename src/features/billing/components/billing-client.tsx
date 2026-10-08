@@ -17,6 +17,7 @@ type ToolCard = {
   status: "permanent" | "active" | "expiring_soon" | "expired" | "none";
   expiresAt: string | null;
   viaAllAccess: boolean;
+  viaUserGrant: boolean;
 };
 
 type AvailableCard = {
@@ -292,6 +293,7 @@ export function BillingClient({
                       {expiryLabel(t.expiresAt, t.status)}
                     </p>
                     {t.viaAllAccess && <p className="mt-1 text-xs text-muted-foreground">Included with All Access</p>}
+                    {t.viaUserGrant && <p className="mt-1 text-xs text-muted-foreground">Included with your Sponsorship access</p>}
                   </CardContent>
                 </Card>
               );

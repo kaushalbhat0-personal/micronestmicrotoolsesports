@@ -1,4 +1,5 @@
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
+import { requireUser } from "@/lib/auth/get-user";
 import { createClient } from "@/lib/supabase/server";
 import { getBillingOverview, getBillingToolSections } from "@/server/services/billing-service";
 import { PageHeader } from "@/components/ui/page-header";
@@ -25,10 +26,14 @@ export default async function BillingPage({
   const { orgSlug } = await params;
   const sp = searchParams ? await searchParams : undefined;
   const hintedPlanSlug = sp?.plan ?? null;
+  // Authenticated user + authorized workspace context → billing derivation.
+  // Membership is established here; the user grant only adds Sponsorship
+  // coverage for this caller and never grants data access by itself.
+  const user = await requireUser();
   const ctx = await requireOrganizationContext(orgSlug);
   const supabase = await createClient();
   const overview = await getBillingOverview(supabase, ctx.organization.id);
-  const sections = await getBillingToolSections(supabase, ctx.organization.id);
+  const sections = await getBillingToolSections(supabase, ctx.organization.id, user.id);
 
   // Enrich entitlements with tool metadata for display
   const toolMap = new Map(TOOLS.map((t) => [t.slug, t]));

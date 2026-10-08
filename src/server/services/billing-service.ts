@@ -3,6 +3,7 @@ import { listActivePlans } from "@/server/repositories/plans";
 import { listOrdersForOrg } from "@/server/repositories/orders";
 import { listPaymentsForOrg } from "@/server/repositories/payments";
 import { listEntitlementsForOrg } from "@/server/repositories/entitlements";
+import { getUserSponsorshipGrant, SPONSORSHIP_TOOL_SLUG } from "@/server/services/user-sponsorship-service";
 import { TOOLS } from "@/config/app/tools";
 import type { Plan, Order, Payment, ToolEntitlement } from "@/types/database";
 
@@ -133,6 +134,8 @@ export type BillingToolCard = {
   expiresAt: string | null;
   /** True when access flows through All Access rather than a per-tool purchase. */
   viaAllAccess: boolean;
+  /** True when Sponsorship access flows through the caller's user grant. */
+  viaUserGrant: boolean;
 };
 
 /** One card in "Available to Add" — derived from registry × active plans. */
@@ -149,6 +152,12 @@ type DiscoveryInput = {
   entitlements: BillingEntitlementView[];
   plans: Pick<Plan, "id" | "tool_id" | "billing_period" | "amount_minor" | "currency" | "is_active">[];
   tools: { id: string; slug: string; is_active: boolean }[];
+  /**
+   * Authenticated caller's sponsorship user grant (exact expires_at).
+   * Resolved by the caller via getUserSponsorshipGrant — never from client
+   * input. Affects sponsor-sentinel only; all other tools ignore it.
+   */
+  userSponsorshipGrant?: { expires_at: string | null } | null;
 };
 
 /**
@@ -161,6 +170,9 @@ type DiscoveryInput = {
  * - Available to Add: commercial registry tools with ≥1 active plan that are
  *   NOT in Your Tools. Coming-soon tools never qualify (registry flag), and
  *   tools without plans cannot be purchased so they are excluded.
++ * - Sponsorship user-grant leg: when the caller holds a valid (unexpired)
++ *   sponsorship grant but the workspace has no org/All Access coverage, the
++ *   sponsor card is covered via the grant (viaUserGrant). Sponsor-only.
  * No database IDs, UUIDs, or source enums leak into the cards.
  */
 export function buildBillingToolSections(input: DiscoveryInput): { yourTools: BillingToolCard[]; availableToAdd: BillingAvailableCard[] } {
@@ -172,29 +184,42 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
     if (!e.isAllAccess && e.toolSlug) perTool.set(e.toolSlug, e);
   }
   const allAccessEnt = activeEnts.find((e) => e.isAllAccess);
+  // User-grant validity mirrors the grant service (null = lifetime, future = valid).
+  const userGrant = input.userSponsorshipGrant;
+  const hasValidUserGrant = !!userGrant && (userGrant.expires_at === null || new Date(userGrant.expires_at) > new Date());
 
   const yourTools: BillingToolCard[] = [];
   for (const cfg of commercial) {
     const direct = perTool.get(cfg.slug);
+    const base = {
+      toolSlug: cfg.slug,
+      displayName: cfg.name,
+      description: cfg.description,
+      icon: cfg.icon,
+    };
     if (direct) {
       yourTools.push({
-        toolSlug: cfg.slug,
-        displayName: cfg.name,
-        description: cfg.description,
-        icon: cfg.icon,
+        ...base,
         status: direct.status,
         expiresAt: direct.expiresAt,
         viaAllAccess: false,
+        viaUserGrant: false,
       });
     } else if (allAccessEnt) {
       yourTools.push({
-        toolSlug: cfg.slug,
-        displayName: cfg.name,
-        description: cfg.description,
-        icon: cfg.icon,
+        ...base,
         status: allAccessEnt.status,
         expiresAt: allAccessEnt.expiresAt,
         viaAllAccess: true,
+        viaUserGrant: false,
+      });
+    } else if (cfg.slug === SPONSORSHIP_TOOL_SLUG && hasValidUserGrant) {
+      yourTools.push({
+        ...base,
+        status: userGrant!.expires_at === null ? "permanent" : "active",
+        expiresAt: userGrant!.expires_at,
+        viaAllAccess: false,
+        viaUserGrant: true,
       });
     }
   }
@@ -224,16 +249,29 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
   return { yourTools, availableToAdd };
 }
 
-/** Server wrapper: overview + tools catalog → discovery view model. */
+/**
+ * Server wrapper: overview + tools catalog + caller sponsorship grant
+ * → discovery view model.
+ *
+ * Membership remains the caller's responsibility (the Billing page enforces
+ * requireOrganizationContext before calling). userId must be the
+ * authenticated caller id — never client input. The grant only affects
+ * sponsor-sentinel coverage; operational tools and All Access ignore it.
+ */
 export async function getBillingToolSections(
   supabase: SupabaseClient,
-  organizationId: string
+  organizationId: string,
+  userId?: string
 ): Promise<{ yourTools: BillingToolCard[]; availableToAdd: BillingAvailableCard[] }> {
   const overview = await getBillingOverview(supabase, organizationId);
-  const { data: tools } = await supabase.from("tools").select("id, slug, is_active");
+  const [{ data: tools }, userSponsorshipGrant] = await Promise.all([
+    supabase.from("tools").select("id, slug, is_active"),
+    userId ? getUserSponsorshipGrant(supabase, userId) : Promise.resolve(null),
+  ]);
   return buildBillingToolSections({
     entitlements: overview.entitlements,
     plans: overview.plans,
     tools: ((tools ?? []) as { id: string; slug: string; is_active: boolean }[]).filter((t) => typeof t.slug === "string"),
+    userSponsorshipGrant: userSponsorshipGrant ? { expires_at: userSponsorshipGrant.expires_at } : null,
   });
 }

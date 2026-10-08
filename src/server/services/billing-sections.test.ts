@@ -130,4 +130,113 @@ describe("buildBillingToolSections", () => {
     });
     expect(availableToAdd.some((t) => t.toolSlug === "draft-ban")).toBe(false);
   });
+
+  it("1. no user grant + no org entitlement → sponsor in Available to Add", () => {
+    const { yourTools, availableToAdd } = buildBillingToolSections({
+      entitlements: [],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+      userSponsorshipGrant: null,
+    });
+    expect(yourTools.some((t) => t.toolSlug === "sponsor-sentinel")).toBe(false);
+    expect(availableToAdd.some((t) => t.toolSlug === "sponsor-sentinel")).toBe(true);
+  });
+
+  it("2+3. valid user grant + no org entitlement → sponsor covered, no CTA", () => {
+    const { yourTools, availableToAdd } = buildBillingToolSections({
+      entitlements: [],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+      userSponsorshipGrant: { expires_at: FUTURE },
+    });
+    const card = yourTools.find((t) => t.toolSlug === "sponsor-sentinel");
+    expect(card).toBeDefined();
+    expect(card!.viaUserGrant).toBe(true);
+    expect(card!.expiresAt).toBe(FUTURE);
+    expect(availableToAdd.some((t) => t.toolSlug === "sponsor-sentinel")).toBe(false);
+  });
+
+  it("4. future-expiring user grant → active with exact expiry", () => {
+    const { yourTools } = buildBillingToolSections({
+      entitlements: [],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+      userSponsorshipGrant: { expires_at: FUTURE },
+    });
+    const card = yourTools.find((t) => t.toolSlug === "sponsor-sentinel");
+    expect(card!.status).toBe("active");
+    expect(card!.expiresAt).toBe(FUTURE);
+  });
+
+  it("5. expired user grant → NOT covered", () => {
+    const { yourTools, availableToAdd } = buildBillingToolSections({
+      entitlements: [],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+      userSponsorshipGrant: { expires_at: PAST },
+    });
+    expect(yourTools.some((t) => t.toolSlug === "sponsor-sentinel")).toBe(false);
+    expect(availableToAdd.some((t) => t.toolSlug === "sponsor-sentinel")).toBe(true);
+  });
+
+  it("6. org entitlement without user grant → active via org leg", () => {
+    const { yourTools } = buildBillingToolSections({
+      entitlements: [ent("sponsor-sentinel", "permanent", null)],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+      userSponsorshipGrant: null,
+    });
+    const card = yourTools.find((t) => t.toolSlug === "sponsor-sentinel");
+    expect(card!.viaUserGrant).toBe(false);
+    expect(card!.viaAllAccess).toBe(false);
+  });
+
+  it("7. org entitlement + user grant → exactly one sponsor entry", () => {
+    const { yourTools } = buildBillingToolSections({
+      entitlements: [ent("sponsor-sentinel", "active", FUTURE)],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+      userSponsorshipGrant: { expires_at: FUTURE },
+    });
+    expect(yourTools.filter((t) => t.toolSlug === "sponsor-sentinel")).toHaveLength(1);
+  });
+
+  it.each([
+    ["Prize Pool Splitter", "prize-splitter"],
+    ["Draft & Ban", "draft-ban"],
+    ["Tie-Breaker Resolver", "tie-breaker"],
+  ] as const)("%s unaffected by user grant", (_label, slug) => {
+    const { yourTools } = buildBillingToolSections({
+      entitlements: [],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+      userSponsorshipGrant: { expires_at: FUTURE },
+    });
+    expect(yourTools.some((t) => t.toolSlug === slug)).toBe(false);
+  });
+
+  it("11+12. All Access stays org-scoped (no user-grant leg for expansion)", () => {
+    // All Access expansion requires an org row even when a user grant exists.
+    const { yourTools } = buildBillingToolSections({
+      entitlements: [],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+      userSponsorshipGrant: { expires_at: FUTURE },
+    });
+    expect(yourTools.filter((t) => t.viaAllAccess)).toHaveLength(0);
+    expect(yourTools.filter((t) => t.toolSlug === "prize-splitter")).toHaveLength(0);
+  });
+
+  it("13. operational purchase in A never covers B (org rows are per-org input)", () => {
+    // Builder receives only the current org's rows: org-A rows never appear
+    // in a Workspace-B derivation. Simulate B with no rows + unrelated grant.
+    const { yourTools } = buildBillingToolSections({
+      entitlements: [],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+      userSponsorshipGrant: { expires_at: FUTURE },
+    });
+    expect(yourTools.some((t) => t.toolSlug === "prize-splitter")).toBe(false);
+    expect(yourTools.some((t) => t.toolSlug === "draft-ban")).toBe(false);
+  });
 });
