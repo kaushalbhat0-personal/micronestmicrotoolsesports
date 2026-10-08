@@ -259,13 +259,14 @@ describe("GET /api/auth/kick/callback — error paths", () => {
     expect((await res.json()).error).toMatch(/Missing verifier/i);
   });
 
-  it("12. token exchange failure → 400", async () => {
+  it("12. token exchange failure → 400 customer-safe (no provider internals)", async () => {
     mockExchangeKickCode.mockRejectedValueOnce(new Error("Kick token exchange 400 invalid_grant"));
     const req = new Request(`https://example.com/api/auth/kick/callback?code=abc&state=${encodeURIComponent(validState)}`);
     const res = await GET(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/token/i);
+    expect(body.error).toMatch(/couldn't complete the Kick connection/i);
+    expect(body.error).not.toContain("invalid_grant");
     expect(JSON.stringify(body)).not.toContain("accTok");
   });
 
@@ -312,8 +313,8 @@ describe("GET /api/auth/kick/callback — error paths", () => {
     const body = JSON.stringify(await res.clone().json());
     expect(body).not.toContain("secretShouldNotLeak");
     expect(body).not.toContain("leak");
-    // sanitized output keeps keys but replaces values with ***
-    expect(body).toContain("***");
+    // customer-safe fixed copy — provider internals never echoed
+    expect(body).toContain("couldn't complete the Kick connection");
     // cookies cleared: check set-cookie headers have maxAge 0
     const setCookies = res.headers.getSetCookie ? res.headers.getSetCookie() : [res.headers.get("set-cookie") ?? ""];
     const joined = setCookies.join(";");
@@ -502,7 +503,7 @@ describe("GET /api/auth/kick/callback — success path", () => {
     const res = await GET(req);
     const loc = res.headers.get("location") ?? "";
     expect(loc).not.toContain("evil.com");
-    expect(loc).toContain("/dashboard/tag-esports/settings/integrations");
+    expect(loc).toContain("/dashboard/tag-esports/connections");
   });
 
   it("19b. safe next redirect allowed when internal", async () => {

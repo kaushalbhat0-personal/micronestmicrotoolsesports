@@ -140,6 +140,15 @@ Entitlement resolution is **data-driven**:
 
 `src/server/services/entitlement-service.ts:1` provides `resolveEntitlements()` — pure business logic for tests.
 
+### Sponsorship access model (Phase 3: user-scoped commercial access)
+
+- Sponsorship Tracking (`sponsor-sentinel`) is the deliberate exception: its **commercial access is user-scoped**, everything else stays organization-scoped.
+- Access = membership (organization authorization) + (legacy org grant OR valid `user_tool_entitlements` row) + org-scoped RLS (data authorization). A user grant never grants data or cross-org access by itself.
+- New organizations provision **owner membership only** — `handle_new_organization()` no longer auto-grants `sponsor-sentinel` (`supabase/migrations/20251021000001_*`). Legacy org rows remain during the dual-read transition; they are not deleted by this phase.
+- Grandfathering is owner-only (`organizations.owner_id` ∪ `role='owner'` members, exact expiry copy, `source='manual'`, idempotent) — see the migration file header.
+- Background paths (scan cron, webhook pipeline, YouTube targeted scan) resolve org coverage via `hasSponsorshipAccessForOrg()` (`src/server/services/sponsorship-access.ts:1`): legacy org grant OR any owner's valid user grant. No browser session assumed; data stays org-scoped.
+- Purchases still provision organization-level entitlements via `complete_billing_payment` (orders have no user linkage — user-level purchase provisioning is deferred, not redesigned here).
+
 ---
 
 ## 6. Multi-Tenancy & Canonical Organization Context
@@ -188,6 +197,15 @@ export async function requireOrganizationContext(orgSlug: string): Promise<Organ
 - `src/app/(dashboard)/layout.tsx:1` fetches `getUserOrganizations` server-side, maps to `{id,name,slug}`, passes to `DashboardShell` `src/components/layout/dashboard-shell.tsx:1`.
 - `DashboardShell` is `"use client"` and uses `useParams()` to detect `orgSlug`, selects `getDashboardNav(orgSlug)` vs `dashboardNav`, renders `OrgSwitcher` `src/components/shared/org-switcher.tsx:1` in sidebar + header.
 - `OrgSwitcher` is client, receives `organizations` prop (never queries Supabase directly), navigates to `/dashboard/${org.slug}` on click. Server revalidates membership on next request — client never authority.
+
+### Primary Workspace (per-user preference, not authorization)
+
+- `profiles.primary_organization_id → organizations(id)`, nullable, `ON DELETE SET NULL` — `supabase/migrations/20251019000001_primary_workspace.sql:1`.
+- One value per user; many users may prefer the same organization. No `organizations.is_primary`, no Creator/Agency tables.
+- Organization = creator workspace by product convention; connected channels stay inside the organization.
+- Setting requires membership in the target org (`requireOrganizationMember`), updates only the caller's own profile row (`profiles_update_own` RLS), and changes no ownership, membership, entitlement, billing, or data — `src/server/services/primary-workspace-service.ts:1`.
+- Deleting a primary organization NULLs the preference via FK; nothing is moved or re-pointed automatically.
+- URL `orgSlug` remains authoritative for the current page; primary is display/purchase-routing preference only and is never consulted by `has_tool_access`, `requireEntitlement`, service ownership checks, or RLS.
 
 ### Junior example: new org-scoped feature
 

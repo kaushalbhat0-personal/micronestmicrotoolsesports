@@ -34,12 +34,11 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
-  const errorDescription = url.searchParams.get("error_description");
 
   if (error) {
-    const safeMsg = sanitizeError(errorDescription ?? error);
     const isCancelled = error === "access_denied";
-    const msg = isCancelled ? "Twitch authorization was cancelled." : `Twitch authorization failed: ${safeMsg}`;
+    // Never echo provider error descriptions — they may contain internals.
+    const msg = isCancelled ? "Twitch authorization was cancelled." : "Twitch authorization failed. Please try connecting again.";
     return errorJson(msg, 400);
   }
 
@@ -84,9 +83,9 @@ export async function GET(request: Request) {
     if (ctx.organization.id !== payload.orgId) {
       return errorJson("Organization mismatch", 400);
     }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Forbidden";
-    return errorJson(msg, 403);
+  } catch {
+    // Never expose membership/DB internals from the org check.
+    return errorJson("You don't have access to this workspace.", 403);
   }
 
   const orgSlug = ctx.organization.slug;
@@ -117,9 +116,9 @@ export async function GET(request: Request) {
     }
     tokenData = (await res.json()) as typeof tokenData;
     if (!tokenData.access_token || typeof tokenData.expires_in !== "number") throw new Error("Twitch token malformed");
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Token exchange failed";
-    return errorJson(msg, 400);
+  } catch {
+    // Never expose provider token-exchange internals.
+    return errorJson("We couldn't complete the Twitch connection. Please try again.", 400);
   }
 
   let twitchUser: { id: string; login: string; display_name: string };
@@ -138,9 +137,9 @@ export async function GET(request: Request) {
     const u = json.data?.[0];
     if (!u?.id || !u?.login) throw new Error("Twitch user not found");
     twitchUser = { id: u.id, login: u.login, display_name: u.display_name ?? u.login };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Could not identify Twitch channel";
-    return errorJson(msg, 400);
+  } catch {
+    // Never expose provider identity-lookup internals.
+    return errorJson("We couldn't identify your Twitch account. Please try again.", 400);
   }
 
   const supabaseAdmin = createAdminClient();
@@ -154,9 +153,9 @@ export async function GET(request: Request) {
       externalAccountId: twitchUser.id,
       externalAccountLogin: twitchUser.login,
     });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Persist failed";
-    return errorJson(msg, 500);
+  } catch {
+    // Token persistence failed — never claim success, never leak DB internals.
+    return errorJson("We authorized your Twitch account but couldn't save the connection. Please try connecting again.", 500);
   }
 
   const supabase = await createClient();
@@ -170,7 +169,7 @@ export async function GET(request: Request) {
       .maybeSingle();
 
     if (existing) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("connected_channels")
         .update({
           external_handle: twitchUser.login,
@@ -181,6 +180,7 @@ export async function GET(request: Request) {
           authorized_at: new Date().toISOString(),
         })
         .eq("id", (existing as { id: string }).id);
+      if (updateError) throw updateError;
     } else {
       await createConnectedChannel(supabase, ctx.organization.id, {
         platform: "twitch",
@@ -194,14 +194,27 @@ export async function GET(request: Request) {
       });
     }
   } catch (e) {
+    // Channel persistence failed AFTER tokens were saved: do NOT redirect as
+    // if the connection succeeded. Log a safe diagnostic and send the user to
+    // a customer-safe failure state (no SQL/RLS/UUID details).
     console.error("[twitch callback channel]", e instanceof Error ? sanitizeError(e.message) : String(e).slice(0, 200));
+    const failUrl = new URL(`/dashboard/${orgSlug}/connections`, request.url);
+    failUrl.searchParams.set("oauth", "channel_save_failed");
+    failUrl.searchParams.set("provider", "twitch");
+    try {
+      revalidatePath(`/dashboard/${orgSlug}/connections`);
+    } catch {}
+    const failRes = NextResponse.redirect(failUrl.toString());
+    clearOAuthCookies(failRes);
+    return failRes;
   }
 
-  const finalUrl = safeNext ?? `/dashboard/${orgSlug}/settings/integrations`;
+  const finalUrl = safeNext ?? `/dashboard/${orgSlug}/connections`;
   const redirectRes = NextResponse.redirect(new URL(finalUrl, request.url).toString());
   clearOAuthCookies(redirectRes);
 
   try {
+    revalidatePath(`/dashboard/${orgSlug}/connections`);
     revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
     revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns`);
   } catch {}

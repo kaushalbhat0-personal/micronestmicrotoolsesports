@@ -22,14 +22,15 @@ export function assertTransition(from: CampaignStatus, to: CampaignStatus) {
   if (!canTransition(from, to)) throw validationError(`Invalid status transition ${from} → ${to}`);
 }
 
-export async function activateCampaign(supabase: SupabaseClient, organizationId: string, campaignId: string) {
+export async function activateCampaign(supabase: SupabaseClient, organizationId: string, campaignId: string, userId?: string) {
   const campaign = await campaignRepo.findSponsorCampaignById(supabase, campaignId);
   if (!campaign) throw notFoundError("Campaign not found");
   if (campaign.organization_id !== organizationId) throw forbiddenError("Cross-organization access denied");
   if (campaign.status !== "draft") throw validationError(`Only draft campaigns can be activated (current: ${campaign.status})`);
 
-  // Entitlement check — use has_tool_access RPC directly for server-side
-  const has = await checkEntitlement(supabase, organizationId);
+  // Entitlement check — shared org-coverage (legacy org grant, owner
+  // grant, or caller grant). Membership/authorization stays with the caller.
+  const has = await checkEntitlement(supabase, organizationId, userId);
   if (!has) throw entitlementError("Sponsorship Tracking isn't active for your workspace yet. Check your plan or open Billing to activate access.");
 
   // Must have at least one usable connected channel
@@ -53,23 +54,11 @@ export async function activateCampaign(supabase: SupabaseClient, organizationId:
   return updated;
 }
 
-async function checkEntitlement(supabase: SupabaseClient, organizationId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase.rpc("has_tool_access", { org_id: organizationId, tool_slug: "sponsor-sentinel" });
-    if (!error && typeof data === "boolean") return data;
-  } catch {}
-  // Fallback: check tool_entitlements directly
-  const { data: tool } = await supabase.from("tools").select("id").eq("slug", "sponsor-sentinel").single();
-  if (!tool) return false;
-  const { data: entitlements } = await supabase.from("tool_entitlements").select("is_all_access, tool_id, expires_at").eq("organization_id", organizationId);
-  if (!entitlements) return false;
-  const list = entitlements as Array<{ is_all_access: boolean; tool_id: string | null; expires_at: string | null }>;
-  return list.some((e) => {
-    const notExpired = !e.expires_at || new Date(e.expires_at) > new Date();
-    if (!notExpired) return false;
-    if (e.is_all_access) return true;
-    return e.tool_id === (tool as { id: string }).id;
-  });
+async function checkEntitlement(supabase: SupabaseClient, organizationId: string, userId?: string): Promise<boolean> {
+  // Phase 3: shared org-coverage check. Membership/authorization stays with
+  // the action gate (requireEntitlement); this is coverage only.
+  const { hasSponsorshipAccessForOrg } = await import("@/server/services/sponsorship-access");
+  return hasSponsorshipAccessForOrg(supabase, organizationId, userId);
 }
 
 export async function transitionCampaign(supabase: SupabaseClient, organizationId: string, campaignId: string, to: CampaignStatus) {

@@ -8,7 +8,9 @@ function mockSupabase(overrides: Record<string, unknown>) {
 
 describe("entitlement provisioning regression — RCCF-SENTINEL-12B", () => {
   it("new organization provisioned with sponsor-sentinel resolves as entitled", async () => {
-    // Simulates DB state after handle_new_organization trigger inserts per-tool entitlement
+    // Simulates DB state with a legacy/grandfathered per-tool org entitlement.
+    // (Phase 3: the trigger no longer inserts this row for NEW orgs; existing
+    // rows remain and keep resolving via the dual-read transition.)
     const supabase = mockSupabase({
       from: (table: string) => {
         if (table === "tool_entitlements") {

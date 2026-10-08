@@ -169,14 +169,19 @@ export function decryptRow(row: ProviderCredentialRow | null): ProviderCredentia
   return out;
 }
 
-/** Safe view for UI — never includes secrets/tokens */
+/** Safe view for UI — never includes secrets/tokens.
+ *
+ * `configured` reflects ONLY a usable OAuth credential. Legacy
+ * manually-entered client-id/secret/api-key fields are no longer accepted
+ * by the server (manual credentials were removed) and must never count
+ * as configured — otherwise the UI would promise a working manual path
+ * that the server rejects.
+ */
 export function toMaskedView(row: ProviderCredentialRow | null): ProviderCredentialMaskedView {
   if (!row) return { configured: false };
-  const hasTwitchKick = !!(row.encrypted_client_id || row.encrypted_client_secret);
-  const hasYouTube = !!row.encrypted_api_key;
   const hasOAuth = !!(row.encrypted_access_token || row.encrypted_refresh_token);
   return {
-    configured: hasTwitchKick || hasYouTube || hasOAuth,
+    configured: hasOAuth,
     clientIdMasked: row.client_id_masked ?? null,
     apiKeyMasked: row.api_key_masked ?? null,
     lastTestedAt: row.last_tested_at ?? null,

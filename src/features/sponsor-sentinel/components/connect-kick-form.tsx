@@ -55,6 +55,15 @@ export function ConnectKickForm({ orgSlug, hasCredentials }: { orgSlug: string; 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      {!hasCredentials ? (
+        <p className="text-xs text-muted-foreground">
+          OAuth is required for Kick.{" "}
+          <a href={`/dashboard/${orgSlug}/connections`} className="text-primary underline">
+            Connect Kick
+          </a>{" "}
+          in Connections first.
+        </p>
+      ) : null}
       <div className="space-y-1">
         <Label htmlFor="kick-handle">Kick channel</Label>
         <Input
@@ -63,11 +72,11 @@ export function ConnectKickForm({ orgSlug, hasCredentials }: { orgSlug: string; 
           onChange={(e) => setHandle(e.target.value)}
           placeholder="creator handle"
           autoComplete="off"
-          disabled={pending}
+          disabled={pending || !hasCredentials}
         />
         <p className="text-xs text-muted-foreground">Enter the Kick channel name, e.g., creator handle. Do not enter a URL.</p>
       </div>
-      <Button type="submit" disabled={pending} loading={pending} aria-busy={pending} aria-label={pending ? "Connecting" : "Connect Kick"}>
+      <Button type="submit" disabled={pending || !hasCredentials} loading={pending} aria-busy={pending} aria-label={pending ? "Connecting" : "Connect Kick"}>
         {pending ? "Connecting…" : "Connect Kick"}
       </Button>
       {message ? (

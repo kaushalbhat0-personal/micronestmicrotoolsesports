@@ -246,19 +246,8 @@ export async function executeTargetedYouTubeScan(
 }
 
 async function hasSentinelEntitlement(supabase: SupabaseClient, organizationId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase.rpc("has_tool_access", { org_id: organizationId, tool_slug: "sponsor-sentinel" });
-    if (!error && typeof data === "boolean") return data;
-  } catch {}
-  const { data: tool } = await supabase.from("tools").select("id").eq("slug", "sponsor-sentinel").single();
-  if (!tool) return false;
-  const { data: entitlements } = await supabase.from("tool_entitlements").select("is_all_access, tool_id, expires_at").eq("organization_id", organizationId);
-  if (!entitlements) return false;
-  const list = entitlements as Array<{ is_all_access: boolean; tool_id: string | null; expires_at: string | null }>;
-  return list.some((e) => {
-    const notExpired = !e.expires_at || new Date(e.expires_at) > new Date();
-    if (!notExpired) return false;
-    if (e.is_all_access) return true;
-    return e.tool_id === (tool as { id: string }).id;
-  });
+  // Phase 3: shared org-coverage check — legacy org grant OR owner user grant.
+  // No browser session is assumed here; data stays org-scoped under RLS.
+  const { hasSponsorshipAccessForOrg } = await import("@/server/services/sponsorship-access");
+  return hasSponsorshipAccessForOrg(supabase, organizationId);
 }

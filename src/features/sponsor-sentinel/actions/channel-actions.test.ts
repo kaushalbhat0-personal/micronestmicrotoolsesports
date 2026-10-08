@@ -143,7 +143,7 @@ describe("channel-actions — connectTwitchChannelAction", () => {
     mockGetValidAccessTokenYouTube.mockResolvedValueOnce({ ok: false, reason: "not_configured" } as never);
     const result = await connectTwitchChannelAction(fd({ orgSlug: "tag-esports", handle: "kaushaltag" }));
     expect((result as {error?: string}).error).toMatch(/Connect Twitch via OAuth/);
-    expect((result as {error?: string}).error).toMatch(/settings\/integrations/);
+    expect((result as {error?: string}).error).toMatch(/\/dashboard\/tag-esports\/connections/);
     expect(mockResolveChannel).not.toHaveBeenCalled();
   });
 
@@ -378,7 +378,7 @@ describe("channel-actions — connectYouTubeChannelAction", () => {
     // ensure platform fallback also null
     const result = await connectYouTubeChannelAction(fd({ orgSlug: "tag-esports", handle: "@GoogleDevelopers" }));
     expect((result as {error?: string}).error).toMatch(/Connect YouTube via OAuth/);
-    expect((result as {error?: string}).error).toMatch(/settings\/integrations/);
+    expect((result as {error?: string}).error).toMatch(/\/dashboard\/tag-esports\/connections/);
     expect(mockResolveYouTubeChannel).not.toHaveBeenCalled();
   });
 

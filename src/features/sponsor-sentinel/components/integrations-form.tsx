@@ -31,6 +31,7 @@ function ProviderCard({
   fields,
   connectedDescription,
   accentColor,
+  oauthAvailable = true,
 }: {
   orgSlug: string;
   provider: "twitch" | "youtube" | "kick";
@@ -40,6 +41,12 @@ function ProviderCard({
   fields: Array<{ name: string; label: string; placeholder: string; type?: string }>;
   connectedDescription?: string;
   accentColor?: string;
+  /**
+   * Server-derived OAuth availability for this provider (client ID/secret
+   * configured). When false, no working connect button is rendered — the UI
+   * must never fake availability.
+   */
+  oauthAvailable?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -154,11 +161,15 @@ function ProviderCard({
             ) : (
               <p className="text-sm text-muted-foreground">Connect your Twitch account with one click — nothing to set up.</p>
             )}
-            <Link href={`/api/auth/twitch/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
-              <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect Twitch" : "Connect Twitch"}>
-                {masked.hasOAuth ? "Reconnect Twitch" : "Connect Twitch"}
-              </Button>
-            </Link>
+            {oauthAvailable ? (
+              <Link href={`/api/auth/twitch/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
+                <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect Twitch" : "Connect Twitch"}>
+                  {masked.hasOAuth ? "Reconnect Twitch" : "Connect Twitch"}
+                </Button>
+              </Link>
+            ) : (
+              <p className="text-sm text-muted-foreground">Twitch connection isn’t available right now. Please try again later.</p>
+            )}
             {masked.hasOAuth && masked.authorizedAt ? (
               <p className="text-xs text-muted-foreground">Authorized: {formatDateTimeKolkata(masked.authorizedAt)}</p>
             ) : null}
@@ -173,11 +184,15 @@ function ProviderCard({
             ) : (
               <p className="text-sm text-muted-foreground">Connect your YouTube account with one click — nothing to set up.</p>
             )}
-            <Link href={`/api/auth/youtube/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
-              <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect YouTube" : "Connect YouTube"}>
-                {masked.hasOAuth ? "Reconnect YouTube" : "Connect YouTube"}
-              </Button>
-            </Link>
+            {oauthAvailable ? (
+              <Link href={`/api/auth/youtube/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
+                <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect YouTube" : "Connect YouTube"}>
+                  {masked.hasOAuth ? "Reconnect YouTube" : "Connect YouTube"}
+                </Button>
+              </Link>
+            ) : (
+              <p className="text-sm text-muted-foreground">YouTube connection isn’t available right now. Please try again later.</p>
+            )}
             {masked.hasOAuth && masked.authorizedAt ? (
               <p className="text-xs text-muted-foreground">Authorized: {formatDateTimeKolkata(masked.authorizedAt)}</p>
             ) : null}
@@ -192,11 +207,15 @@ function ProviderCard({
             ) : (
               <p className="text-sm text-muted-foreground">Connect your Kick account with one click — nothing to set up.</p>
             )}
-            <Link href={`/api/auth/kick/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
-              <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect Kick" : "Connect Kick"}>
-                {masked.hasOAuth ? "Reconnect Kick" : "Connect Kick"}
-              </Button>
-            </Link>
+            {oauthAvailable ? (
+              <Link href={`/api/auth/kick/start?orgSlug=${encodeURIComponent(orgSlug)}` as never}>
+                <Button variant={masked.hasOAuth ? "outline" : "default"} size="sm" aria-label={masked.hasOAuth ? "Reconnect Kick" : "Connect Kick"}>
+                  {masked.hasOAuth ? "Reconnect Kick" : "Connect Kick"}
+                </Button>
+              </Link>
+            ) : (
+              <p className="text-sm text-muted-foreground">Kick connection isn’t available right now. Please try again later.</p>
+            )}
             {masked.hasOAuth && masked.authorizedAt ? (
               <p className="text-xs text-muted-foreground">Authorized: {formatDateTimeKolkata(masked.authorizedAt)}</p>
             ) : null}
@@ -248,8 +267,6 @@ function ProviderCard({
               </Button>
             </div>
           </form>
-        ) : provider === "kick" ? (
-          <p className="text-sm text-muted-foreground">Kick connection is coming soon. We’re preparing this platform for Sponsorship Tracking.</p>
         ) : null}
 
         {isConfigured ? (
@@ -277,11 +294,18 @@ export function IntegrationsForm({
   twitch,
   youtube,
   kick,
+  availability,
 }: {
   orgSlug: string;
   twitch: Masked;
   youtube: Masked;
   kick: Masked;
+  /**
+   * Server-derived per-provider OAuth availability. Defaults to available
+   * so existing callers/tests without server config context keep working;
+   * production pages MUST pass the real server-side capability.
+   */
+  availability?: { twitch?: boolean; youtube?: boolean; kick?: boolean };
 }) {
   return (
     <div className="space-y-6">
@@ -293,6 +317,7 @@ export function IntegrationsForm({
         connectedDescription="Twitch connection is working. You can now connect creator channels."
         masked={twitch}
         fields={[]}
+        oauthAvailable={availability?.twitch ?? true}
       />
       <ProviderCard
         orgSlug={orgSlug}
@@ -302,6 +327,7 @@ export function IntegrationsForm({
         connectedDescription="YouTube connection is working. You can now connect creator channels."
         masked={youtube}
         fields={[]}
+        oauthAvailable={availability?.youtube ?? true}
       />
       <ProviderCard
         orgSlug={orgSlug}
@@ -311,6 +337,7 @@ export function IntegrationsForm({
         connectedDescription="Kick connection is working. You can now connect creator channels."
         masked={kick}
         fields={[]}
+        oauthAvailable={availability?.kick ?? true}
       />
     </div>
   );

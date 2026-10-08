@@ -5,6 +5,7 @@ import { AccessDenied } from "@/components/shared/access-denied";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { listProviderCredentialsByOrg, toMaskedView } from "@/server/credentials/repository";
+import { isYouTubePlatformKeyUsable } from "@/server/oauth/availability";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -41,9 +42,13 @@ export default async function ChannelsPage({ params }: { params: Promise<{ orgSl
     supabase.from("sponsor_campaigns").select("id").eq("organization_id", ctx.organization.id),
   ]);
 
-  const hasYouTube = youtube.configured;
-  const hasTwitch = twitch.configured;
-  const hasKick = kick.configured;
+  // Usable-credential gating (never legacy fields): Twitch/Kick require OAuth.
+  // YouTube prefers OAuth but keeps the genuinely-usable platform API-key
+  // fallback for manual lookup when no OAuth credential exists.
+  const hasYouTubeOAuth = youtube.hasOAuth === true;
+  const hasTwitch = twitch.hasOAuth === true;
+  const hasKick = kick.hasOAuth === true;
+  const hasYouTube = hasYouTubeOAuth || isYouTubePlatformKeyUsable();
   const anyConnected = hasYouTube || hasTwitch || hasKick;
   const channelList = (channels ?? []) as never as Array<{ id: string; platform: string; external_handle: string; display_name: string | null; canonical_url: string; connection_status: string; external_channel_id: string }>;
   const campaignCount = (campaigns ?? []).length;
@@ -144,10 +149,12 @@ export default async function ChannelsPage({ params }: { params: Promise<{ orgSl
               <p className="text-xs text-muted-foreground">
                 <Link href={`/dashboard/${orgSlug}/connections` as Route} className="text-primary underline">Connect YouTube</Link> in Connections first.
               </p>
-            ) : (
+            ) : hasYouTubeOAuth ? (
               <p className="text-xs text-muted-foreground">YouTube is ready. Enter a handle to verify the creator’s channel.</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Look up channels with platform data, or <Link href={`/dashboard/${orgSlug}/connections` as Route} className="text-primary underline">connect your YouTube account</Link> for the full experience.</p>
             )}
-            <ConnectYouTubeForm orgSlug={orgSlug} hasCredentials={hasYouTube} />
+            <ConnectYouTubeForm orgSlug={orgSlug} hasCredentials={hasYouTube} hasOAuth={hasYouTubeOAuth} />
           </Card>
           <Card variant="default" className="p-5 space-y-3">
             <h4 className="text-sm font-medium flex items-center gap-2">

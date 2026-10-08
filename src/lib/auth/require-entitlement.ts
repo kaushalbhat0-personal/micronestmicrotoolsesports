@@ -1,8 +1,10 @@
 import { cache } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { entitlementError } from "@/lib/errors";
 import { requireOrganizationMember } from "./require-membership";
 import { TOOLS } from "@/config/app/tools";
+import { SPONSORSHIP_TOOL_SLUG, hasUserSponsorshipAccess } from "@/server/services/user-sponsorship-service";
 
 /**
  * Entitlement authorization — separate from membership.
@@ -13,24 +15,27 @@ import { TOOLS } from "@/config/app/tools";
  * Availability rule (RCCF-SPONSOR-FINAL-02): the registry's comingSoon flag
  * is commercially authoritative. Unreleased tools are never granted, even
  * when the RPC/fallback path is used.
+ *
+ * Multi-scope rule (RCCF-MULTI-SCOPE-IMPLEMENT-02): Sponsorship Tracking
+ * ("sponsor-sentinel") may additionally be satisfied by a user-scoped grant
+ * (user grant + membership in the current organization). Every other tool —
+ * operational tools, All Access, coming-soon tools — uses organization
+ * entitlement logic only and never consults user grants.
  */
 
 const COMMERCIALLY_AVAILABLE_SLUGS: ReadonlySet<string> = new Set(
   TOOLS.filter((t) => !t.comingSoon).map((t) => t.slug)
 );
 
-export const requireEntitlement = cache(async (organizationId: string, toolSlug: string) => {
-  // Ensure membership first — entitlement without membership is meaningless (deduped via cached member)
-  const ctx = await requireOrganizationMember(organizationId);
+const DENIAL_MESSAGE =
+  "This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.";
 
-  // Coming-Soon tools are never commercially available, regardless of DB/RPC state.
-  // Customer-safe message: no tool slugs, no internal access-system wording.
-  if (!COMMERCIALLY_AVAILABLE_SLUGS.has(toolSlug)) {
-    throw entitlementError("This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
-  }
-
-  const supabase = await createClient();
-
+/** Organization-scoped grant check — RPC preferred, manual query fallback. Unchanged semantics. */
+async function hasOrganizationGrant(
+  supabase: SupabaseClient,
+  organizationId: string,
+  toolSlug: string
+): Promise<boolean> {
   // Prefer RPC if available, fallback to query
   const { data: hasAccess, error: rpcError } = await supabase.rpc("has_tool_access", {
     org_id: organizationId,
@@ -39,27 +44,49 @@ export const requireEntitlement = cache(async (organizationId: string, toolSlug:
 
   // If RPC exists and returns boolean, use it
   if (!rpcError && typeof hasAccess === "boolean") {
-    if (!hasAccess) throw entitlementError("This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
-    return { ...ctx, toolSlug, hasAccess: true as const };
+    return hasAccess;
   }
 
   // Fallback — manual entitlement resolution
   const { data: tool } = await supabase.from("tools").select("id, slug, is_active").eq("slug", toolSlug).single();
 
-  if (!tool) throw entitlementError("This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
-  if (tool.is_active === false) throw entitlementError("This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
+  // Customer-safe message: no tool slugs, no internal access-system wording.
+  if (!tool) return false;
+  if ((tool as { is_active: boolean }).is_active === false) return false;
 
   const { data: entitlements } = await supabase
     .from("tool_entitlements")
     .select("id, is_all_access, tool_id, expires_at")
     .eq("organization_id", organizationId)
-    .or(`is_all_access.eq.true,tool_id.eq.${tool.id}`);
+    .or(`is_all_access.eq.true,tool_id.eq.${(tool as { id: string }).id}`);
 
-  const valid = (entitlements ?? []).some((e) => !e.expires_at || new Date(e.expires_at) > new Date());
+  return ((entitlements ?? []) as Array<{ expires_at: string | null }>).some(
+    (e) => !e.expires_at || new Date(e.expires_at) > new Date()
+  );
+}
 
-  if (!valid) throw entitlementError("This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
+export const requireEntitlement = cache(async (organizationId: string, toolSlug: string) => {
+  // Ensure membership first — entitlement without membership is meaningless (deduped via cached member)
+  const ctx = await requireOrganizationMember(organizationId);
 
-  return { ...ctx, toolSlug, hasAccess: true as const };
+  // Coming-Soon tools are never commercially available, regardless of DB/RPC state.
+  if (!COMMERCIALLY_AVAILABLE_SLUGS.has(toolSlug)) {
+    throw entitlementError(DENIAL_MESSAGE);
+  }
+
+  const supabase = await createClient();
+
+  if (await hasOrganizationGrant(supabase, organizationId, toolSlug)) {
+    return { ...ctx, toolSlug, hasAccess: true as const };
+  }
+
+  // User-scoped Sponsorship fallback — explicitly fenced to sponsor-sentinel.
+  // Membership was already verified above; the grant alone never grants data.
+  if (toolSlug === SPONSORSHIP_TOOL_SLUG && (await hasUserSponsorshipAccess(supabase, ctx.user.id))) {
+    return { ...ctx, toolSlug, hasAccess: true as const };
+  }
+
+  throw entitlementError(DENIAL_MESSAGE);
 });
 
 /** Get entitlements for an org — for UI (tool cards, billing) */
@@ -87,8 +114,20 @@ export async function getAccessibleToolSlugs(organizationId: string): Promise<st
     return (tools ?? []).map((t) => t.slug).filter((s): s is string => typeof s === "string" && COMMERCIALLY_AVAILABLE_SLUGS.has(s));
   }
 
-  return entitlements
+  const slugs = entitlements
     .filter((e) => !e.is_all_access && (!e.expires_at || new Date(e.expires_at) > new Date()))
     .map((e) => (e.tool as unknown as { slug: string } | null)?.slug)
     .filter((s): s is string => s !== undefined && COMMERCIALLY_AVAILABLE_SLUGS.has(s));
+
+  // User-scoped Sponsorship (RCCF-MULTI-SCOPE-IMPLEMENT-02): a member with a
+  // valid user grant sees Sponsorship Tracking in every member organization.
+  // Membership was verified inside getOrganizationEntitlements; the grant
+  // alone never grants data. Sponsor-sentinel only — never operational tools.
+  if (!slugs.includes(SPONSORSHIP_TOOL_SLUG)) {
+    const supabase = await createClient();
+    const { user } = await requireOrganizationMember(organizationId);
+    if (await hasUserSponsorshipAccess(supabase, user.id)) slugs.push(SPONSORSHIP_TOOL_SLUG);
+  }
+
+  return slugs;
 }

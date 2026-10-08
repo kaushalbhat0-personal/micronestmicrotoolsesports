@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminEntitlements } from "@/server/admin/entitlements";
+import { getAdminUserGrants } from "@/server/admin/user-entitlements";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,9 @@ export default async function AdminEntitlementsPage({
   await requireSuperAdmin();
   const params = await searchParams;
   const result = await getAdminEntitlements(params);
+  const userQueryRaw = params["uq"];
+  const userQuery = typeof userQueryRaw === "string" ? userQueryRaw : Array.isArray(userQueryRaw) ? (userQueryRaw[0] ?? "") : "";
+  const userGrants = await getAdminUserGrants(userQuery);
 
   const hasError = !!result.totalError && result.items.length === 0;
   const totalPages = result.total !== null ? Math.max(1, Math.ceil(result.total / result.pageSize)) : null;
@@ -246,6 +250,96 @@ export default async function AdminEntitlementsPage({
           </CardContent>
         </Card>
       )}
+
+      {/* User-scoped Sponsorship grants (read-only) */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">User sponsorship grants</CardTitle>
+          <CardDescription>
+            User-level Sponsorship Tracking access — usable in every organization the user belongs to. No mutations here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <form method="GET" className="flex gap-2" role="search" aria-label="User grants filter">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <Input
+                id="uq"
+                name="uq"
+                defaultValue={userGrants.query}
+                placeholder="Search user email or name"
+                maxLength={100}
+                className="pl-9"
+                aria-label="Search user grants by email or name"
+              />
+            </div>
+            <Button type="submit" className="min-h-[44px]">
+              Apply
+            </Button>
+          </form>
+          {userGrants.items.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {userGrants.query ? "No user grants match this search." : "No user-scoped grants issued yet."}
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <caption className="sr-only">User sponsorship grants list</caption>
+                <thead>
+                  <tr className="border-y border-border bg-surface-muted/40 text-left">
+                    <th scope="col" className="px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      User
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Tool
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Status
+                    </th>
+                    <th scope="col" className="hidden px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground md:table-cell">
+                      Expires
+                    </th>
+                    <th scope="col" className="hidden px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground lg:table-cell">
+                      Source
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {userGrants.items.map((g) => (
+                    <tr key={g.id} className="hover:bg-surface-muted/30">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-foreground">{g.displayName ?? g.email ?? "User"}</p>
+                        <p className="text-xs text-muted-foreground">{g.email ?? g.userId}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-medium">{g.toolName ?? "—"}</span>
+                        <span className="block text-xs text-muted-foreground">{g.toolSlug ?? "—"}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {g.status === "Permanent" ? (
+                          <Badge variant="secondary">Permanent</Badge>
+                        ) : g.status === "Active" ? (
+                          <Badge variant="success">Active</Badge>
+                        ) : (
+                          <Badge variant="destructive">Expired</Badge>
+                        )}
+                      </td>
+                      <td className="hidden px-4 py-3 text-xs tabular-nums text-muted-foreground md:table-cell">
+                        {g.expiresAt ? formatDate(g.expiresAt) : "Permanent"}
+                      </td>
+                      <td className="hidden px-4 py-3 text-xs text-muted-foreground lg:table-cell">
+                        <Badge variant="secondary" className="capitalize">
+                          {g.source}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Pagination */}
       {showPagination && !hasError && result.items.length > 0 && (

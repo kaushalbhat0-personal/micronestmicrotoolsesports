@@ -61,7 +61,7 @@ describe("activateCampaignAction error handling — RCCF-SENTINEL-13C", () => {
   it("B. Connected channel exists → succeeds and redirects (throws NEXT_REDIRECT)", async () => {
     vi.mocked(activateCampaign).mockResolvedValueOnce({ id: "camp-1", organization_id: "org-a", status: "active" } as never);
     await expect(activateCampaignAction(formData("tag-esports", "camp-1"))).rejects.toThrow(/NEXT_REDIRECT/);
-    expect(vi.mocked(activateCampaign)).toHaveBeenCalledWith(expect.anything(), "org-a", "camp-1");
+    expect(vi.mocked(activateCampaign)).toHaveBeenCalledWith(expect.anything(), "org-a", "camp-1", "user-1");
   });
 
   it("C. No deliverable → returns validation error, remains draft", async () => {
@@ -104,7 +104,7 @@ describe("activateCampaignAction error handling — RCCF-SENTINEL-13C", () => {
     vi.mocked(activateCampaign).mockResolvedValueOnce({ id: "camp-1", organization_id: "org-a", status: "active" } as never);
     await expect(activateCampaignAction(fd)).rejects.toThrow(/NEXT_REDIRECT/);
     // Verify activateCampaign was called with org-a (from context), not org-b from form
-    expect(vi.mocked(activateCampaign)).toHaveBeenCalledWith(expect.anything(), "org-a", "camp-1");
+    expect(vi.mocked(activateCampaign)).toHaveBeenCalledWith(expect.anything(), "org-a", "camp-1", "user-1");
     expect(vi.mocked(requireOrganizationContext)).toHaveBeenCalledWith("tag-esports");
   });
 });

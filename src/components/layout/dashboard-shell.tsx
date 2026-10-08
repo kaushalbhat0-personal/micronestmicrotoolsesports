@@ -87,9 +87,11 @@ interface DashboardShellProps {
   children: React.ReactNode;
   organizations?: { id: string; name: string; slug: string }[];
   workspaceToolsBySlug?: Record<string, { entitled: WorkspaceTool[]; available: WorkspaceTool[] }>;
+  /** Verified Primary Workspace org id for the current user (preference only, never authorization). */
+  primaryOrgId?: string | null;
 }
 
-export function DashboardShell({ children, organizations = [], workspaceToolsBySlug }: DashboardShellProps) {
+export function DashboardShell({ children, organizations = [], workspaceToolsBySlug, primaryOrgId }: DashboardShellProps) {
   const params = useParams() as { orgSlug?: string } | null;
   const pathname = usePathname();
   const orgSlug = params?.orgSlug;
@@ -278,7 +280,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
             <LogoMark size={28} priority href="/" />
           </div>
           <div className="p-3">
-            {organizations.length > 0 && <OrgSwitcher organizations={organizations} activeOrgId={activeOrg?.id} variant="sidebar" />}
+            {organizations.length > 0 && <OrgSwitcher organizations={organizations} activeOrgId={activeOrg?.id} primaryOrgId={primaryOrgId} variant="sidebar" />}
           </div>
           <div className="flex-1 overflow-y-auto px-3 pb-4">{navContent}</div>
           <div className="border-t border-border p-3 space-y-1">
@@ -322,7 +324,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
               <div className="flex flex-1 flex-col overflow-y-auto p-3">
                 {organizations.length > 0 && (
                   <div className="mb-4">
-                    <OrgSwitcher organizations={organizations} activeOrgId={activeOrg?.id} variant="sidebar" />
+                    <OrgSwitcher organizations={organizations} activeOrgId={activeOrg?.id} primaryOrgId={primaryOrgId} variant="sidebar" />
                   </div>
                 )}
                 <div id="mobile-nav" className="flex-1">

@@ -35,12 +35,11 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
-  const errorDescription = url.searchParams.get("error_description");
 
   if (error) {
-    const safeMsg = sanitizeError(errorDescription ?? error);
     const isCancelled = error === "access_denied";
-    const msg = isCancelled ? "YouTube authorization was cancelled." : `YouTube authorization failed: ${safeMsg}`;
+    // Never echo provider error descriptions — they may contain internals.
+    const msg = isCancelled ? "YouTube authorization was cancelled." : "YouTube authorization failed. Please try connecting again.";
     return errorJson(msg, 400);
   }
 
@@ -85,9 +84,9 @@ export async function GET(request: Request) {
     if (ctx.organization.id !== payload.orgId) {
       return errorJson("Organization mismatch", 400);
     }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Forbidden";
-    return errorJson(msg, 403);
+  } catch {
+    // Never expose membership/DB internals from the org check.
+    return errorJson("You don't have access to this workspace.", 403);
   }
 
   const orgSlug = ctx.organization.slug;
@@ -96,17 +95,17 @@ export async function GET(request: Request) {
   let tokenData: { access_token: string; refresh_token?: string; expires_in: number; scope?: string };
   try {
     tokenData = await exchangeYouTubeCode({ code, codeVerifier: verifier, redirectUri });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Token exchange failed";
-    return errorJson(msg, 400);
+  } catch {
+    // Never expose provider token-exchange internals.
+    return errorJson("We couldn't complete the YouTube connection. Please try again.", 400);
   }
 
   let youtubeChannel: { id: string; title: string; customUrl?: string };
   try {
     youtubeChannel = await getYouTubeChannelForToken(tokenData.access_token);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Could not identify YouTube channel";
-    return errorJson(msg, 400);
+  } catch {
+    // Never expose provider identity-lookup internals.
+    return errorJson("We couldn't identify your YouTube channel. Please try again.", 400);
   }
 
   const supabaseAdmin = createAdminClient();
@@ -120,9 +119,9 @@ export async function GET(request: Request) {
       externalAccountId: youtubeChannel.id,
       externalAccountLogin: youtubeChannel.customUrl ?? youtubeChannel.title,
     });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Persist failed";
-    return errorJson(msg, 500);
+  } catch {
+    // Token persistence failed — never claim success, never leak DB internals.
+    return errorJson("We authorized your YouTube account but couldn't save the connection. Please try connecting again.", 500);
   }
 
   const supabase = await createClient();
@@ -136,7 +135,7 @@ export async function GET(request: Request) {
       .maybeSingle();
 
     if (existing) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("connected_channels")
         .update({
           external_handle: youtubeChannel.customUrl ?? youtubeChannel.title,
@@ -147,6 +146,7 @@ export async function GET(request: Request) {
           authorized_at: new Date().toISOString(),
         })
         .eq("id", (existing as { id: string }).id);
+      if (updateError) throw updateError;
     } else {
       await createConnectedChannel(supabase, ctx.organization.id, {
         platform: "youtube",
@@ -160,14 +160,27 @@ export async function GET(request: Request) {
       });
     }
   } catch (e) {
+    // Channel persistence failed AFTER tokens were saved: do NOT redirect as
+    // if the connection succeeded. Log a safe diagnostic and send the user to
+    // a customer-safe failure state (no SQL/RLS/UUID details).
     console.error("[youtube callback channel]", e instanceof Error ? sanitizeError(e.message) : String(e).slice(0, 200));
+    const failUrl = new URL(`/dashboard/${orgSlug}/connections`, request.url);
+    failUrl.searchParams.set("oauth", "channel_save_failed");
+    failUrl.searchParams.set("provider", "youtube");
+    try {
+      revalidatePath(`/dashboard/${orgSlug}/connections`);
+    } catch {}
+    const failRes = NextResponse.redirect(failUrl.toString());
+    clearOAuthCookies(failRes);
+    return failRes;
   }
 
-  const finalUrl = safeNext ?? `/dashboard/${orgSlug}/settings/integrations`;
+  const finalUrl = safeNext ?? `/dashboard/${orgSlug}/connections`;
   const redirectRes = NextResponse.redirect(new URL(finalUrl, request.url).toString());
   clearOAuthCookies(redirectRes);
 
   try {
+    revalidatePath(`/dashboard/${orgSlug}/connections`);
     revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
     revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns`);
   } catch {}

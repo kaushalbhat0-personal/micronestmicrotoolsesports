@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { encryptSecret, decryptSecret } from "./crypto";
-import { upsertProviderCredential, getProviderCredentialRow, toMaskedView, decryptRow } from "./repository";
+import { upsertProviderCredential, getProviderCredentialRow, toMaskedView, decryptRow, upsertOAuthTokens } from "./repository";
 import { resolveTwitchCredentials, resolveYouTubeCredentials } from "./resolver";
 import { testTwitchConnection } from "./test-connection";
 import { clearTwitchTokenCache } from "@/server/integrations/twitch/auth";
@@ -97,7 +97,8 @@ describe("credentials authorization & masking", () => {
     await upsertProviderCredential(supabase, "org-a", "twitch", { clientId: "myid123", clientSecret: "mysec" });
     const row = await getProviderCredentialRow(supabase, "org-a", "twitch");
     const masked = toMaskedView(row);
-    expect(masked.configured).toBe(true);
+    // Legacy manual fields are no longer usable server-side → must NOT count as configured.
+    expect(masked.configured).toBe(false);
     expect((masked as Record<string, unknown>).encrypted_client_secret).toBeUndefined();
     expect(JSON.stringify(masked)).not.toContain("mysec");
     expect(JSON.stringify(masked)).not.toContain("myid123");
@@ -123,8 +124,20 @@ describe("credentials authorization & masking", () => {
     const before = toMaskedView(await getProviderCredentialRow(supabase, "org-a", "twitch"));
     expect(before.configured).toBe(false);
     await upsertProviderCredential(supabase, "org-a", "twitch", { clientId: "id", clientSecret: "sec" });
+    // Legacy-only row is NOT usable → still not configured.
+    const legacyOnly = toMaskedView(await getProviderCredentialRow(supabase, "org-a", "twitch"));
+    expect(legacyOnly.configured).toBe(false);
+    await upsertOAuthTokens(supabase, "org-a", "twitch", {
+      accessToken: "oauth-access",
+      refreshToken: "oauth-refresh",
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      scope: "user:read:email",
+      externalAccountId: "123",
+      externalAccountLogin: "someuser",
+    });
     const after = toMaskedView(await getProviderCredentialRow(supabase, "org-a", "twitch"));
     expect(after.configured).toBe(true);
+    expect(after.hasOAuth).toBe(true);
   });
 
   it("organization cannot read another's credential (isolation via key)", async () => {

@@ -4,15 +4,29 @@ import { isEntitlementDenied } from "@/lib/errors";
 import { AccessDenied } from "@/components/shared/access-denied";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listProviderCredentialsByOrg, toMaskedView } from "@/server/credentials/repository";
+import { getOAuthAvailability } from "@/server/oauth/availability";
+import { IntegrationsForm } from "@/features/sponsor-sentinel/components/integrations-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import type { Route } from "next";
-import { Plug, ShieldCheck, Info } from "lucide-react";
+import { Plug, ShieldCheck, Info, TriangleAlert } from "lucide-react";
 
-export default async function ConnectionsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
+const CHANNEL_SAVE_FAILED_COPY: Record<string, string> = {
+  youtube: "Your YouTube account was authorized, but the channel couldn't be saved. Please try connecting again. If the problem continues, contact support.",
+  twitch: "Your Twitch account was authorized, but the channel couldn't be saved. Please try connecting again. If the problem continues, contact support.",
+  kick: "Your Kick account was authorized, but the channel couldn't be saved. Please try connecting again. If the problem continues, contact support.",
+};
+
+export default async function ConnectionsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ orgSlug: string }>;
+  searchParams?: Promise<{ oauth?: string; provider?: string }>;
+}) {
   const { orgSlug } = await params;
   const ctx = await requireOrganizationContext(orgSlug);
   try {
@@ -27,6 +41,15 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ or
   const twitch = toMaskedView(providerRows.twitch);
   const youtube = toMaskedView(providerRows.youtube);
   const kick = toMaskedView(providerRows.kick);
+
+  // Server-side OAuth capability — the only availability signal. Never faked.
+  const availability = getOAuthAvailability();
+
+  const sp = searchParams ? await searchParams : undefined;
+  const channelSaveFailed =
+    sp?.oauth === "channel_save_failed" && sp?.provider && CHANNEL_SAVE_FAILED_COPY[sp.provider]
+      ? sp.provider
+      : null;
 
   const platforms = [
     {
@@ -63,6 +86,15 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ or
         title="Platform Connections"
         description={`Which accounts are connected for ${ctx.organization.name}? Connect once per platform — we keep your connection secure.`}
       />
+
+      {channelSaveFailed ? (
+        <div role="alert" className="rounded-[12px] border border-warning/30 bg-warning-soft p-4 text-sm">
+          <p className="font-medium flex items-center gap-2">
+            <TriangleAlert className="h-4 w-4" /> Channel couldn’t be saved
+          </p>
+          <p className="mt-1 text-muted-foreground">{CHANNEL_SAVE_FAILED_COPY[channelSaveFailed]}</p>
+        </div>
+      ) : null}
 
       <div className="rounded-[12px] border border-border bg-surface-muted/40 p-4 text-sm">
         <p className="font-medium flex items-center gap-2">
@@ -116,6 +148,7 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ or
           title="Manage connections"
           description="Connect with one click — we keep your account connection secure. Nothing to set up."
         />
+        <IntegrationsForm orgSlug={orgSlug} twitch={twitch} youtube={youtube} kick={kick} availability={availability} />
         <p className="text-xs text-muted-foreground">Connections are securely stored and never exposed. Re-connect if a platform account expires or is revoked.</p>
       </section>
     </div>

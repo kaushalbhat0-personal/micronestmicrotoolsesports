@@ -4,21 +4,28 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
-
-const ACCESS_MESSAGE = "This tool isn't active for your workspace yet.";
+import { mapDashboardError } from "@/lib/errors/dashboard-error";
 
 export default function DashboardError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const params = useParams();
   const orgSlug = typeof params?.orgSlug === "string" ? params.orgSlug : null;
-  const isAccessIssue = (error.message || "").includes(ACCESS_MESSAGE);
+  // Customer-safe mapping only — the raw error text is never rendered.
+  const view = mapDashboardError(error);
+  const isAccessIssue = view.kind === "access";
+
   return (
     <div className="mx-auto max-w-2xl py-12">
-      <ErrorState
-        title={isAccessIssue ? "Tool not active" : "Something went wrong"}
-        message={error.message || "An unexpected error occurred. Please try again."}
-        retry={reset}
-      />
-      {isAccessIssue ? (
+      <ErrorState title={view.title} message={view.message} {...(view.showRetry ? { retry: reset } : {})} />
+      {view.kind === "authentication" ? (
+        <div className="mt-6 flex justify-center">
+          <Link
+            href="/login"
+            className="inline-flex min-h-[44px] items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Sign in
+          </Link>
+        </div>
+      ) : isAccessIssue ? (
         <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
           <Link
             href="/pricing"

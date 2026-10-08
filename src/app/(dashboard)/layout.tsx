@@ -6,6 +6,8 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { TOOLS } from "@/config/app/tools";
 import { getAccessibleToolSlugs } from "@/lib/auth/require-entitlement";
 import { toWorkspaceTools } from "@/server/services/workspace-tools";
+import { createClient } from "@/lib/supabase/server";
+import { getPrimaryOrganizationForUser } from "@/server/services/primary-workspace-service";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -46,8 +48,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Serialize for client shell (plain JSON)
   const serialized = Object.fromEntries(workspaceToolsBySlug.entries());
 
+  // Primary Workspace preference — display marker only, never authorization.
+  // URL orgSlug remains authoritative for the current page.
+  let primaryOrgId: string | null = null;
+  try {
+    const supabase = await createClient();
+    primaryOrgId = (await getPrimaryOrganizationForUser(supabase, user.id))?.id ?? null;
+  } catch {
+    primaryOrgId = null;
+  }
+
   return (
-    <DashboardShell organizations={organizations} workspaceToolsBySlug={serialized}>
+    <DashboardShell organizations={organizations} workspaceToolsBySlug={serialized} primaryOrgId={primaryOrgId}>
       {children}
     </DashboardShell>
   );

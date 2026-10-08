@@ -94,7 +94,7 @@ describe("requestScanAction — PERF-02B async", () => {
     // Now run after callback and verify it does the scan
     const cb = (mockAfter as unknown as { _cb: () => Promise<void> })._cb;
     await cb();
-    expect(vi.mocked(requestManualScan)).toHaveBeenCalledWith(expect.anything(), "org-a", "camp-1");
+    expect(vi.mocked(requestManualScan)).toHaveBeenCalledWith(expect.anything(), "org-a", "camp-1", "user-1");
   });
 
   it("inactive campaign rejected synchronously, does not schedule after", async () => {
@@ -165,7 +165,7 @@ describe("requestScanAction — PERF-02B async", () => {
     // after callback uses org-a from context, not form
     const cb = (mockAfter as unknown as { _cb: () => Promise<void> })._cb;
     await cb();
-    expect(vi.mocked(requestManualScan)).toHaveBeenCalledWith(expect.anything(), "org-a", "camp-1");
+    expect(vi.mocked(requestManualScan)).toHaveBeenCalledWith(expect.anything(), "org-a", "camp-1", "user-1");
   });
 
   it("validation error returned safely with customer wording, no throw", async () => {

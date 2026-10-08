@@ -155,7 +155,7 @@ export async function connectTwitchChannelAction(formData: FormData): Promise<Ch
     }
     if (!twitchClient) {
       return {
-        error: "Connect Twitch via OAuth first. Go to /dashboard/" + orgSlug + "/settings/integrations",
+        error: "Connect Twitch via OAuth first. Go to /dashboard/" + orgSlug + "/connections",
         fieldErrors: { handle: ["Connect Twitch via OAuth first."] },
       };
     }
@@ -315,7 +315,7 @@ export async function connectYouTubeChannelAction(formData: FormData): Promise<C
     }
     if (!ytClient) {
       return {
-        error: "Connect YouTube via OAuth first. Go to /dashboard/" + orgSlug + "/settings/integrations",
+        error: "Connect YouTube via OAuth first. Go to /dashboard/" + orgSlug + "/connections",
         fieldErrors: { handle: ["Connect YouTube via OAuth first."] },
       };
     }
@@ -469,7 +469,7 @@ export async function connectKickChannelAction(formData: FormData): Promise<Chan
     }
     if (!kickClient) {
       return {
-        error: "Connect Kick via OAuth first. Go to /dashboard/" + orgSlug + "/settings/integrations",
+        error: "Connect Kick via OAuth first. Go to /dashboard/" + orgSlug + "/connections",
         fieldErrors: { handle: ["Connect Kick via OAuth first."] },
       };
     }

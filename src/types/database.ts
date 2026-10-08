@@ -44,6 +44,8 @@ export interface Profile {
   email: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  /** Per-user Primary Workspace preference — nullable, ON DELETE SET NULL. Never authorization. */
+  primary_organization_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -93,6 +95,20 @@ export interface ToolEntitlement {
   tool_id: string | null;
   subscription_id: string | null;
   is_all_access: boolean;
+  source: EntitlementSource;
+  expires_at: string | null;
+  created_at: string;
+}
+
+/**
+ * User-scoped product grant — Sponsorship Tracking only (service-layer fence).
+ * Operational tools and All Access never consult this table.
+ * expires_at NULL means lifetime, mirroring tool_entitlements.
+ */
+export interface UserToolEntitlement {
+  id: string;
+  user_id: string;
+  tool_id: string;
   source: EntitlementSource;
   expires_at: string | null;
   created_at: string;

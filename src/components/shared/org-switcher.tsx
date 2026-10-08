@@ -1,10 +1,14 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import type { Route } from "next";
+import { useRouter } from "next/navigation";
 import { Building2, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
+import { setPrimaryWorkspaceAction } from "@/app/(dashboard)/dashboard/organizations/primary-workspace-actions";
 
 interface Org {
   id: string;
@@ -15,10 +19,13 @@ interface Org {
 export function OrgSwitcher({
   organizations,
   activeOrgId,
+  primaryOrgId,
   variant = "default",
 }: {
   organizations: Org[];
   activeOrgId?: string | undefined;
+  /** Current user's Primary Workspace org id — preference marker only, never authorization. */
+  primaryOrgId?: string | null | undefined;
   variant?: "default" | "sidebar" | "header";
 }) {
   const active = organizations.find((o) => o.id === activeOrgId) ?? organizations[0];
@@ -42,11 +49,7 @@ export function OrgSwitcher({
         }
       >
         {organizations.map((org) => (
-          <DropdownItem key={org.id}>
-            <Link href={`/dashboard/${org.slug}` as Route} className="w-full">
-              {org.name}
-            </Link>
-          </DropdownItem>
+          <OrgRow key={org.id} org={org} primaryOrgId={primaryOrgId} />
         ))}
         <DropdownItem>
           <Link href="/dashboard/organizations/new" className="w-full text-primary">
@@ -70,11 +73,7 @@ export function OrgSwitcher({
       }
     >
       {organizations.map((org) => (
-        <DropdownItem key={org.id}>
-          <Link href={`/dashboard/${org.slug}` as Route} className="w-full">
-            {org.name}
-          </Link>
-        </DropdownItem>
+        <OrgRow key={org.id} org={org} primaryOrgId={primaryOrgId} />
       ))}
       <DropdownItem>
         <Link href="/dashboard/organizations/new" className="w-full text-primary">
@@ -82,5 +81,54 @@ export function OrgSwitcher({
         </Link>
       </DropdownItem>
     </Dropdown>
+  );
+}
+
+function OrgRow({ org, primaryOrgId }: { org: Org; primaryOrgId?: string | null | undefined }) {
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+  const [error, setError] = React.useState<string | null>(null);
+  const isPrimary = primaryOrgId === org.id;
+
+  function setPrimary() {
+    setError(null);
+    startTransition(async () => {
+      const result = await setPrimaryWorkspaceAction(org.id);
+      if (!result.ok) {
+        setError(result.message ?? "Could not set primary workspace.");
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  return (
+    <DropdownItem>
+      <div className="flex w-full items-center gap-2">
+        <Link href={`/dashboard/${org.slug}` as Route} className="min-w-0 flex-1 truncate">
+          {org.name}
+        </Link>
+        {isPrimary ? (
+          <Badge variant="secondary" className="shrink-0">
+            Primary workspace
+          </Badge>
+        ) : (
+          <button
+            type="button"
+            onClick={setPrimary}
+            disabled={pending}
+            title="Set as your primary workspace"
+            className="shrink-0 rounded-full px-2 py-1 text-[11px] font-medium text-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          >
+            {pending ? "Setting…" : "Set as primary"}
+          </button>
+        )}
+      </div>
+      {error ? (
+        <p className="w-full px-0 pt-1 text-[11px] text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </DropdownItem>
   );
 }

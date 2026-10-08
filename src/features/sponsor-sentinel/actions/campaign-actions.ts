@@ -76,7 +76,7 @@ export async function activateCampaignAction(formData: FormData): Promise<Action
     const ctx = await requireOrganizationContext(orgSlug);
     await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
     const supabase = await createClient();
-    await activateCampaign(supabase, ctx.organization.id, campaignId);
+    await activateCampaign(supabase, ctx.organization.id, campaignId, ctx.user.id);
     revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/${campaignId}`);
   } catch (e) {
     if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
@@ -253,7 +253,7 @@ export async function requestScanAction(formData: FormData): Promise<{ ok?: bool
   after(async () => {
     try {
       const admin = createAdminClient();
-      await requestManualScan(admin as unknown as never, organizationId, campaignIdForRevalidate);
+      await requestManualScan(admin as unknown as never, organizationId, campaignIdForRevalidate, ctx.user.id);
       revalidatePath(`/dashboard/${slugForRevalidate}/sponsor-sentinel/campaigns/${campaignIdForRevalidate}`);
       revalidatePath(`/dashboard/${slugForRevalidate}/sponsor-sentinel/scans`);
     } catch (e) {

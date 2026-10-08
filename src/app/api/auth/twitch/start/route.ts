@@ -11,8 +11,8 @@ import { isSafeRedirect } from "@/lib/validation";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const orgSlug = url.searchParams.get("orgSlug") ?? "";
-  const next = url.searchParams.get("next") ?? `/dashboard/${orgSlug}/settings/integrations`;
-  const safeNext = isSafeRedirect(next) ? next : `/dashboard/${orgSlug}/settings/integrations`;
+  const next = url.searchParams.get("next") ?? `/dashboard/${orgSlug}/connections`;
+  const safeNext = isSafeRedirect(next) ? next : `/dashboard/${orgSlug}/connections`;
 
   if (!orgSlug) return NextResponse.json({ error: "Missing orgSlug" }, { status: 400 });
 

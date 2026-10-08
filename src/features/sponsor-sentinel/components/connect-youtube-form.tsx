@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: string; hasCredentials: boolean }) {
+export function ConnectYouTubeForm({ orgSlug, hasCredentials, hasOAuth = true }: { orgSlug: string; hasCredentials: boolean; hasOAuth?: boolean }) {
   let router: ReturnType<typeof useRouter> | null = null;
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -55,6 +55,16 @@ export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: strin
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      {!hasCredentials ? (
+        <p className="text-xs text-muted-foreground">
+          <a href={`/dashboard/${orgSlug}/connections`} className="text-primary underline">
+            Connect YouTube
+          </a>{" "}
+          in Connections first.
+        </p>
+      ) : !hasOAuth ? (
+        <p className="text-xs text-muted-foreground">OAuth is preferred — connecting your YouTube account gives the best results.</p>
+      ) : null}
       <div className="space-y-1">
         <Label htmlFor="youtube-handle">YouTube handle</Label>
         <Input
@@ -63,11 +73,11 @@ export function ConnectYouTubeForm({ orgSlug, hasCredentials }: { orgSlug: strin
           onChange={(e) => setHandle(e.target.value)}
           placeholder="@GoogleDevelopers or GoogleDevelopers"
           autoComplete="off"
-          disabled={pending}
+          disabled={pending || !hasCredentials}
         />
         <p className="text-xs text-muted-foreground">Enter handle with or without @. Do not enter a URL.</p>
       </div>
-      <Button type="submit" disabled={pending} loading={pending} aria-busy={pending} aria-label={pending ? "Connecting" : "Connect YouTube"}>
+      <Button type="submit" disabled={pending || !hasCredentials} loading={pending} aria-busy={pending} aria-label={pending ? "Connecting" : "Connect YouTube"}>
         {pending ? "Connecting…" : "Connect YouTube"}
       </Button>
       {message ? (
