@@ -6,8 +6,34 @@ import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Split, Calendar, CreditCard, RefreshCw, Check, AlertCircle, Infinity as InfinityIcon, ArrowRight } from "lucide-react";
+import { ShieldCheck, Split, Calendar, CreditCard, RefreshCw, Check, AlertCircle, Infinity as InfinityIcon, ArrowRight, Swords, Scale } from "lucide-react";
 import { getPurchaseGuide } from "@/lib/purchase/plan-guidance";
+
+type ToolCard = {
+  toolSlug: string;
+  displayName: string;
+  description: string;
+  icon: string;
+  status: "permanent" | "active" | "expiring_soon" | "expired" | "none";
+  expiresAt: string | null;
+  viaAllAccess: boolean;
+};
+
+type AvailableCard = {
+  toolSlug: string;
+  displayName: string;
+  description: string;
+  icon: string;
+  monthly: { planId: string; amountMinor: number; currency: string } | null;
+  yearly: { planId: string; amountMinor: number; currency: string } | null;
+};
+
+function toolIcon(icon: string) {
+  if (icon === "Swords") return Swords;
+  if (icon === "Scale") return Scale;
+  if (icon === "Split") return Split;
+  return ShieldCheck;
+}
 
 type EntitlementView = {
   toolSlug: string | null;
@@ -68,6 +94,8 @@ export function BillingClient({
   organizationSlug,
   organizationName,
   entitlements,
+  yourTools = [],
+  availableToAdd = [],
   plans,
   history,
   currentPlan,
@@ -77,6 +105,8 @@ export function BillingClient({
   organizationSlug: string;
   organizationName?: string;
   entitlements: EntitlementView[];
+  yourTools: ToolCard[];
+  availableToAdd: AvailableCard[];
   plans: Plan[];
   history: HistoryEntry[];
   currentPlan: Plan | null;
@@ -230,41 +260,91 @@ export function BillingClient({
           </div>
         </section>
       ) : null}
-      {/* Current Access */}
+      {/* Your Tools */}
       <section>
-        <h2 className="font-display text-lg font-normal tracking-tight">Current Access</h2>
-        <p className="mt-1 text-sm text-muted-foreground">What this workspace can currently access.</p>
+        <h2 className="font-display text-lg font-normal tracking-tight">Your Tools</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Tools currently active in this workspace.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {entitlements.length === 0 ? (
+          {yourTools.length === 0 ? (
             <Card>
               <CardContent className="py-6">
                 <p className="text-sm text-muted-foreground">No active access yet.</p>
               </CardContent>
             </Card>
           ) : (
-            entitlements.map((e) => (
-              <Card key={`${e.isAllAccess ? "all" : e.toolSlug}`} variant={e.status === "expired" ? "default" : "default"} className="border-border/60">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    {e.isAllAccess ? <ShieldCheck className="h-4 w-4 text-primary" /> : <Split className="h-4 w-4 text-primary" />}
-                    {e.displayName}
-                    {e.isAllAccess && <Badge variant="success">All Access</Badge>}
-                    {e.status === "permanent" && <Badge variant="secondary">Permanent</Badge>}
-                    {e.status === "active" && <Badge variant="success">Active</Badge>}
-                    {e.status === "expiring_soon" && <Badge variant="warning">Expiring soon</Badge>}
-                    {e.status === "expired" && <Badge variant="destructive">Expired</Badge>}
-                  </CardTitle>
-                  <CardDescription className="text-xs">{e.description || (e.isAllAccess ? "All currently available tools" : "")}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    {e.status === "permanent" ? <InfinityIcon className="h-3.5 w-3.5" /> : <Calendar className="h-3.5 w-3.5" />}
-                    {expiryLabel(e.expiresAt, e.status)}
-                  </p>
-                  {e.isAllAccess && <p className="mt-1 text-xs text-muted-foreground">Includes Sponsorship Tracking, Prize Pool Splitter, and Draft & Ban.</p>}
-                </CardContent>
-              </Card>
-            ))
+            yourTools.map((t) => {
+              const Icon = toolIcon(t.icon);
+              return (
+                <Card key={t.toolSlug} variant="default" className="border-border/60">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Icon className="h-4 w-4 text-primary" aria-hidden />
+                      {t.displayName}
+                      {t.status === "permanent" && <Badge variant="secondary">Permanent</Badge>}
+                      {t.status === "active" && <Badge variant="success">Active</Badge>}
+                      {t.status === "expiring_soon" && <Badge variant="warning">Expiring soon</Badge>}
+                    </CardTitle>
+                    <CardDescription className="text-xs">{t.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {t.status === "permanent" ? <InfinityIcon className="h-3.5 w-3.5" aria-hidden /> : <Calendar className="h-3.5 w-3.5" aria-hidden />}
+                      {expiryLabel(t.expiresAt, t.status)}
+                    </p>
+                    {t.viaAllAccess && <p className="mt-1 text-xs text-muted-foreground">Included with All Access</p>}
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </div>
+      </section>
+
+      {/* Available to Add */}
+      <section>
+        <h2 className="font-display text-lg font-normal tracking-tight">Available to Add</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Add another tool to this workspace.</p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {availableToAdd.length === 0 ? (
+            <Card>
+              <CardContent className="py-6">
+                <p className="text-sm text-muted-foreground">Everything available is already active in this workspace.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            availableToAdd.map((t) => {
+              const Icon = toolIcon(t.icon);
+              const options = [t.monthly ? { ...t.monthly, period: "monthly" as const } : null, t.yearly ? { ...t.yearly, period: "yearly" as const } : null].filter(
+                (o): o is { planId: string; amountMinor: number; currency: string; period: "monthly" | "yearly" } => o !== null
+              );
+              return (
+                <Card key={t.toolSlug} variant="default" className="border-border/60">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Icon className="h-4 w-4 text-primary" aria-hidden />
+                      {t.displayName}
+                    </CardTitle>
+                    <CardDescription className="text-xs">{t.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-1">
+                      {options.map((o) => (
+                        <p key={o.planId} className="font-mono text-xs text-muted-foreground">
+                          {formatAmount(o.amountMinor, o.currency)} / {o.period === "monthly" ? "month" : "year"}
+                        </p>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {options.map((o) => (
+                        <Button key={o.planId} size="sm" className="min-h-[44px]" disabled={loading} onClick={() => handleCheckout(o.planId)}>
+                          Add {o.period === "monthly" ? "monthly" : "yearly"} — {formatAmount(o.amountMinor, o.currency)}
+                        </Button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       </section>
@@ -326,14 +406,29 @@ export function BillingClient({
             {upgradePlans.length > 0 && (
               <div className="rounded-[12px] border border-border bg-card p-4">
                 <p className="text-sm font-medium">Upgrade to All Access</p>
-                <p className="mt-1 text-xs text-muted-foreground">All currently available tools — {formatAmount(upgradePlans.find((p) => p.billing_period === "monthly")?.amount_minor ?? 249900, "INR")} / month. Covers only the tools available at the time of purchase; future tools are not automatically included.</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {upgradePlans.map((p) => (
-                    <Button key={p.id} variant={selectedPlanId === p.id ? "default" : "outline"} size="sm" onClick={() => setSelectedPlanId(p.id)}>
-                      {p.billing_period === "monthly" ? "Monthly ₹2,499" : "Yearly ₹24,990"}
-                    </Button>
-                  ))}
-                </div>
+                {(() => {
+                  const monthlyPlan = upgradePlans.find((p) => p.billing_period === "monthly") ?? null;
+                  const yearlyPlan = upgradePlans.find((p) => p.billing_period === "yearly") ?? null;
+                  const headline = monthlyPlan
+                    ? `All currently available tools — ${formatAmount(monthlyPlan.amount_minor, monthlyPlan.currency)} / month.`
+                    : yearlyPlan
+                      ? `All currently available tools — ${formatAmount(yearlyPlan.amount_minor, yearlyPlan.currency)} / year.`
+                      : "All currently available tools.";
+                  return (
+                    <>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {headline} Covers only the tools available at the time of purchase; future tools are not automatically included.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {upgradePlans.map((p) => (
+                          <Button key={p.id} variant={selectedPlanId === p.id ? "default" : "outline"} size="sm" onClick={() => setSelectedPlanId(p.id)}>
+                            {p.billing_period === "monthly" ? "Monthly" : "Yearly"} {formatAmount(p.amount_minor, p.currency)}
+                          </Button>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
             {/* Pre-checkout disclosure — must be visible BEFORE Razorpay */}

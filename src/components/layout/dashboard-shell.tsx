@@ -193,7 +193,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
         <div>
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Settings</p>
           <div className="space-y-1">
-            <NavLink href={`/dashboard/${orgSlug}/settings` as Route} icon="Settings2" label="Settings" pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+            <NavLink href={`/dashboard/${orgSlug}/settings` as Route} icon="Settings2" label="Settings" pathname={pathname} onNavigate={() => setMobileOpen(false)} exact />
             <NavLink href={`/dashboard/${orgSlug}/settings/billing` as Route} icon="CreditCard" label="Billing" pathname={pathname} onNavigate={() => setMobileOpen(false)} />
           </div>
         </div>
@@ -380,13 +380,14 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
   );
 }
 
-function NavLink({
+export function NavLink({
   href,
   icon,
   label,
   pathname,
   onNavigate,
   indent,
+  exact,
 }: {
   href: Route;
   icon: string;
@@ -394,8 +395,10 @@ function NavLink({
   pathname: string;
   onNavigate: () => void;
   indent?: boolean;
+  /** Match this href exactly (no prefix matching for child routes). */
+  exact?: boolean;
 }) {
-  const isActive = pathname === href || pathname.startsWith(href + "/");
+  const isActive = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
   const Icon = iconMap[icon] ?? LayoutDashboard;
   return (
     <Link

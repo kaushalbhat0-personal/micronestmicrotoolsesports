@@ -1,6 +1,6 @@
 import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { createClient } from "@/lib/supabase/server";
-import { getBillingOverview } from "@/server/services/billing-service";
+import { getBillingOverview, getBillingToolSections } from "@/server/services/billing-service";
 import { PageHeader } from "@/components/ui/page-header";
 import { BillingClient } from "@/features/billing/components/billing-client";
 import { TOOLS } from "@/config/app/tools";
@@ -28,6 +28,7 @@ export default async function BillingPage({
   const ctx = await requireOrganizationContext(orgSlug);
   const supabase = await createClient();
   const overview = await getBillingOverview(supabase, ctx.organization.id);
+  const sections = await getBillingToolSections(supabase, ctx.organization.id);
 
   // Enrich entitlements with tool metadata for display
   const toolMap = new Map(TOOLS.map((t) => [t.slug, t]));
@@ -48,6 +49,8 @@ export default async function BillingPage({
         organizationSlug={orgSlug}
         organizationName={ctx.organization.name}
         entitlements={enriched}
+        yourTools={sections.yourTools}
+        availableToAdd={sections.availableToAdd}
         plans={overview.plans}
         history={overview.history}
         currentPlan={overview.currentPlan}
