@@ -8,6 +8,12 @@ export function Header() {
         <LogoMark size={32} priority href="/" className="!size-7 sm:!size-8" />
         <nav className="hidden items-center gap-1 sm:flex" aria-label="Primary">
           <Link
+            href="/"
+            className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Home
+          </Link>
+          <Link
             href="/tools"
             className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
@@ -18,12 +24,6 @@ export function Header() {
             className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Pricing
-          </Link>
-          <Link
-            href="/#tools"
-            className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Overview
           </Link>
         </nav>
         <nav className="flex items-center gap-2">
