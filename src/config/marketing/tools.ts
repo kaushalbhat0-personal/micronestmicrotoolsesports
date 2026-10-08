@@ -23,7 +23,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
   {
     slug: "sponsorship-tracking",
     name: "Sponsorship Tracking",
-    shortDescription: "Verify sponsor requirements and keep proof organized.",
+    shortDescription: "Know if every creator posted what the sponsor paid for",
     longDescription:
       "Sponsorship Tracking is subscription software that helps esports creators, teams and organizations verify that creator content meets sponsor requirements — and keeps proof organized. MicroNest provides the tracking tools; customers manage their sponsor relationships. Note: Kick live and channel checks are supported; Kick recorded-video (VOD) checks aren't supported yet.",
     audience: ["Esports creators", "Esports teams", "Esports organizations", "Sponsorship managers"],
@@ -47,7 +47,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
   {
     slug: "prize-pool-splitter",
     name: "Prize Pool Splitter",
-    shortDescription: "Calculate prize distributions without spreadsheet headaches.",
+    shortDescription: "Split any prize pool fairly in seconds, with a shareable result",
     longDescription:
       "Prize Pool Splitter is subscription software that helps tournament operators calculate and organize prize-pool distributions. Choose percentage, equal, ranked, or custom splits and generate reconciled, shareable payout tables in your workspace. Results aren't saved in your workspace — copy, print, or share the result when you're done. MicroNest does not hold, escrow, or transfer prize money.",
     audience: ["Tournament organizers", "Esports teams"],
@@ -72,7 +72,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
   {
     slug: "draft-ban",
     name: "Draft & Ban",
-    shortDescription: "Run match drafts and keep official records.",
+    shortDescription: "Run pick/ban drafts live with a record both teams can trust",
     longDescription:
       "Draft & Ban is subscription software that helps esports teams and organizers run match drafts with a standard veto sequence — and keeps locked, shareable official records. Available now.",
     audience: ["Esports teams", "Coaches and managers", "Tournament organizers"],
@@ -90,7 +90,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
   {
     slug: "tie-breaker",
     name: "Tie-Breaker Resolver",
-    shortDescription: "Resolve tied standings with official, explainable records.",
+    shortDescription: "Settle tied standings with rules everyone can see",
     longDescription:
       "Tie-Breaker Resolver is subscription software that helps tournament organizers apply ranking rules in order, explain every tied placement in plain language, and lock a shareable official result with its own record number. Available now.",
     audience: ["Tournament organizers", "League administrators", "Esports teams"],

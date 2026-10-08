@@ -41,11 +41,11 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "MicroNest",
     locale: "en_US",
-    images: [{ url: "/Final_MicroNest_Logo.svg", width: 1200, height: 630, alt: "MicroNest — The toolbox behind esports" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MicroNest — The toolbox behind esports" }],
   },
   twitter: {
     card: "summary_large_image",
-    images: ["/Final_MicroNest_Logo.svg"],
+    images: ["/opengraph-image"],
   },
   robots: {
     index: true,
