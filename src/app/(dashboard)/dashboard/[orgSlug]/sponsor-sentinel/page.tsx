@@ -36,6 +36,9 @@ export default async function SponsorSentinelPage({ params }: { params: Promise<
           <p className="text-sm text-muted-foreground">
             Create campaigns, connect creator channels, and review proof of delivery for your sponsors.
           </p>
+          <p className="text-xs text-muted-foreground">
+            Your sponsorship access follows you to every workspace you belong to; each workspace&apos;s data stays separate.
+          </p>
           <div className="flex gap-2">
             <Link href={`/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route}>
               <Button size="sm" aria-label="View campaigns">

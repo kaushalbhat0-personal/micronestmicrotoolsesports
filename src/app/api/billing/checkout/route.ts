@@ -19,9 +19,9 @@ export async function POST(request: Request) {
       throw validationError("Invalid checkout request", parsed.error.flatten());
     }
 
-    // Reject if client tried to smuggle amount/currency/tool
+    // Reject if client tried to smuggle amount/currency/tool/buyer
     const extra = json as Record<string, unknown>;
-    if ("amountMinor" in extra || "amount_minor" in extra || "currency" in extra || "toolId" in extra || "tool_id" in extra || "isAllAccess" in extra || "billingPeriod" in extra) {
+    if ("amountMinor" in extra || "amount_minor" in extra || "currency" in extra || "toolId" in extra || "tool_id" in extra || "isAllAccess" in extra || "billingPeriod" in extra || "buyer_user_id" in extra || "buyerUserId" in extra || "buyerId" in extra || "user_id" in extra) {
       throw validationError("Client-controlled pricing fields not allowed");
     }
 

@@ -26,8 +26,10 @@ export async function loadEligibleCampaigns(
   const eligible: EligibleCampaign[] = [];
 
   for (const c of campaigns) {
-    // Entitlement check: has_tool_access for sponsor-sentinel if RPC exists, otherwise check tool_entitlements.
-    // For Cron we use service_role so we query entitlements directly.
+    // Coverage check: shared sponsorship access (legacy org grant, owner
+    // grant, or caller grant). For Cron we use service_role with no browser
+    // user, so coverage resolves from organization context; data stays
+    // org-scoped under RLS.
     const hasEntitlement = await hasSponsorSentinelEntitlement(supabase, c.organization_id);
     if (!hasEntitlement) continue;
 

@@ -256,6 +256,8 @@ export interface Order {
   plan_id: string;
   tool_id: string | null;
   is_all_access: boolean;
+  /** Authenticated purchaser (Phase 4). NULL for historical orders — never backfilled by guessing. */
+  buyer_user_id: string | null;
   amount_minor: number;
   currency: PlanCurrency;
   status: OrderStatus;

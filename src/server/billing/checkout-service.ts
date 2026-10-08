@@ -24,8 +24,9 @@ export async function createCheckoutOrder(
     razorpayClient?: Parameters<typeof createRazorpayOrder>[1] extends { client?: infer C } ? C : never;
   }
 ): Promise<CheckoutResult> {
-  const _user = await requireUser();
-  void _user;
+  // Buyer attribution (Phase 4): the authenticated purchaser is the buyer.
+  // Never accepted from client input — CheckoutInput has no buyer field.
+  const user = await requireUser();
   // Verify organization membership — server-authoritative, prevents org spoof
   await requireOrganizationMember(input.organizationId);
 
@@ -58,6 +59,7 @@ export async function createCheckoutOrder(
       plan_id: plan.id,
       tool_id: toolId,
       is_all_access: isAllAccess,
+      buyer_user_id: user.id,
       amount_minor: plan.amount_minor,
       currency: plan.currency,
       status: "created",

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Order } from "@/types/database";
 
-const ORDER_COLUMNS = "id, organization_id, plan_id, tool_id, is_all_access, amount_minor, currency, status, razorpay_order_id, created_at, updated_at";
+const ORDER_COLUMNS = "id, organization_id, plan_id, tool_id, is_all_access, buyer_user_id, amount_minor, currency, status, razorpay_order_id, created_at, updated_at";
 
 export async function listOrdersForOrg(supabase: SupabaseClient, organizationId: string): Promise<Order[]> {
   const { data, error } = await supabase

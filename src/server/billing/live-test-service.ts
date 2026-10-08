@@ -130,6 +130,7 @@ export async function createLiveTestCheckoutOrder(
   const toolId = plan.tool_id;
 
   // 8. Create order snapshot with hardcoded ₹1 — commercial plan price NOT used
+  // Buyer attribution (Phase 4): the authenticated live-test owner is the buyer.
   const { data: order, error: orderError } = await admin
     .from("orders")
     .insert({
@@ -137,6 +138,7 @@ export async function createLiveTestCheckoutOrder(
       plan_id: plan.id,
       tool_id: toolId,
       is_all_access: isAllAccess,
+      buyer_user_id: user.id,
       amount_minor: LIVE_TEST_AMOUNT_MINOR,
       currency: LIVE_TEST_CURRENCY,
       status: "created",
