@@ -45,7 +45,11 @@ export function toWorkspaceTools(allToolConfigs: readonly ToolConfig[], entitled
   const available: WorkspaceTool[] = [];
 
   for (const cfg of allToolConfigs) {
-    const isEntitled = entitledSet.has(cfg.slug);
+    // Defense in depth: coming-soon tools never belong in operational
+    // navigation, even if a caller passes a dirty slug list. Commercial
+    // availability is enforced upstream (getAccessibleToolSlugs); this keeps
+    // the transform's contract ("entitled = usable now") total.
+    const isEntitled = entitledSet.has(cfg.slug) && !cfg.comingSoon;
     const tool: WorkspaceTool = {
       slug: cfg.slug,
       name: customerName(cfg),
@@ -55,14 +59,19 @@ export function toWorkspaceTools(allToolConfigs: readonly ToolConfig[], entitled
       href: toolHref(cfg.slug, orgSlug),
       entitled: isEntitled,
       comingSoon: Boolean(cfg.comingSoon),
-      ...(cfg.slug === "sponsor-sentinel"
-        ? {
-            subItems: [
-              { label: "Campaigns", href: `/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route, icon: "ShieldCheck" },
-              { label: "Checks", href: `/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route, icon: "History" },
-            ],
-          }
-        : {}),
+    ...(cfg.slug === "sponsor-sentinel"
+      ? {
+          // Sponsorship sub-navigation — visual nesting only. Routes are
+          // top-level and unchanged; Channels/Connections primarily support
+          // Sponsorship Tracking, so they live beneath it in the sidebar.
+          subItems: [
+            { label: "Campaigns", href: `/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route, icon: "ShieldCheck" },
+            { label: "Checks", href: `/dashboard/${orgSlug}/sponsor-sentinel/scans` as Route, icon: "History" },
+            { label: "Channels", href: `/dashboard/${orgSlug}/channels` as Route, icon: "Tv" },
+            { label: "Connections", href: `/dashboard/${orgSlug}/connections` as Route, icon: "Plug" },
+          ],
+        }
+      : {}),
     };
     if (isEntitled) entitled.push(tool);
     else available.push(tool);

@@ -25,6 +25,7 @@ import {
   Swords,
   Scale,
   ChevronRight,
+  Compass,
   CreditCard,
   House,
   LogOut,
@@ -74,8 +75,20 @@ function getBreadcrumbs(pathname: string, orgSlug?: string): BreadcrumbItem[] {
   if (pathname.startsWith(`/dashboard/${orgSlug}/sponsor-sentinel/scans`)) {
     return [{ label: "Workspace", href: base }, { label: "Checks" }];
   }
-  if (pathname.startsWith(`/dashboard/${orgSlug}/channels`)) return [{ label: "Workspace", href: base }, { label: "Channels" }];
-  if (pathname.startsWith(`/dashboard/${orgSlug}/connections`)) return [{ label: "Workspace", href: base }, { label: "Connections" }];
+  if (pathname.startsWith(`/dashboard/${orgSlug}/channels`)) {
+    return [
+      { label: "Workspace", href: base },
+      { label: "Sponsorship Tracking", href: `/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route },
+      { label: "Channels" },
+    ];
+  }
+  if (pathname.startsWith(`/dashboard/${orgSlug}/connections`)) {
+    return [
+      { label: "Workspace", href: base },
+      { label: "Sponsorship Tracking", href: `/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route },
+      { label: "Connections" },
+    ];
+  }
   if (pathname.startsWith(`/dashboard/${orgSlug}/settings`)) {
     if (pathname.includes("integrations")) return [{ label: "Workspace", href: base }, { label: "Connections" }];
     return [{ label: "Workspace", href: base }, { label: "Settings" }];
@@ -112,7 +125,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
   // Build entitlement-aware nav when data available
   const renderEntitledNav = () => {
     if (!entitlement) return null;
-    const { entitled, available } = entitlement;
+    const { entitled } = entitlement;
     return (
       <>
         {/* WORKSPACE */}
@@ -128,7 +141,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Your Tools</p>
           <div className="space-y-3">
             {entitled.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-muted-foreground">No tools active yet — explore More Tools below.</p>
+              <p className="px-3 py-2 text-xs text-muted-foreground">No tools active yet — browse all tools below.</p>
             ) : (
               entitled.map((tool) => {
                 const ToolIcon = iconMap[tool.icon] ?? ShieldCheck;
@@ -154,50 +167,25 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
           </div>
         </div>
 
-        {/* MORE TOOLS */}
-        {available.length > 0 && (
-          <div>
-            <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">More Tools</p>
-            <div className="space-y-1">
-              {available.map((tool) => {
-                const Icon = iconMap[tool.icon] ?? FileCheck;
-                const isComingSoon = tool.comingSoon;
-                return (
-                  <Link
-                    key={tool.slug}
-                    href={isComingSoon ? "#" : tool.href}
-                    aria-disabled={isComingSoon}
-                    onClick={(e) => {
-                      if (isComingSoon) e.preventDefault();
-                      else setMobileOpen(false);
-                    }}
-                    className={cn(
-                      "group flex items-center gap-2.5 rounded-[12px] px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      isComingSoon
-                        ? "text-muted-foreground opacity-70 cursor-default"
-                        : "text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent"
-                    )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0 opacity-60" />
-                    <span className="flex-1 truncate text-xs">{tool.name}</span>
-                    {isComingSoon ? (
-                      <span className="ml-auto text-[10px] rounded-full bg-secondary px-1.5 py-0.5">Soon</span>
-                    ) : (
-                      <ChevronRight className="h-3 w-3 opacity-40 group-hover:opacity-100 transition-opacity" />
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* CREATORS */}
+        {/* EXPLORE TOOLS — discovery only, never operational navigation.
+            Unsubscribed and coming-soon tools live on billing/marketing
+            surfaces; the sidebar links to the workspace billing page. */}
         <div>
-          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Creators</p>
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Explore Tools</p>
           <div className="space-y-1">
-            <NavLink href={`/dashboard/${orgSlug}/channels` as Route} icon="Tv" label="Channels" pathname={pathname} onNavigate={() => setMobileOpen(false)} />
-            <NavLink href={`/dashboard/${orgSlug}/connections` as Route} icon="Plug" label="Connections" pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+            <Link
+              href={`/dashboard/${orgSlug}/settings/billing` as Route}
+              aria-label="Browse all tools"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "group flex items-center gap-2.5 rounded-[12px] px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent"
+              )}
+            >
+              <Compass className="h-4 w-4 shrink-0 opacity-60" />
+              <span className="flex-1 truncate text-xs">Browse all tools</span>
+              <ChevronRight className="h-3 w-3 opacity-40 group-hover:opacity-100 transition-opacity" />
+            </Link>
           </div>
         </div>
 
@@ -232,47 +220,60 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
       {renderEntitledNav()}
     </nav>
   ) : (
+    // Fallback (no entitlement data, e.g. unknown org): minimal safe nav that
+    // never implies tool access — no tool links, no coming-soon items.
+    // Page-level authorization still enforces everything.
     <nav aria-label="Workspace navigation" className="space-y-6">
-      {legacyGroups.map((group) => (
-        <div key={group.label || "ungrouped"}>
-          {group.label ? <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{group.label}</p> : null}
-          <div className="space-y-1">
-            {group.items.map((item) => {
-              const linkProps = getLegacyNavLinkProps(item);
-              const isActive = !item.comingSoon && (pathname === item.href || pathname.startsWith(item.href + "/"));
-              const isConnectionsLegacyActive = item.label === "Connections" && pathname.includes("/settings/integrations");
-              const active = isActive || isConnectionsLegacyActive;
-              const Icon = iconMap[item.icon] ?? LayoutDashboard;
-              return (
-                <Link
-                  key={item.href + item.label}
-                  href={linkProps.href}
-                  aria-current={active ? "page" : undefined}
-                  aria-disabled={linkProps.ariaDisabled}
-                  onClick={(e) => {
-                    if (linkProps.shouldPreventDefault) e.preventDefault();
-                    else setMobileOpen(false);
-                  }}
-                  className={cn(
-                    "group flex items-center gap-2.5 rounded-[12px] px-3 py-2 text-sm font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    active ? "bg-[hsl(24_85%_52%_/_0.08)] text-foreground border border-[hsl(24_85%_52%_/_0.12)]" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent",
-                    item.comingSoon && "text-muted-foreground opacity-70 cursor-default"
-                  )}
-                >
-                  <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {item.comingSoon && <span className="ml-auto text-[10px] rounded-full bg-secondary px-1.5 py-0.5">Soon</span>}
-                </Link>
-              );
-            })}
+      {legacyGroups
+        .filter((group) => group.label !== "Creators" && group.label !== "Coming soon")
+        .map((group) => (
+          <div key={group.label || "ungrouped"}>
+            {group.label ? <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{group.label}</p> : null}
+            <div className="space-y-1">
+              {group.items
+                .filter((item) => !item.comingSoon)
+                .map((item) => {
+                  const linkProps = getLegacyNavLinkProps(item);
+                  const isActive = !item.comingSoon && (pathname === item.href || pathname.startsWith(item.href + "/"));
+                  const isConnectionsLegacyActive = item.label === "Connections" && pathname.includes("/settings/integrations");
+                  const active = isActive || isConnectionsLegacyActive;
+                  const Icon = iconMap[item.icon] ?? LayoutDashboard;
+                  return (
+                    <Link
+                      key={item.href + item.label}
+                      href={linkProps.href}
+                      aria-current={active ? "page" : undefined}
+                      aria-disabled={linkProps.ariaDisabled}
+                      onClick={(e) => {
+                        if (linkProps.shouldPreventDefault) e.preventDefault();
+                        else setMobileOpen(false);
+                      }}
+                      className={cn(
+                        "group flex items-center gap-2.5 rounded-[12px] px-3 py-2 text-sm font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        active ? "bg-[hsl(24_85%_52%_/_0.08)] text-foreground border border-[hsl(24_85%_52%_/_0.12)]" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent",
+                        item.comingSoon && "text-muted-foreground opacity-70 cursor-default"
+                      )}
+                    >
+                      <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                      <span className="flex-1 truncate">{item.label}</span>
+                      {item.comingSoon && <span className="ml-auto text-[10px] rounded-full bg-secondary px-1.5 py-0.5">Soon</span>}
+                    </Link>
+                  );
+                })}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
     </nav>
   );
 
   return (
     <div className="flex min-h-screen bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-[12px] focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:ring-2 focus:ring-ring"
+      >
+        Skip to main content
+      </a>
       <NavigationProgress />
       <aside className="hidden w-[272px] shrink-0 border-r border-border bg-card lg:flex lg:flex-col">
         <div className="sticky top-0 flex h-full flex-col">
@@ -355,7 +356,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
             </SheetContent>
           </Sheet>
 
-          <div className="hidden flex-1 lg:block" id="main-content">
+          <div className="hidden flex-1 lg:block">
             <Breadcrumb items={breadcrumbs} />
           </div>
           <div className="flex flex-1 items-center gap-2 lg:hidden min-w-0">
@@ -371,7 +372,7 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
           <Breadcrumb items={breadcrumbs} />
         </div>
 
-        <main className="flex-1 min-w-0">
+        <main id="main-content" className="flex-1 min-w-0">
           <div className="mx-auto w-full max-w-[80rem] px-5 py-6 md:px-6 md:py-8 lg:px-8 lg:py-8">{children}</div>
         </main>
       </div>
