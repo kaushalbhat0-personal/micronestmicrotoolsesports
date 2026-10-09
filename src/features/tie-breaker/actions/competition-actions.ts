@@ -12,11 +12,13 @@ import {
 import { getHistory } from "../services/history";
 import { copyCompetitionForNext } from "../services/copy";
 import { lockCompetition } from "../services/lock";
+import { isTieBreakerQuotaError } from "@/server/services/tie-breaker-policy";
 import { getLockedRecord, getStandings } from "../services/standings";
 import type { RuleId } from "../types";
 import { TIE_BREAKER_TOOL_SLUG } from "../tool-slug";
+import { claimFreeTool } from "@/server/services/tool-claim";
 
-type ActionResult = { error?: string; fieldErrors?: Record<string, string[]>; competitionId?: string; recordNumber?: string };
+type ActionResult = { error?: string; fieldErrors?: Record<string, string[]>; competitionId?: string; recordNumber?: string; quotaLimited?: boolean };
 
 type DataResult<T> = { error?: string; fieldErrors?: Record<string, string[]> } | ({ error?: undefined } & T);
 
@@ -118,14 +120,29 @@ export async function lockCompetitionAction(input: {
     const locked = await lockCompetition(supabase, ctx.organization.id, input.competitionId, {
       allowIncomplete: input.allowIncomplete,
       allowUnresolved: input.allowUnresolved,
-    });
+    }, ctx.user.id);
     return {
       competitionId: locked.id,
       ...(locked.record_number ? { recordNumber: locked.record_number } : {}),
     };
   } catch (e) {
+    // Quota rejections carry an upgrade affordance for the dialog; every
+    // other error keeps the existing safe-message behavior.
+    if (isTieBreakerQuotaError(e)) {
+      return { error: (e as AppError).safeMessage, quotaLimited: true };
+    }
     return toResult(e, "Something went wrong. Please try again.");
   }
+}
+
+/**
+ * Claim Free Tie-Breaker for the workspace (no payment, no order).
+ * Thin alias over the generic claim dispatch — same boundary as the
+ * Sponsorship claim alias (membership first, org-scoped issuance only,
+ * never downgrades paid).
+ */
+export async function claimFreeTieBreakerAction(orgSlug: string): Promise<{ ok?: boolean; error?: string }> {
+  return claimFreeTool(TIE_BREAKER_TOOL_SLUG, orgSlug);
 }
 
 export async function copyCompetitionAction(input: {

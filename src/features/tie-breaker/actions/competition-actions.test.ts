@@ -19,9 +19,11 @@ vi.mock("../services/lock", () => ({ lockCompetition: vi.fn() }));
 vi.mock("../services/copy", () => ({ copyCompetitionForNext: vi.fn() }));
 vi.mock("../services/history", () => ({ getHistory: vi.fn() }));
 vi.mock("../services/standings", () => ({ getStandings: vi.fn(), getLockedRecord: vi.fn() }));
+vi.mock("@/server/services/tool-claim", () => ({ claimFreeTool: vi.fn(async () => ({ ok: true })) }));
 
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import {
+  claimFreeTieBreakerAction,
   copyCompetitionAction,
   createCompetitionAction,
   getHistoryAction,
@@ -73,6 +75,32 @@ describe("competition actions", () => {
     await expect(
       lockCompetitionAction({ orgSlug: "acme", competitionId: "comp-1", allowIncomplete: true, allowUnresolved: false }),
     ).resolves.toEqual({ competitionId: "comp-1", recordNumber: "TB-2026-00001" });
+    expect(lockService.lockCompetition).toHaveBeenCalledWith(
+      expect.anything(),
+      "org-1",
+      "comp-1",
+      expect.objectContaining({ allowIncomplete: true, allowUnresolved: false }),
+      "user-1",
+    );
+  });
+
+  it("maps quota rejection to the upgrade message with the quota flag", async () => {
+    const { tieBreakerQuotaError } = await import("@/server/services/tie-breaker-policy");
+    vi.mocked(lockService.lockCompetition).mockRejectedValue(tieBreakerQuotaError());
+    const result = await lockCompetitionAction({
+      orgSlug: "acme",
+      competitionId: "comp-1",
+      allowIncomplete: true,
+      allowUnresolved: true,
+    });
+    expect(result).toMatchObject({ quotaLimited: true });
+    expect(result.error).toMatch(/3 free Tie-Breaker records/);
+  });
+
+  it("claims Free through the generic dispatch with the canonical slug", async () => {
+    const { claimFreeTool } = await import("@/server/services/tool-claim");
+    await expect(claimFreeTieBreakerAction("acme")).resolves.toEqual({ ok: true });
+    expect(claimFreeTool).toHaveBeenCalledWith("tie-breaker", "acme");
   });
 
   it("passes cross-org failures through without leaking ownership", async () => {

@@ -11,6 +11,13 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { getHistory } from "@/features/tie-breaker/services/history";
 import { CompetitionList } from "@/features/tie-breaker/components/competition-list";
 import { FirstUseGuide } from "@/features/tie-breaker/components/first-use-guide";
+import { ClaimFreeTieBreakerCard } from "@/features/tie-breaker/components/claim-free-card";
+import { FreePlanBadge } from "@/components/freemium/free-plan-badge";
+import { FreeUsageLine } from "@/components/freemium/free-usage-line";
+import {
+  getTieBreakerFreeUsage,
+  resolveTieBreakerAccessLevel,
+} from "@/server/services/tie-breaker-policy";
 
 export const metadata = {
   title: "Tie-Breaker — MicroNest",
@@ -23,11 +30,28 @@ export default async function TieBreakerPage({ params }: { params: Promise<{ org
   try {
     await requireEntitlement(ctx.organization.id, "tie-breaker");
   } catch (e) {
-    if (isEntitlementDenied(e)) return <AccessDenied orgSlug={orgSlug} />;
+    if (isEntitlementDenied(e)) {
+      return (
+        <div className="space-y-6">
+          <AccessDenied orgSlug={orgSlug} />
+          <ClaimFreeTieBreakerCard orgSlug={orgSlug} />
+        </div>
+      );
+    }
     throw e;
   }
   const supabase = await createClient();
-  const history = await getHistory(supabase, ctx.organization.id, {}).catch(() => ({ competitions: [], total: 0 }));
+  const accessLevel = await resolveTieBreakerAccessLevel(supabase, { organizationId: ctx.organization.id }).catch(
+    () => "paid" as const,
+  );
+  const history = await getHistory(supabase, ctx.organization.id, {}, accessLevel === "free" ? "free" : "paid").catch(() => ({
+    competitions: [],
+    total: 0,
+  }));
+  const usage =
+    accessLevel === "free"
+      ? await getTieBreakerFreeUsage(supabase, ctx.organization.id).catch(() => null)
+      : null;
 
   return (
     <div className="space-y-6">
@@ -43,6 +67,12 @@ export default async function TieBreakerPage({ params }: { params: Promise<{ org
           </Link>
         }
       />
+      {accessLevel === "free" && (
+        <div className="flex flex-wrap items-center gap-3" aria-label="Free plan usage">
+          <FreePlanBadge />
+          {usage && <FreeUsageLine used={usage.used} limit={usage.limit} label="free official records this month" />}
+        </div>
+      )}
       {history.competitions.length === 0 && <FirstUseGuide />}
       <section className="space-y-4">
         <SectionHeader

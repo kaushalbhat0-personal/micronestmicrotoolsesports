@@ -103,7 +103,7 @@ async function hasUnexpiredOrgSponsorshipGrant(supabase: SupabaseClient, organiz
   }
 }
 
-async function isOrgMember(supabase: SupabaseClient, organizationId: string, userId: string): Promise<boolean> {
+export async function isOrgMember(supabase: SupabaseClient, organizationId: string, userId: string): Promise<boolean> {
   try {
     const { data, error } = await supabase
       .from("organization_members")

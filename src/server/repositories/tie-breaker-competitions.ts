@@ -112,6 +112,10 @@ export async function allocateTieBreakerRecordNumber(supabase: SupabaseClient): 
  * Atomic lock: single UPDATE guarded by status. Returns null when the row is
  * already locked (or missing) so the service can return the locked record
  * idempotently instead of tripping the immutability guard.
+ *
+ * NOTE: production locks finalize through consume_tie_breaker_lock (quota
+ * RPC); the lock-path guard trigger rejects direct status→locked writes.
+ * This helper remains for unit-test doubles and non-quota contexts only.
  */
 export async function lockTieBreakerCompetition(
   supabase: SupabaseClient,
@@ -195,4 +199,52 @@ export async function searchTieBreakerCompetitions(
 export async function deleteTieBreakerCompetition(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase.from("tie_breaker_competitions").delete().eq("id", id);
   if (error) throw error;
+}
+
+/**
+ * Quota-aware finalize through the SECURITY DEFINER RPC.
+ * Must be called with the service-role client (the RPC revokes
+ * authenticated execution): membership, coverage, workspace-month quota,
+ * record-number allocation, and the locked UPDATE commit atomically.
+ * Returns the finalized (or already-locked) row.
+ */
+export async function finalizeTieBreakerLockViaQuota(
+  supabase: SupabaseClient,
+  input: {
+    organizationId: string;
+    competitionId: string;
+    userId: string;
+    snapshot: Record<string, unknown>;
+    lockedAt: string;
+  },
+): Promise<TieBreakerCompetitionRow> {
+  const { data, error } = await supabase.rpc("consume_tie_breaker_lock", {
+    p_organization_id: input.organizationId,
+    p_competition_id: input.competitionId,
+    p_user_id: input.userId,
+    p_snapshot: input.snapshot,
+    p_locked_at: input.lockedAt,
+  });
+  if (error) throw error;
+  if (!data) throw new Error("Lock reservation returned no competition row");
+  return data as TieBreakerCompetitionRow;
+}
+
+/** Locked official records since a timestamp, newest lock first. Quota/history read path (locked_at ordering, never created_at). */
+export async function listLockedTieBreakerCompetitionsSince(
+  supabase: SupabaseClient,
+  organizationId: string,
+  sinceIso: string,
+  limit = 100,
+): Promise<TieBreakerCompetitionRow[]> {
+  const { data, error } = await supabase
+    .from("tie_breaker_competitions")
+    .select(COMPETITION_COLUMNS)
+    .eq("organization_id", organizationId)
+    .eq("status", "locked")
+    .gte("locked_at", sinceIso)
+    .order("locked_at", { ascending: false })
+    .limit(Math.min(Math.max(limit, 1), 100));
+  if (error) throw error;
+  return (data ?? []) as TieBreakerCompetitionRow[];
 }

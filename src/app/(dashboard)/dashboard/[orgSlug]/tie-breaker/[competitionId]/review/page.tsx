@@ -16,6 +16,11 @@ import { getStandings } from "@/features/tie-breaker/services/standings";
 import { LockDialog } from "@/features/tie-breaker/components/lock-dialog";
 import { ReviewChecklist } from "@/features/tie-breaker/components/review-checklist";
 import { StandingsView } from "@/features/tie-breaker/components/standings-view";
+import { FreeUsageLine } from "@/components/freemium/free-usage-line";
+import {
+  getTieBreakerFreeUsage,
+  resolveTieBreakerAccessLevel,
+} from "@/server/services/tie-breaker-policy";
 import type { RuleId, StandingsResult } from "@/features/tie-breaker/types";
 
 export const metadata = {
@@ -69,6 +74,14 @@ export default async function TieBreakerReviewPage({
   if (competition.rule_order.length < 2) blockers.push("Choose at least 2 ranking rules before finishing.");
   const canLock = blockers.length === 0;
 
+  const accessLevel = await resolveTieBreakerAccessLevel(supabase, { organizationId: ctx.organization.id }).catch(
+    () => "paid" as const,
+  );
+  const usage =
+    accessLevel === "free"
+      ? await getTieBreakerFreeUsage(supabase, ctx.organization.id).catch(() => null)
+      : null;
+
   return (
     <div className="space-y-6">
       <PageHeader title={`Review — ${competition.name}`} description="Check everything below, then finish and lock the official record." />
@@ -102,6 +115,9 @@ export default async function TieBreakerReviewPage({
 
       <section className="space-y-4" aria-label="Finish and lock">
         <SectionHeader title="Finish and lock" description="Locking creates the official record with its own record number." />
+        {usage && (
+          <FreeUsageLine used={usage.used} limit={usage.limit} label="free official records this month" />
+        )}
         <LockDialog
           orgSlug={orgSlug}
           competitionId={competition.id}

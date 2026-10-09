@@ -7,6 +7,7 @@ import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { lockCompetitionAction } from "../actions/competition-actions";
+import { UpgradeCTA } from "@/components/freemium/upgrade-cta";
 
 /** Irreversible lock with explicit acknowledgments. The server stays authoritative. */
 export function LockDialog({
@@ -29,12 +30,14 @@ export function LockDialog({
   const [ackIncomplete, setAckIncomplete] = React.useState(false);
   const [ackUnresolved, setAckUnresolved] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [quotaLimited, setQuotaLimited] = React.useState(false);
   const [locking, setLocking] = React.useState(false);
 
   const ready = canLock && (incompleteCount === 0 || ackIncomplete) && (unresolvedCount === 0 || ackUnresolved);
 
   async function onLock() {
     setError(null);
+    setQuotaLimited(false);
     setLocking(true);
     try {
       const result = await lockCompetitionAction({
@@ -45,6 +48,7 @@ export function LockDialog({
       });
       if (result.error) {
         setError(result.error);
+        setQuotaLimited(result.quotaLimited === true);
         return;
       }
       setOpen(false);
@@ -61,12 +65,13 @@ export function LockDialog({
         type="button"
         disabled={!canLock}
         className="min-h-[44px]"
-        onClick={() => {
-          setAckIncomplete(false);
-          setAckUnresolved(false);
-          setError(null);
-          setOpen(true);
-        }}
+          onClick={() => {
+            setAckIncomplete(false);
+            setAckUnresolved(false);
+            setError(null);
+            setQuotaLimited(false);
+            setOpen(true);
+          }}
       >
         <Lock className="h-4 w-4" aria-hidden /> Finish and lock
       </Button>
@@ -92,6 +97,13 @@ export function LockDialog({
               <p role="alert" className="rounded-[12px] border border-destructive/20 bg-destructive-soft p-3 text-sm">
                 {error}
               </p>
+            )}
+            {quotaLimited && (
+              <UpgradeCTA
+                href={`/dashboard/${orgSlug}/settings/billing`}
+                label="Upgrade for unlimited records"
+                ariaLabel="Upgrade for unlimited official records"
+              />
             )}
             {incompleteCount > 0 && (
               <label className="flex cursor-pointer items-start gap-3 rounded-[12px] border border-border p-3 text-sm">

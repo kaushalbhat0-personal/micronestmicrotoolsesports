@@ -1,9 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { validationError } from "@/lib/errors";
+import { createAdminClient } from "@/lib/supabase/admin";
 import * as compRepo from "@/server/repositories/tie-breaker-competitions";
 import * as teamRepo from "@/server/repositories/tie-breaker-teams";
 import * as resultRepo from "@/server/repositories/tie-breaker-results";
 import { findOrganizationById } from "@/server/repositories/organizations";
+import {
+  mapConsumeTieBreakerLockError,
+  resolveTieBreakerAccessLevel,
+} from "@/server/services/tie-breaker-policy";
 import { resolveStandings } from "../engine/resolve";
 import { TEAMS_MAX } from "../schemas";
 import {
@@ -20,9 +25,14 @@ import { assertTransition } from "./competition";
  * Tie-Breaker Resolver — Lock / finalize service.
  *
  * Workflow: verify status → load teams/results → check counts → resolve via
- * the pure engine → enforce acknowledgments → snapshot branding → allocate
- * record number → single guarded UPDATE (status + record + snapshot together,
- * so no half-locked state exists). Idempotent: repeats return the record.
+ * the pure engine → enforce acknowledgments → snapshot (branding gated by
+ * access level) → atomic finalize through consume_tie_breaker_lock, which
+ * commits membership + coverage + workspace-month quota + record-number
+ * allocation + the locked UPDATE in one transaction.
+ *
+ * Reads stay on the caller's RLS-aware client. Only the finalize RPC call
+ * uses the service-role client (the RPC revokes authenticated execution).
+ * Idempotent: repeats return the record with zero quota consumption.
  */
 
 export interface LockOptions {
@@ -35,6 +45,7 @@ export async function lockCompetition(
   organizationId: string,
   competitionId: string,
   options: LockOptions,
+  userId: string,
 ): Promise<compRepo.TieBreakerCompetitionRow> {
   const competition = requireTieBreakerOwned(
     await compRepo.findTieBreakerCompetitionById(supabase, competitionId),
@@ -91,31 +102,41 @@ export async function lockCompetition(
   const teamNames: Record<string, string> = {};
   for (const t of teams) teamNames[t.id] = t.name;
 
-  const recordNumber = await compRepo.allocateTieBreakerRecordNumber(supabase);
+  // Branding is paid-only: Free locks freeze a snapshot without the custom
+  // organization logo (public share additionally gates the live logo).
+  const accessLevel = await resolveTieBreakerAccessLevel(supabase, { organizationId });
+  const organizationLogoUrl =
+    accessLevel === "paid" ? ((org as { logo_url?: string | null } | null)?.logo_url ?? null) : null;
+
+  // The RPC allocates the official record number AFTER the quota decision
+  // and merges the final recordNumber/lockedAt into the snapshot, so the
+  // placeholders below never persist.
   const lockedAt = new Date().toISOString();
   const snapshot = buildLockSnapshot({
     competitionName: competition.name,
     description: competition.description,
-    recordNumber,
+    recordNumber: "",
     lockedAt,
     ruleOrder: competition.rule_order,
     scoring,
     standings,
     teamNames,
     organizationName: org?.name ?? "Your workspace",
-    organizationLogoUrl: (org as { logo_url?: string | null } | null)?.logo_url ?? null,
+    organizationLogoUrl,
   });
 
-  const locked = await compRepo.lockTieBreakerCompetition(supabase, {
-    id: competition.id,
-    recordNumber,
-    lockedAt,
-    snapshot: snapshot as unknown as Record<string, unknown>,
-  });
-
-  // Lost a concurrent race: the winner's record is the official one.
-  if (!locked) {
-    return requireTieBreakerOwned(await compRepo.findTieBreakerCompetitionById(supabase, competition.id), organizationId);
+  try {
+    return await compRepo.finalizeTieBreakerLockViaQuota(createAdminClient() as unknown as SupabaseClient, {
+      organizationId,
+      competitionId: competition.id,
+      userId,
+      snapshot: snapshot as unknown as Record<string, unknown>,
+      lockedAt,
+    });
+  } catch (e) {
+    // A lost concurrent race resolves inside the RPC (winner's record is
+    // returned idempotently). Anything else maps to a safe domain error —
+    // SQLSTATEs and internals never reach the caller.
+    throw mapConsumeTieBreakerLockError(e);
   }
-  return locked;
 }

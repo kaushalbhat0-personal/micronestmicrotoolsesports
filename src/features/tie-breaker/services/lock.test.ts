@@ -10,9 +10,16 @@ vi.mock("@/server/repositories/tie-breaker-competitions");
 vi.mock("@/server/repositories/tie-breaker-teams");
 vi.mock("@/server/repositories/tie-breaker-results");
 vi.mock("@/server/repositories/organizations", () => ({ findOrganizationById: vi.fn() }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => ({ rpc: vi.fn() })) }));
+vi.mock("@/server/services/tie-breaker-policy", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/services/tie-breaker-policy")>();
+  return { ...actual, resolveTieBreakerAccessLevel: vi.fn(async () => "paid") };
+});
+import { resolveTieBreakerAccessLevel } from "@/server/services/tie-breaker-policy";
 
 const supabase = {} as SupabaseClient;
 const ORG = "org-1";
+const USER = "user-1";
 const COMP = "comp-1";
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
@@ -77,39 +84,41 @@ const lockedRow = (recordNumber: string): compRepo.TieBreakerCompetitionRow => (
   locked_snapshot: { standings: [], explanations: [] },
 });
 
+function lock() {
+  return lockCompetition(supabase, ORG, COMP, { allowIncomplete: true, allowUnresolved: true }, USER);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(resolveTieBreakerAccessLevel).mockResolvedValue("paid");
   vi.mocked(compRepo.findTieBreakerCompetitionById).mockResolvedValue(comp());
   vi.mocked(teamRepo.listTieBreakerTeamsByCompetition).mockResolvedValue(teams());
   vi.mocked(resultRepo.listTieBreakerResultsByCompetition).mockResolvedValue([winResult()]);
-  vi.mocked(findOrganizationById).mockResolvedValue({ id: ORG, name: "Acme", logo_url: null } as never);
-  vi.mocked(compRepo.allocateTieBreakerRecordNumber).mockResolvedValue("TB-2026-00001");
-  vi.mocked(compRepo.lockTieBreakerCompetition).mockImplementation(async (_s, input) => ({
-    ...lockedRow(input.recordNumber),
-    locked_snapshot: input.snapshot,
+  vi.mocked(findOrganizationById).mockResolvedValue({ id: ORG, name: "Acme", logo_url: "https://cdn.example/logo.png" } as never);
+  vi.mocked(compRepo.finalizeTieBreakerLockViaQuota).mockImplementation(async (_s, fnInput) => ({
+    ...lockedRow("TB-2026-00001"),
+    locked_snapshot: fnInput.snapshot,
   }));
 });
 
 describe("lock service", () => {
   it("blocks lock with too few teams or no completed results", async () => {
     vi.mocked(teamRepo.listTieBreakerTeamsByCompetition).mockResolvedValue(teams().slice(0, 1));
-    await expect(lockCompetition(supabase, ORG, COMP, { allowIncomplete: true, allowUnresolved: true })).rejects.toThrow(
-      "at least 2 teams",
-    );
+    await expect(lock()).rejects.toThrow("at least 2 teams");
     vi.mocked(teamRepo.listTieBreakerTeamsByCompetition).mockResolvedValue(teams());
     vi.mocked(resultRepo.listTieBreakerResultsByCompetition).mockResolvedValue([]);
-    await expect(lockCompetition(supabase, ORG, COMP, { allowIncomplete: true, allowUnresolved: true })).rejects.toThrow(
-      "completed result",
-    );
+    await expect(lock()).rejects.toThrow("completed result");
+    expect(compRepo.finalizeTieBreakerLockViaQuota).not.toHaveBeenCalled();
   });
 
   it("rejects draft → locked transitions and cross-org locks", async () => {
     vi.mocked(compRepo.findTieBreakerCompetitionById).mockResolvedValue(comp("draft"));
     vi.mocked(resultRepo.listTieBreakerResultsByCompetition).mockResolvedValue([]);
-    await expect(lockCompetition(supabase, ORG, COMP, { allowIncomplete: true, allowUnresolved: true })).rejects.toThrow();
-    await expect(lockCompetition(supabase, "other-org", COMP, { allowIncomplete: true, allowUnresolved: true })).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
+    await expect(lock()).rejects.toThrow();
+    await expect(
+      lockCompetition(supabase, "other-org", COMP, { allowIncomplete: true, allowUnresolved: true }, USER),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(compRepo.finalizeTieBreakerLockViaQuota).not.toHaveBeenCalled();
   });
 
   it("requires acknowledgment for incomplete results and unresolved ties", async () => {
@@ -117,45 +126,66 @@ describe("lock service", () => {
       winResult(),
       { ...winResult(), id: "res-2", winner: null, is_complete: false },
     ]);
-    await expect(lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: true })).rejects.toThrow("incomplete");
+    await expect(
+      lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: true }, USER),
+    ).rejects.toThrow("incomplete");
     // Unresolved: split legs (A 2–0, B 2–0) tie on points, H2H, maps, and wins.
     vi.mocked(resultRepo.listTieBreakerResultsByCompetition).mockResolvedValue([
       { ...winResult(), id: "r1", winner: "team_a" },
       { ...winResult(), id: "r2", team_a_id: B, team_b_id: A, winner: "team_a" },
     ]);
-    await expect(lockCompetition(supabase, ORG, COMP, { allowIncomplete: true, allowUnresolved: false })).rejects.toThrow("remain tied");
     await expect(
-      lockCompetition(supabase, ORG, COMP, { allowIncomplete: true, allowUnresolved: true }),
+      lockCompetition(supabase, ORG, COMP, { allowIncomplete: true, allowUnresolved: false }, USER),
+    ).rejects.toThrow("remain tied");
+    await expect(
+      lockCompetition(supabase, ORG, COMP, { allowIncomplete: true, allowUnresolved: true }, USER),
     ).resolves.toMatchObject({ status: "locked" });
   });
 
-  it("locks successfully with record number, snapshot, and branding", async () => {
-    const locked = await lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: false });
+  it("finalizes through the quota RPC with server-derived identity", async () => {
+    const locked = await lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: false }, USER);
     expect(locked.status).toBe("locked");
     expect(locked.record_number).toBe("TB-2026-00001");
+    const finalizeArg = vi.mocked(compRepo.finalizeTieBreakerLockViaQuota).mock.calls[0]?.[1];
+    expect(finalizeArg).toMatchObject({ organizationId: ORG, competitionId: COMP, userId: USER });
+    expect(finalizeArg?.lockedAt).toEqual(expect.any(String));
+    expect(finalizeArg?.snapshot).toBeDefined();
     const snapshot = locked.locked_snapshot as unknown as Record<string, unknown>;
-    expect(snapshot).toMatchObject({ competitionName: "Monsoon Cup", recordNumber: "TB-2026-00001", organizationName: "Acme" });
+    expect(snapshot).toMatchObject({ competitionName: "Monsoon Cup", organizationName: "Acme" });
     expect(JSON.stringify(snapshot)).not.toContain("Private");
-    const updateArg = vi.mocked(compRepo.lockTieBreakerCompetition).mock.calls[0]?.[1];
-    expect(updateArg).toMatchObject({ id: COMP, recordNumber: "TB-2026-00001" });
-    expect(updateArg?.snapshot).toBeDefined();
   });
 
-  it("is idempotent: repeats return the record without allocating again", async () => {
+  it("keeps paid branding in the snapshot, strips it for Free", async () => {
+    await lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: false }, USER);
+    const paidSnapshot = vi.mocked(compRepo.finalizeTieBreakerLockViaQuota).mock.calls[0]?.[1]
+      ?.snapshot as unknown as Record<string, unknown>;
+    expect(paidSnapshot).toMatchObject({ organizationLogoUrl: "https://cdn.example/logo.png" });
+
+    vi.mocked(resolveTieBreakerAccessLevel).mockResolvedValue("free");
+    await lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: false }, USER);
+    const freeSnapshot = vi.mocked(compRepo.finalizeTieBreakerLockViaQuota).mock.calls[1]?.[1]
+      ?.snapshot as unknown as Record<string, unknown>;
+    expect(freeSnapshot?.organizationLogoUrl).toBeUndefined();
+  });
+
+  it("maps quota rejection to the customer-safe upgrade message", async () => {
+    vi.mocked(compRepo.finalizeTieBreakerLockViaQuota).mockRejectedValue({ code: "TBF01", message: "quota_exceeded" });
+    await expect(
+      lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: false }, USER),
+    ).rejects.toThrow("You've used all 3 free Tie-Breaker records for this month");
+  });
+
+  it("is idempotent: repeats return the record without finalizing again", async () => {
     vi.mocked(compRepo.findTieBreakerCompetitionById).mockResolvedValue(lockedRow("TB-2026-00001"));
-    const locked = await lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: false });
+    const locked = await lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: false }, USER);
     expect(locked.record_number).toBe("TB-2026-00001");
-    expect(compRepo.allocateTieBreakerRecordNumber).not.toHaveBeenCalled();
-    expect(compRepo.lockTieBreakerCompetition).not.toHaveBeenCalled();
+    expect(compRepo.finalizeTieBreakerLockViaQuota).not.toHaveBeenCalled();
   });
 
-  it("survives a lost race by returning the winner's record", async () => {
-    vi.mocked(compRepo.lockTieBreakerCompetition).mockResolvedValue(null);
-    vi.mocked(compRepo.findTieBreakerCompetitionById)
-      .mockResolvedValueOnce(comp())
-      .mockResolvedValue(lockedRow("TB-2026-00009"));
-    const locked = await lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: false });
+  it("returns the RPC-resolved record when a concurrent race is lost", async () => {
+    vi.mocked(compRepo.finalizeTieBreakerLockViaQuota).mockResolvedValue(lockedRow("TB-2026-00009"));
+    const locked = await lockCompetition(supabase, ORG, COMP, { allowIncomplete: false, allowUnresolved: false }, USER);
     expect(locked.record_number).toBe("TB-2026-00009");
-    expect(compRepo.allocateTieBreakerRecordNumber).toHaveBeenCalledTimes(1);
+    expect(compRepo.finalizeTieBreakerLockViaQuota).toHaveBeenCalledTimes(1);
   });
 });

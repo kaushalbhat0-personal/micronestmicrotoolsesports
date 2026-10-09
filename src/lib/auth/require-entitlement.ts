@@ -30,8 +30,8 @@ const COMMERCIALLY_AVAILABLE_SLUGS: ReadonlySet<string> = new Set(
 const DENIAL_MESSAGE =
   "This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.";
 
-/** Organization-scoped grant check — RPC preferred, manual query fallback. Unchanged semantics. */
-async function hasOrganizationGrant(
+/** Organization-scoped grant check — RPC preferred, manual query fallback. Unchanged semantics. Reused by the generic tool-access skeleton. */
+export async function hasOrganizationGrant(
   supabase: SupabaseClient,
   organizationId: string,
   toolSlug: string
@@ -82,14 +82,19 @@ export const requireEntitlement = cache(async (organizationId: string, toolSlug:
 
   // User-scoped Sponsorship fallback — explicitly fenced to sponsor-sentinel.
   // Membership was already verified above; the grant alone never grants data.
-  // The single access-level resolver is authoritative here (paid, free, and
+  // Resolved through the Sponsorship policy module (paid, free, and
   // expired-paid-logically-free all pass; quotas are enforced downstream).
+  // The registry kill-switch (freeEnabled) fails closed when disabled.
   // Operational tools never reach this branch.
   if (toolSlug === SPONSORSHIP_TOOL_SLUG) {
-    const { resolveSponsorshipAccessLevel } = await import("@/server/services/sponsorship-limits");
-    const level = await resolveSponsorshipAccessLevel(supabase, { userId: ctx.user.id, organizationId });
-    if (level === "paid" || level === "free") {
-      return { ...ctx, toolSlug, hasAccess: true as const };
+    const { getToolFreePolicy } = await import("@/config/tools/policy");
+    const { resolveSponsorshipPolicyLevel } = await import("@/server/services/sponsorship-policy");
+    const policy = getToolFreePolicy(toolSlug);
+    if (policy && policy.freeEnabled) {
+      const level = await resolveSponsorshipPolicyLevel(supabase, { userId: ctx.user.id, organizationId });
+      if (level === "paid" || level === "free") {
+        return { ...ctx, toolSlug, hasAccess: true as const };
+      }
     }
   }
 
@@ -130,14 +135,18 @@ export async function getAccessibleToolSlugs(organizationId: string): Promise<st
   // valid user grant sees Sponsorship Tracking in every member organization.
   // Membership was verified inside getOrganizationEntitlements; the grant
   // alone never grants data. Sponsor-sentinel only — never operational tools.
-  // Uses the single access-level resolver so expired-paid-logically-free
-  // members are included exactly like the requireEntitlement gate.
+  // Resolved through the Sponsorship policy module so expired-paid-logically-
+  // free members are included exactly like the requireEntitlement gate.
   if (!slugs.includes(SPONSORSHIP_TOOL_SLUG)) {
     const supabase = await createClient();
     const { user } = await requireOrganizationMember(organizationId);
-    const { resolveSponsorshipAccessLevel } = await import("@/server/services/sponsorship-limits");
-    const level = await resolveSponsorshipAccessLevel(supabase, { userId: user.id, organizationId });
-    if (level === "paid" || level === "free") slugs.push(SPONSORSHIP_TOOL_SLUG);
+    const { getToolFreePolicy } = await import("@/config/tools/policy");
+    const { resolveSponsorshipPolicyLevel } = await import("@/server/services/sponsorship-policy");
+    const policy = getToolFreePolicy(SPONSORSHIP_TOOL_SLUG);
+    if (policy && policy.freeEnabled) {
+      const level = await resolveSponsorshipPolicyLevel(supabase, { userId: user.id, organizationId });
+      if (level === "paid" || level === "free") slugs.push(SPONSORSHIP_TOOL_SLUG);
+    }
   }
 
   return slugs;
