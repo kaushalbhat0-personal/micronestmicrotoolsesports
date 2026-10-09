@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { SPONSORSHIP_TOOL_SLUG, hasUserSponsorshipAccess } from "@/server/services/user-sponsorship-service";
+import { SPONSORSHIP_TOOL_SLUG } from "@/server/services/user-sponsorship-service";
+import { PAID_SOURCES } from "@/server/services/sponsorship-limits";
+import { findUserGrant } from "@/server/repositories/user-entitlements";
+import type { EntitlementSource } from "@/types/database";
 
 /**
  * Service: organization-level Sponsorship coverage for background paths.
@@ -11,11 +14,14 @@ import { SPONSORSHIP_TOOL_SLUG, hasUserSponsorshipAccess } from "@/server/servic
  *
  *   1. Legacy organization grant (per-tool sponsor-sentinel, all-access,
  *      or purchase-provisioned rows) — dual-read transition.
- *   2. Any OWNER's valid user-level Sponsorship grant — the Phase-3 model:
+ *   2. Any OWNER's user-level Sponsorship grant — the Phase-3 model:
  *      an org whose owner is commercially entitled is covered for
- *      background processing.
- *   3. Optionally, a specific CALLER's valid user grant (browser-invoked
- *      service functions re-verifying after the action gate).
+ *      background processing. Valid grants cover at paid/free level; an
+ *      expired paid grant still covers at free level (logical expiry → free
+ *      fallback — quotas are enforced downstream, never unlimited here).
+ *   3. Optionally, a specific CALLER's user-level grant (browser-invoked
+ *      service functions re-verifying after the action gate), with the same
+ *      expired-paid → free coverage.
  *
  * This never grants DATA access by itself: every caller still scopes all
  * data reads/writes by organization_id under RLS, exactly as before.
@@ -32,12 +38,13 @@ export async function hasSponsorshipAccessForOrg(
   if (await hasOrganizationSponsorshipGrant(supabase, organizationId)) return true;
 
   try {
-    // 2. Owner user-grant (Phase-3 model).
+    // 2. Owner user-grant (Phase-3 model), including expired-paid → free.
     if (await hasOwnerUserSponsorshipGrant(supabase, organizationId)) return true;
 
     // 3. Caller user-grant (browser service re-checks; membership was
     // already enforced by the action gate — this is coverage only).
-    if (userId && (await hasUserSponsorshipAccess(supabase, userId))) return true;
+    // Expired paid grants cover at free level (quotas enforced downstream).
+    if (userId && (await hasCallerSponsorshipCoverage(supabase, userId))) return true;
   } catch {
     // Missing user-grant table (Phase-2 migration not applied) and other
     // user-leg failures fail closed to false — never crash background jobs.
@@ -45,6 +52,22 @@ export async function hasSponsorshipAccessForOrg(
   }
 
   return false;
+}
+
+/**
+ * Caller coverage with the single level rule: any grant row (valid paid,
+ * valid free, or expired paid) covers at its level. No grant, or an
+ * expired/unknown-source row that is not paid, covers nothing. Uses the raw
+ * grant (not the unexpired-only helper) so expired-paid callers keep free
+ * coverage instead of losing background processing.
+ */
+async function hasCallerSponsorshipCoverage(supabase: SupabaseClient, userId: string): Promise<boolean> {
+  const { data: tool } = await supabase.from("tools").select("id").eq("slug", SPONSORSHIP_TOOL_SLUG).single();
+  if (!tool) return false;
+  const grant = await findUserGrant(supabase, userId, (tool as { id: string }).id);
+  if (!grant) return false;
+  if (grant.expires_at === null || new Date(grant.expires_at) > new Date()) return true;
+  return PAID_SOURCES.has(grant.source as EntitlementSource);
 }
 
 async function hasOrganizationSponsorshipGrant(
@@ -86,9 +109,11 @@ async function hasOrganizationSponsorshipGrant(
 }
 
 /**
- * Any owner (organizations.owner_id or role='owner' member) holding a valid,
- * unexpired user-level Sponsorship grant covers the org for background
- * processing. Ordinary members are never consulted.
+ * Any owner (organizations.owner_id or role='owner' member) holding a
+ * Sponsorship grant covers the org for background processing. Valid grants
+ * cover at their level; an expired paid grant still covers at free level
+ * (logical expiry → free fallback — downstream quota asserts apply free
+ * limits). Ordinary members are never consulted.
  */
 async function hasOwnerUserSponsorshipGrant(
   supabase: SupabaseClient,
@@ -114,11 +139,16 @@ async function hasOwnerUserSponsorshipGrant(
 
   const { data: grants, error } = await supabase
     .from("user_tool_entitlements")
-    .select("expires_at")
+    .select("source, expires_at")
     .in("user_id", [...ownerIds])
     .eq("tool_id", (tool as { id: string }).id);
   if (error || !grants) return false;
 
   const now = new Date();
-  return (grants as Array<{ expires_at: string | null }>).some((g) => g.expires_at === null || new Date(g.expires_at) > now);
+  return (grants as Array<{ source: string; expires_at: string | null }>).some((g) => {
+    if (g.expires_at === null || new Date(g.expires_at) > now) return true;
+    // Expired paid owner grants still cover at free level (quotas enforced
+    // downstream by the scan/campaign/channel guards).
+    return PAID_SOURCES.has(g.source as EntitlementSource);
+  });
 }

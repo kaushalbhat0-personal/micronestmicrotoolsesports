@@ -21,21 +21,31 @@ const HISTORY_LIMIT = 50;
  * - Avoids N+1: 1 scan query + 1 count query + 1 campaign query + 1 evidence batch + 1 evaluation batch.
  * - Returns newest first, limited to HISTORY_LIMIT for MVP (dataset small, no silent infinite scroll).
  * - `total` is the true org-wide scan count so "Showing X of Y" stays honest when capped.
+ * - Free tier: `historyWindowDays` applies a non-destructive read window
+ *   (created_at >= now() - window). Older rows stay in the database and
+ *   re-appear on upgrade. Null/undefined = full retained history (paid).
  */
 export async function getScanHistory(
   supabase: SupabaseClient,
   organizationId: string,
+  opts?: { historyWindowDays?: number | null },
 ): Promise<ScanHistoryResult> {
+  const windowDays = opts?.historyWindowDays;
+  const cutoff = typeof windowDays === "number" && windowDays >= 0
+    ? new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString()
+    : null;
   // 1. Scans (constrained to org) + true total for the honest "Showing X of Y" label.
   // The count is a single head query — no per-row/per-scan fan-out.
+  const pageQuery = supabase
+    .from("scans")
+    .select("id, organization_id, campaign_id, platform, status, started_at, completed_at, scanner_version, error_code, error_message, created_at")
+    .eq("organization_id", organizationId);
+  const windowedPageQuery = cutoff ? pageQuery.gte("created_at", cutoff) : pageQuery;
+  const countQuery = supabase.from("scans").select("id", { count: "exact", head: true }).eq("organization_id", organizationId);
+  const windowedCountQuery = cutoff ? countQuery.gte("created_at", cutoff) : countQuery;
   const [pageRes, countRes] = await Promise.all([
-    supabase
-      .from("scans")
-      .select("id, organization_id, campaign_id, platform, status, started_at, completed_at, scanner_version, error_code, error_message, created_at")
-      .eq("organization_id", organizationId)
-      .order("created_at", { ascending: false })
-      .limit(HISTORY_LIMIT),
-    supabase.from("scans").select("id", { count: "exact", head: true }).eq("organization_id", organizationId),
+    windowedPageQuery.order("created_at", { ascending: false }).limit(HISTORY_LIMIT),
+    windowedCountQuery,
   ]);
 
   const { data: scans, error: scanError } = pageRes;

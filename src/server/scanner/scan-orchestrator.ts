@@ -80,7 +80,45 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
 
   const deliverables = await deliverableRepo.listDeliverablesByCampaign(supabase, campaignId);
   const allChannels = await channelRepo.listConnectedChannelsByOrg(supabase, organizationId);
-  const channels = input.platformFilter ? allChannels.filter((c) => c.platform === input.platformFilter) : allChannels;
+  let channels = input.platformFilter ? allChannels.filter((c) => c.platform === input.platformFilter) : allChannels;
+
+  // Free-tier quota gate (authoritative for caller-identified scans).
+  // Paid users: no-op. Free users: campaign must be the deterministic covered
+  // campaign and fetch is restricted to the covered channel. The pre-check
+  // below gives specific customer-facing errors and fetch scoping; the
+  // database RPC inside reserveFreeCheckOrThrow re-verifies everything
+  // authoritatively at insert time (see below).
+  // Background callers without userId enforce the same rules before invoking
+  // executeScan via resolveOrgCheckPrincipal (cron/handler/targeted).
+  let quotaUserId: string | null = null;
+  if (input.userId) {
+    const {
+      resolveSponsorshipLimits,
+      assertFreeScanEligible,
+      freeQuotaError,
+    } = await import("@/server/services/sponsorship-limits");
+    const callerLimits = await resolveSponsorshipLimits(supabase, { userId: input.userId, organizationId });
+    if (callerLimits.level === "none") {
+      throw freeQuotaError("covered", "This tool isn't active for your workspace yet. Check your plan or open Billing to activate access.");
+    }
+    if (callerLimits.level === "free") {
+      const { coveredChannelId } = await assertFreeScanEligible(supabase, {
+        userId: input.userId,
+        organizationId,
+        campaignId,
+      });
+      if (coveredChannelId) {
+        channels = channels.filter((c) => (c as unknown as { id: string }).id === coveredChannelId);
+      }
+      if (channels.length === 0) {
+        throw freeQuotaError(
+          "covered",
+          "Your free channel lives in another workspace. Upgrade for unlimited channels and checks.",
+        );
+      }
+      quotaUserId = input.userId;
+    }
+  }
 
   if (channels.length === 0) {
     stageErrors.push({ stage: "DISCOVER", message: "no channels" });
@@ -92,13 +130,28 @@ export async function executeScan(deps: ScannerDeps): Promise<ScanResult> {
   const initialScanPlatform: Platform = (input.platformFilter ?? (channels[0]?.platform as Platform | undefined) ?? "twitch");
   let scan: import("@/types/database").Scan;
   try {
-    scan = await scanRepo.tryCreateScanWithLock(supabase, {
-      organization_id: organizationId,
-      campaign_id: campaignId,
-      platform: initialScanPlatform,
-      status: "pending",
-      scanner_version: scannerVersion,
-    });
+    if (quotaUserId) {
+      // Database-authoritative reservation: membership + entitlement +
+      // coverage + budget + duplicate rule + pending insert happen atomically
+      // inside consume_free_check. Provider calls below run only on success.
+      const { reserveFreeCheckOrThrow } = await import("@/server/services/sponsorship-limits");
+      const reservation = await reserveFreeCheckOrThrow(supabase, {
+        userId: quotaUserId,
+        organizationId,
+        campaignId,
+        platform: initialScanPlatform,
+        scannerVersion,
+      });
+      scan = reservation.scan;
+    } else {
+      scan = await scanRepo.tryCreateScanWithLock(supabase, {
+        organization_id: organizationId,
+        campaign_id: campaignId,
+        platform: initialScanPlatform,
+        status: "pending",
+        scanner_version: scannerVersion,
+      });
+    }
   } catch (e) {
     // Already running is controlled, not a 500
     if (e instanceof Error && (e as unknown as { code?: string }).code === "CONFLICT") throw e;

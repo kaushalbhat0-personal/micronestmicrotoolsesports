@@ -11,6 +11,9 @@ vi.mock("@/lib/auth/organization-context", () => ({
 vi.mock("@/lib/auth/require-entitlement", () => ({
   requireEntitlement: (...a: unknown[]) => (mockRequireEnt as unknown as (...args: unknown[]) => unknown)(...a),
 }));
+const mockAssertChannelQuota = vi.fn(async () => undefined);
+vi.mock("@/server/services/sponsorship-limits", () => ({ assertFreeChannelConnectAllowed: (...a: unknown[]) => (mockAssertChannelQuota as unknown as (...args: unknown[]) => unknown)(...a) }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({})) }));
 
 const mockGenerateState = vi.fn(() => ({ state: "test.state.sig", nonce: "n", issuedAt: Date.now() }));
 const mockGenerateVerifier = vi.fn(() => "verifier123456789012345678901234567890123");
@@ -94,6 +97,16 @@ describe("GET /api/auth/kick/start", () => {
     const req = new Request("https://example.com/api/auth/kick/start?orgSlug=tag-esports");
     const res = await GET(req);
     expect(res.status).toBe(307);
+  });
+
+  it("5b. free channel quota exhausted → 403 (OAuth start cannot bypass limits)", async () => {
+    (mockAssertChannelQuota as unknown as { mockRejectedValueOnce: (e: unknown) => void }).mockRejectedValueOnce(
+      new Error("You're using your free channel slot. Disconnect it to connect a different channel — or upgrade for unlimited channels."),
+    );
+    const req = new Request("https://example.com/api/auth/kick/start?orgSlug=tag-esports");
+    const res = await GET(req);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: expect.stringMatching(/free channel slot/) });
   });
 
   it("6. redirect host is exactly https://id.kick.com/oauth/authorize", async () => {

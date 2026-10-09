@@ -13,8 +13,14 @@ export async function requestManualScan(supabase: SupabaseClient, organizationId
   const has = await checkEntitlement(supabase, organizationId, userId);
   if (!has) throw entitlementError("Sponsorship Tracking isn't active for your workspace yet. Check your plan or open Billing to activate access.");
 
-  // Call existing scanner — DISCOVER→FETCH→NORMALIZE→EVALUATE→PERSIST
-  const result = await executeScan({ supabase, input: { organizationId, campaignId } });
+  // Call existing scanner — DISCOVER→FETCH→NORMALIZE→EVALUATE→PERSIST.
+  // Free-tier quota (10/month, covered campaign/channel) is enforced inside
+  // executeScan when userId is provided — including the concurrency-safe
+  // check-then-insert edge. Paid users are unaffected.
+  const result = await executeScan({
+    supabase,
+    input: userId ? { organizationId, campaignId, userId } : { organizationId, campaignId },
+  });
   return result;
 }
 

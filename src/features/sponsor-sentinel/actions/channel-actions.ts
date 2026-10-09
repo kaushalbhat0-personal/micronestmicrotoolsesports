@@ -210,7 +210,7 @@ export async function connectTwitchChannelAction(formData: FormData): Promise<Ch
         canonical_url: ref.canonicalUrl,
         connection_mode: "discovered",
         connection_status: "connected",
-      });
+      }, { userId: ctx.user.id });
       revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns`);
       revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
       return { success: true, channel };
@@ -367,7 +367,7 @@ export async function connectYouTubeChannelAction(formData: FormData): Promise<C
         canonical_url: ref.canonicalUrl,
         connection_mode: "discovered",
         connection_status: "connected",
-      });
+      }, { userId: ctx.user.id });
       revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns`);
       revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
       return { success: true, channel };
@@ -521,7 +521,7 @@ export async function connectKickChannelAction(formData: FormData): Promise<Chan
         canonical_url: ref.canonicalUrl,
         connection_mode: "discovered",
         connection_status: "connected",
-      });
+      }, { userId: ctx.user.id });
       revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns`);
       revalidatePath(`/dashboard/${orgSlug}/settings/integrations`);
       return { success: true, channel };

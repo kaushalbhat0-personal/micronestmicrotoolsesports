@@ -21,12 +21,21 @@ export async function createConnectedChannel(
   supabase: SupabaseClient,
   organizationId: string,
   rawInput: unknown,
+  opts?: { userId?: string },
 ) {
   const input = parseOrThrow(createChannelSchema, rawInput);
 
   // RLS will enforce organization membership, but we also ensure caller supplied organizationId
   // matches an organization they are member of — caller must have obtained it via requireOrganizationContext.
   if (!organizationId) throw validationError("organizationId required");
+
+  // Free-tier quota: at most 1 connected channel total per free user (paid → no-op).
+  // Only new `connected` rows consume the slot; non-connected rows never count.
+  const status = input.connection_status ?? "connected";
+  if (status === "connected" && opts?.userId) {
+    const { assertFreeChannelConnectAllowed } = await import("@/server/services/sponsorship-limits");
+    await assertFreeChannelConnectAllowed(supabase, { userId: opts.userId, organizationId });
+  }
 
   return repo.createConnectedChannel(supabase, {
     organization_id: organizationId,

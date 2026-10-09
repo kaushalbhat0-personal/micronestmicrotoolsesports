@@ -41,6 +41,37 @@ export async function executeTargetedYouTubeScan(
   const orgId = (chRow as { organization_id?: string } | null)?.organization_id ?? null;
   if (!orgId) return { attempted: 0, succeeded: 0, skipped: 0, scanIds: [] };
 
+  // Free-tier pre-gate: exhausted monthly budget → no provider call at all.
+  // Per-campaign coverage is enforced again authoritatively at lock time via
+  // the database RPC (below). Fail closed: if the principal cannot be
+  // established, do not fetch or scan.
+  let freeQuotaUserId: string | null = null;
+  try {
+    const { resolveOrgCheckPrincipal, hasFreeChecksRemaining } = await import("@/server/services/sponsorship-limits");
+    const targetedPrincipal = await resolveOrgCheckPrincipal(supabase, orgId);
+    if (targetedPrincipal.level === "none") return { attempted: 0, succeeded: 0, skipped: 0, scanIds: [] };
+    if (targetedPrincipal.level === "free" && targetedPrincipal.userId) {
+      freeQuotaUserId = targetedPrincipal.userId;
+      if (!(await hasFreeChecksRemaining(supabase, targetedPrincipal.userId))) {
+        return { attempted: 0, succeeded: 0, skipped: 0, scanIds: [] };
+      }
+      // Covered-campaign check BEFORE any provider fetch: without a covered
+      // campaign there is nothing this event could scan, so videos.list must
+      // not run. (Timeframe filtering still needs the video and happens below.)
+      const { getFreeCoveredCampaignId } = await import("@/server/services/sponsorship-limits");
+      const coveredBeforeFetch = await getFreeCoveredCampaignId(supabase, targetedPrincipal.userId);
+      if (!coveredBeforeFetch) {
+        return { attempted: 0, succeeded: 0, skipped: 0, scanIds: [] };
+      }
+    }
+  } catch (e) {
+    // Fail closed: do not fetch provider data when free coverage cannot be
+    // established. (Resolution catches its own DB errors; this triggers only
+    // on catastrophic failure, where scanning is unsafe.)
+    console.warn(JSON.stringify({ event: "targeted_youtube_principal_unavailable", organizationId: orgId, error: e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200) }));
+    return { attempted: 0, succeeded: 0, skipped: 0, scanIds: [] };
+  }
+
   // Fetch single video via videos.list (OAuth if available, else API key)
   let client: YouTubeClient | null = null;
   try {
@@ -118,10 +149,21 @@ export async function executeTargetedYouTubeScan(
   }
   if (eligible.length === 0) return { attempted: 0, succeeded: 0, skipped: 0, scanIds: [] };
 
+  // Free tier: only the deterministic covered campaign may consume checks.
+  // Non-covered campaigns are excluded before any reservation (the RPC
+  // re-verifies authoritatively at insert time).
+  let eligibleCampaigns = eligible;
+  if (freeQuotaUserId) {
+    const { getFreeCoveredCampaignId } = await import("@/server/services/sponsorship-limits");
+    const coveredId = await getFreeCoveredCampaignId(supabase, freeQuotaUserId).catch(() => null);
+    eligibleCampaigns = coveredId ? eligible.filter((c) => c.id === coveredId) : [];
+    if (eligibleCampaigns.length === 0) return { attempted: 0, succeeded: 0, skipped: 0, scanIds: [] };
+  }
+
   let succeeded = 0;
   let skipped = 0;
   const scanIds: string[] = [];
-  for (const campaign of eligible) {
+  for (const campaign of eligibleCampaigns) {
     const deliverables = await deliverableRepo.listDeliverablesByCampaign(supabase, campaign.id);
     if (deliverables.length === 0) continue;
     // Build 1 × N pending
@@ -160,16 +202,42 @@ export async function executeTargetedYouTubeScan(
       });
     }
     if (pending.length === 0) continue;
-    // Acquire per-campaign lock via scan creation
+    // Acquire per-campaign lock via scan creation.
+    // Database-authoritative reservation: the RPC verifies coverage + budget
+    // and inserts the pending row atomically; provider calls below run only
+    // on success. Paid quota owners use the direct unmetered path.
     let scan: import("@/types/database").Scan;
     try {
-      scan = await scanRepo.tryCreateScanWithLock(supabase, {
-        organization_id: orgId,
-        campaign_id: campaign.id,
-        platform: "youtube" as Platform,
-        status: "pending",
-        scanner_version: TARGETED_SCANNER_VERSION,
-      });
+      if (freeQuotaUserId) {
+        const { reserveFreeCheckOrThrow, isFreeQuotaError } = await import(
+          "@/server/services/sponsorship-limits"
+        );
+        const quotaUser = freeQuotaUserId;
+        try {
+          const reservation = await reserveFreeCheckOrThrow(supabase, {
+            userId: quotaUser,
+            organizationId: orgId,
+            campaignId: campaign.id,
+            platform: "youtube" as Platform,
+            scannerVersion: TARGETED_SCANNER_VERSION,
+          });
+          scan = reservation.scan;
+        } catch (e) {
+          if (isFreeQuotaError(e)) {
+            skipped++;
+            continue;
+          }
+          throw e;
+        }
+      } else {
+        scan = await scanRepo.tryCreateScanWithLock(supabase, {
+          organization_id: orgId,
+          campaign_id: campaign.id,
+          platform: "youtube" as Platform,
+          status: "pending",
+          scanner_version: TARGETED_SCANNER_VERSION,
+        });
+      }
       scan = await scanRepo.updateScanStatus(supabase, scan.id, { status: "running" });
     } catch (e) {
       const code = (e as { code?: string })?.code;
@@ -242,7 +310,7 @@ export async function executeTargetedYouTubeScan(
     }
   }
 
-  return { attempted: eligible.length, succeeded, skipped, scanIds };
+  return { attempted: eligibleCampaigns.length, succeeded, skipped, scanIds };
 }
 
 async function hasSentinelEntitlement(supabase: SupabaseClient, organizationId: string): Promise<boolean> {

@@ -49,6 +49,26 @@ export async function reconcileAllSubscriptions(
     const externalChannelId = ch.external_channel_id;
     const organizationId = ch.organization_id;
 
+    // Sponsorship coverage gate: skip channels in workspaces with no
+    // sponsorship coverage at all. Free-covered workspaces reconcile only
+    // their deterministic covered channel (over-quota channels excluded —
+    // their webhook-triggered scans would be skipped anyway). Paid coverage
+    // reconciles every connected channel. Operational tools unaffected
+    // (this reconciler is sponsor-sentinel only).
+    try {
+      const { resolveOrgCheckPrincipal, getFreeCoveredChannelId } = await import("@/server/services/sponsorship-limits");
+      const principal = await resolveOrgCheckPrincipal(supabase, organizationId);
+      if (principal.level === "none") continue;
+      if (principal.level === "free" && principal.userId) {
+        const covered = await getFreeCoveredChannelId(supabase, principal.userId);
+        if (covered !== ch.id) continue;
+      }
+    } catch {
+      // Coverage lookup failure → proceed (fail open for upkeep only; scan
+      // paths still enforce quotas authoritatively before any provider fetch
+      // beyond this upkeep call).
+    }
+
     // Skip if provider not supports webhooks (all three do)
     let adapter: { reconcileForChannel: (input: { organizationId: string; platform: Platform; externalChannelId: string }) => Promise<{ created: number; alreadyExists: number; failed: number }> } | null = null;
     if (provider === "twitch") {

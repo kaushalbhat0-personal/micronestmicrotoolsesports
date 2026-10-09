@@ -48,6 +48,12 @@ export async function activateCampaign(supabase: SupabaseClient, organizationId:
     if (!d.rule || typeof d.rule !== "object") throw validationError(`Invalid rule for deliverable ${d.name}`);
   }
 
+  // Free-tier quota: at most 1 active campaign total per free user (paid → no-op).
+  if (userId) {
+    const { assertFreeCampaignActivateAllowed } = await import("@/server/services/sponsorship-limits");
+    await assertFreeCampaignActivateAllowed(supabase, { userId, organizationId, campaignId });
+  }
+
   // Transactional update — single status change, no partial mutation (Supabase lacks transaction, single UPDATE is atomic)
   const updated = await campaignRepo.updateSponsorCampaign(supabase, campaignId, { status: "active" as CampaignStatus });
   if (updated.status !== "active") throw validationError("Activation failed");

@@ -82,12 +82,14 @@ function captureOrderInsert(plan: Record<string, unknown>) {
 }
 
 /** Mock user-scoped DB for requireEntitlement: no org grant, given user grant. */
-function mockUserGrantAccess(userGrant: { expires_at: string | null } | null) {
+function mockUserGrantAccess(userGrant: { expires_at: string | null; source?: string } | null) {
   mockUserRpc.mockResolvedValue({ data: false, error: null });
   mockUserFrom.mockImplementation((table: string) => {
     const self: Record<string, unknown> = {};
     const terminal = () => {
       if (table === "tools") return Promise.resolve({ data: { id: SPONSOR_TOOL_ID, slug: "sponsor-sentinel", is_active: true }, error: null });
+      // Access-level resolver re-verifies membership from the DB.
+      if (table === "organization_members") return Promise.resolve({ data: { id: "m1" }, error: null });
       if (table === "user_tool_entitlements") return Promise.resolve({ data: userGrant, error: null });
       return Promise.resolve({ data: null, error: null });
     };
@@ -174,24 +176,30 @@ describe("Phase 4 — buyer attribution at checkout", () => {
 
 describe("Phase 4 — purchased grant access matrix (source=subscription semantics)", () => {
   it("7+9+10. purchased monthly grant + membership → allowed", async () => {
-    mockUserGrantAccess({ expires_at: FUTURE });
+    mockUserGrantAccess({ expires_at: FUTURE, source: "subscription" });
     const result = await requireEntitlement("org-a", "sponsor-sentinel");
     expect(result.hasAccess).toBe(true);
   });
 
   it("12. lifetime purchased grant (NULL expiry) → allowed", async () => {
-    mockUserGrantAccess({ expires_at: null });
+    mockUserGrantAccess({ expires_at: null, source: "subscription" });
     const result = await requireEntitlement("org-a", "sponsor-sentinel");
     expect(result.hasAccess).toBe(true);
   });
 
-  it("15. expired purchased grant + no org grant → denied on both legs", async () => {
+  it("15. expired purchased grant + no org grant → allowed as Free (logical expiry → free, FIX-06)", async () => {
+    mockUserGrantAccess({ expires_at: PAST, source: "subscription" });
+    const result = await requireEntitlement("org-a", "sponsor-sentinel");
+    expect(result.hasAccess).toBe(true);
+  });
+
+  it("15b. expired grant of unknown source + no org grant → denied (fail closed)", async () => {
     mockUserGrantAccess({ expires_at: PAST });
     await expect(requireEntitlement("org-a", "sponsor-sentinel")).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
   });
 
   it("18+19+20. purchased grant follows membership: other member org allowed, stranger denied", async () => {
-    mockUserGrantAccess({ expires_at: FUTURE });
+    mockUserGrantAccess({ expires_at: FUTURE, source: "subscription" });
     await expect(requireEntitlement("org-b", "sponsor-sentinel")).resolves.toMatchObject({ hasAccess: true });
     await expect(requireEntitlement("org-stranger", "sponsor-sentinel")).rejects.toMatchObject({ code: "FORBIDDEN" });
   });

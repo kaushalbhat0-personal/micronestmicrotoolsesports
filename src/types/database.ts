@@ -13,7 +13,7 @@ export type SubscriptionStatus =
   | "trialing"
   | "unpaid"
   | "paused";
-export type EntitlementSource = "subscription" | "manual" | "promo";
+export type EntitlementSource = "subscription" | "manual" | "promo" | "free";
 export type WebhookProvider = "stripe" | "razorpay" | "twitch" | "discord" | "youtube" | "kick";
 
 export type Platform = "twitch" | "youtube" | "kick";

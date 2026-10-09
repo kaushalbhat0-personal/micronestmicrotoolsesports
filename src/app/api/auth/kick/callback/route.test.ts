@@ -33,6 +33,10 @@ vi.mock("@/server/integrations/kick/oauth", () => ({
   exchangeKickCode: (...a: unknown[]) => (mockExchangeKickCode as unknown as (...args: unknown[]) => unknown)(...a),
   getKickUser: (...a: unknown[]) => (mockGetKickUser as unknown as (...args: unknown[]) => unknown)(...a),
 }));
+const mockAssertChannelQuota = vi.fn(async () => undefined);
+vi.mock("@/server/services/sponsorship-limits", () => ({
+  assertFreeChannelConnectAllowed: (...a: unknown[]) => (mockAssertChannelQuota as unknown as (...args: unknown[]) => unknown)(...a),
+}));
 
 import { GET } from "./route";
 import { generateState } from "@/server/oauth/state";
@@ -98,7 +102,7 @@ describe("GET /api/auth/kick/callback — error paths", () => {
     validState = state;
 
     mockGetCurrentUser.mockResolvedValue({ id: userId });
-    mockRequireOrg.mockResolvedValue({ organization: { id: orgId, slug: orgSlug } } as never);
+    mockRequireOrg.mockResolvedValue({ organization: { id: orgId, slug: orgSlug }, user: { id: userId } } as never);
     mockCreateAdminClient.mockReturnValue(makeAdminOrgMock(orgId, orgSlug) as never);
     // default cookies: state and verifier present matching validState
     mockCookiesGet.mockImplementation((name: string) => {
@@ -342,7 +346,7 @@ describe("GET /api/auth/kick/callback — success path", () => {
     const { state } = generateState({ organizationId: orgId, userId, provider: "kick" });
     validState = state;
     mockGetCurrentUser.mockResolvedValue({ id: userId });
-    mockRequireOrg.mockResolvedValue({ organization: { id: orgId, slug: orgSlug } } as never);
+    mockRequireOrg.mockResolvedValue({ organization: { id: orgId, slug: orgSlug }, user: { id: userId } } as never);
     adminMock = makeAdminOrgMock(orgId, orgSlug) as unknown as ReturnType<typeof makeAdminOrgMock>;
     mockCreateAdminClient.mockReturnValue(adminMock as never);
     mockCookiesGet.mockImplementation((name: string) => {
@@ -443,7 +447,7 @@ describe("GET /api/auth/kick/callback — success path", () => {
 
   it("12. Connected Channel is created", async () => {
     await doSuccess();
-    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), orgId, expect.objectContaining({ platform: "kick" }));
+    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), orgId, expect.objectContaining({ platform: "kick" }), { userId });
   });
 
   it("13. platform = kick", async () => {

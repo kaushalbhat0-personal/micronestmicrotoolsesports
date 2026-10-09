@@ -7,6 +7,9 @@ const mockRequireEnt = vi.fn();
 vi.mock("@/lib/auth/get-user", () => ({ getCurrentUser: (...a: unknown[]) => mockGetCurrentUser(...a) }));
 vi.mock("@/lib/auth/organization-context", () => ({ requireOrganizationContext: (...a: unknown[]) => mockRequireOrg(...a) }));
 vi.mock("@/lib/auth/require-entitlement", () => ({ requireEntitlement: (...a: unknown[]) => mockRequireEnt(...a) }));
+const mockAssertChannelQuota = vi.fn(async () => undefined);
+vi.mock("@/server/services/sponsorship-limits", () => ({ assertFreeChannelConnectAllowed: (...a: unknown[]) => (mockAssertChannelQuota as unknown as (...args: unknown[]) => unknown)(...a) }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({})) }));
 
 vi.mock("@/server/oauth/state", async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -68,5 +71,13 @@ describe("GET /api/auth/twitch/start", () => {
     const loc = res.headers.get("location") ?? "";
     expect(loc).not.toContain("client_secret");
     expect(loc).not.toContain("verifier");
+  });
+
+  it("free channel quota exhausted → 403 (OAuth start cannot bypass limits)", async () => {
+    mockAssertChannelQuota.mockRejectedValueOnce(new Error("You're using your free channel slot. Disconnect it to connect a different channel — or upgrade for unlimited channels."));
+    const req = new Request("https://example.com/api/auth/twitch/start?orgSlug=tag-esports");
+    const res = await GET(req);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: expect.stringMatching(/free channel slot/) });
   });
 });

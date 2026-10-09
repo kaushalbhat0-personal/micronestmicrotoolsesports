@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { entitlementError } from "@/lib/errors";
 import { requireOrganizationMember } from "./require-membership";
 import { TOOLS } from "@/config/app/tools";
-import { SPONSORSHIP_TOOL_SLUG, hasUserSponsorshipAccess } from "@/server/services/user-sponsorship-service";
+import { SPONSORSHIP_TOOL_SLUG } from "@/server/services/user-sponsorship-service";
 
 /**
  * Entitlement authorization — separate from membership.
@@ -82,8 +82,15 @@ export const requireEntitlement = cache(async (organizationId: string, toolSlug:
 
   // User-scoped Sponsorship fallback — explicitly fenced to sponsor-sentinel.
   // Membership was already verified above; the grant alone never grants data.
-  if (toolSlug === SPONSORSHIP_TOOL_SLUG && (await hasUserSponsorshipAccess(supabase, ctx.user.id))) {
-    return { ...ctx, toolSlug, hasAccess: true as const };
+  // The single access-level resolver is authoritative here (paid, free, and
+  // expired-paid-logically-free all pass; quotas are enforced downstream).
+  // Operational tools never reach this branch.
+  if (toolSlug === SPONSORSHIP_TOOL_SLUG) {
+    const { resolveSponsorshipAccessLevel } = await import("@/server/services/sponsorship-limits");
+    const level = await resolveSponsorshipAccessLevel(supabase, { userId: ctx.user.id, organizationId });
+    if (level === "paid" || level === "free") {
+      return { ...ctx, toolSlug, hasAccess: true as const };
+    }
   }
 
   throw entitlementError(DENIAL_MESSAGE);
@@ -123,10 +130,14 @@ export async function getAccessibleToolSlugs(organizationId: string): Promise<st
   // valid user grant sees Sponsorship Tracking in every member organization.
   // Membership was verified inside getOrganizationEntitlements; the grant
   // alone never grants data. Sponsor-sentinel only — never operational tools.
+  // Uses the single access-level resolver so expired-paid-logically-free
+  // members are included exactly like the requireEntitlement gate.
   if (!slugs.includes(SPONSORSHIP_TOOL_SLUG)) {
     const supabase = await createClient();
     const { user } = await requireOrganizationMember(organizationId);
-    if (await hasUserSponsorshipAccess(supabase, user.id)) slugs.push(SPONSORSHIP_TOOL_SLUG);
+    const { resolveSponsorshipAccessLevel } = await import("@/server/services/sponsorship-limits");
+    const level = await resolveSponsorshipAccessLevel(supabase, { userId: user.id, organizationId });
+    if (level === "paid" || level === "free") slugs.push(SPONSORSHIP_TOOL_SLUG);
   }
 
   return slugs;

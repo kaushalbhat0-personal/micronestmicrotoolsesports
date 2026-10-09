@@ -179,6 +179,34 @@ describe("buildBillingToolSections", () => {
     expect(availableToAdd.some((t) => t.toolSlug === "sponsor-sentinel")).toBe(true);
   });
 
+  it.each([["subscription"], ["manual"], ["promo"]])(
+    "5b. expired %s user grant → Free card (logical expiry → free), never Available to Add",
+    (source) => {
+      const { yourTools, availableToAdd } = buildBillingToolSections({
+        entitlements: [],
+        plans: PLANS,
+        tools: TOOLS_ROWS,
+        userSponsorshipGrant: { expires_at: PAST, source },
+      });
+      const card = yourTools.find((t) => t.toolSlug === "sponsor-sentinel");
+      expect(card).toBeDefined();
+      expect(card!.viaUserGrant).toBe(true);
+      expect(card!.isFree).toBe(true);
+      expect(availableToAdd.some((t) => t.toolSlug === "sponsor-sentinel")).toBe(false);
+    },
+  );
+
+  it("5c. expired grant of unknown source stays invisible (fail closed)", () => {
+    const { yourTools, availableToAdd } = buildBillingToolSections({
+      entitlements: [],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+      userSponsorshipGrant: { expires_at: PAST, source: "legacy" },
+    });
+    expect(yourTools.some((t) => t.toolSlug === "sponsor-sentinel")).toBe(false);
+    expect(availableToAdd.some((t) => t.toolSlug === "sponsor-sentinel")).toBe(true);
+  });
+
   it("6. org entitlement without user grant → active via org leg", () => {
     const { yourTools } = buildBillingToolSections({
       entitlements: [ent("sponsor-sentinel", "permanent", null)],

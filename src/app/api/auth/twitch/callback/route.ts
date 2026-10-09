@@ -162,13 +162,18 @@ export async function GET(request: Request) {
   try {
     const { data: existing } = await supabase
       .from("connected_channels")
-      .select("id, connection_mode")
+      .select("id, connection_mode, connection_status")
       .eq("organization_id", ctx.organization.id)
       .eq("platform", "twitch")
       .eq("external_channel_id", twitchUser.id)
       .maybeSingle();
 
     if (existing) {
+      // Re-activating a non-connected row consumes the free channel slot.
+      if ((existing as { connection_status?: string }).connection_status !== "connected") {
+        const { assertFreeChannelConnectAllowed } = await import("@/server/services/sponsorship-limits");
+        await assertFreeChannelConnectAllowed(supabase as never, { userId: ctx.user.id, organizationId: ctx.organization.id });
+      }
       const { error: updateError } = await supabase
         .from("connected_channels")
         .update({
@@ -191,9 +196,22 @@ export async function GET(request: Request) {
         connection_mode: "authorized",
         connection_status: "connected",
         authorized_at: new Date().toISOString(),
-      });
+      }, { userId: ctx.user.id });
     }
   } catch (e) {
+    // Free-tier quota: redirect to a customer-safe quota state (no internals).
+    const quotaMsg = e instanceof Error ? e.message : String(e);
+    if (quotaMsg.includes("free channel slot")) {
+      const quotaUrl = new URL(`/dashboard/${orgSlug}/connections`, request.url);
+      quotaUrl.searchParams.set("oauth", "quota_exceeded");
+      quotaUrl.searchParams.set("provider", "twitch");
+      try {
+        revalidatePath(`/dashboard/${orgSlug}/connections`);
+      } catch {}
+      const quotaRes = NextResponse.redirect(quotaUrl.toString());
+      clearOAuthCookies(quotaRes);
+      return quotaRes;
+    }
     // Channel persistence failed AFTER tokens were saved: do NOT redirect as
     // if the connection succeeded. Log a safe diagnostic and send the user to
     // a customer-safe failure state (no SQL/RLS/UUID details).

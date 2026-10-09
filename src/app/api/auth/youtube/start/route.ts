@@ -32,6 +32,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "User mismatch" }, { status: 403 });
   }
 
+  // Free-tier quota: connecting another channel is blocked server-side.
+  try {
+    const { assertFreeChannelConnectAllowed } = await import("@/server/services/sponsorship-limits");
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    await assertFreeChannelConnectAllowed(supabase as never, { userId: user.id, organizationId: ctx.organization.id });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Forbidden";
+    return NextResponse.json({ error: msg }, { status: 403 });
+  }
+
   const clientId = process.env.YOUTUBE_CLIENT_ID;
   if (!clientId) return NextResponse.json({ error: "YouTube not configured" }, { status: 500 });
 

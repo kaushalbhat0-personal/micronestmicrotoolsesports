@@ -2,6 +2,13 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { reconcileAllSubscriptions } from "./reconciler";
 
+const mockResolvePrincipal = vi.fn(async (): Promise<{ level: "paid" | "free" | "none"; userId: string | null }> => ({ level: "paid", userId: null }));
+const mockGetCoveredChannel = vi.fn(async (): Promise<string | null> => null);
+vi.mock("@/server/services/sponsorship-limits", () => ({
+  resolveOrgCheckPrincipal: (...a: unknown[]) => (mockResolvePrincipal as (...args: unknown[]) => unknown)(...a),
+  getFreeCoveredChannelId: (...a: unknown[]) => (mockGetCoveredChannel as (...args: unknown[]) => unknown)(...a),
+}));
+
 function mockSupabase(channels: Array<{ id: string; organization_id: string; platform: string; external_channel_id: string; connection_status: string }>) {
   return {
     from: (table: string) => {
@@ -43,6 +50,7 @@ describe("reconciler", () => {
     process.env.TWITCH_CLIENT_SECRET = "csec";
     process.env.TWITCH_EVENTSUB_SECRET = "test-secret-1234567890";
     process.env.NEXT_PUBLIC_APP_URL = "https://example.com";
+    mockResolvePrincipal.mockResolvedValue({ level: "paid", userId: null });
   });
   afterEach(() => {
     if (originalTwitchId === undefined) delete process.env.TWITCH_CLIENT_ID;
@@ -132,5 +140,29 @@ describe("reconciler", () => {
     expect(logged).toContain("bounded-run");
     warnSpy.mockRestore();
     delete process.env.YOUTUBE_WEBSUB_VERIFY_TOKEN;
+  });
+
+  it("free over-quota channels are excluded from upkeep (only covered channel reconciled)", async () => {
+    const channels = [
+      { id: "c1", organization_id: "org-a", platform: "twitch", external_channel_id: "111", connection_status: "connected" },
+      { id: "c2", organization_id: "org-a", platform: "youtube", external_channel_id: "UC2", connection_status: "connected" },
+    ];
+    mockResolvePrincipal.mockResolvedValue({ level: "free", userId: "user-1" });
+    mockGetCoveredChannel.mockResolvedValue("c1");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [] }), { status: 200 })) as unknown as typeof fetch;
+    const supabase = mockSupabase(channels);
+    const res = await reconcileAllSubscriptions(supabase, { fetchFn: fetchMock, runId: "free-skip" });
+    expect(res.attempted).toBe(1); // only the covered channel
+  });
+
+  it("workspaces with no sponsorship coverage are skipped", async () => {
+    const channels = [
+      { id: "c1", organization_id: "org-a", platform: "twitch", external_channel_id: "111", connection_status: "connected" },
+    ];
+    mockResolvePrincipal.mockResolvedValue({ level: "none", userId: null });
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [] }), { status: 200 })) as unknown as typeof fetch;
+    const supabase = mockSupabase(channels);
+    const res = await reconcileAllSubscriptions(supabase, { fetchFn: fetchMock, runId: "none-skip" });
+    expect(res.attempted).toBe(0);
   });
 });

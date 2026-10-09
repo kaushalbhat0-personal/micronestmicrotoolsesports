@@ -74,7 +74,7 @@ function fd(entries: Record<string, string>): FormData {
 describe("connectKickChannelAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports" } });
+    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports" }, user: { id: "user-1" } });
     mockRequireEntitlement.mockResolvedValue({});
     mockCreateClient.mockResolvedValue({});
     mockGetValidAccessTokenKick.mockResolvedValue({ ok: true, accessToken: "kick-oauth", provider: "kick" } as never);
@@ -107,6 +107,7 @@ describe("connectKickChannelAction", () => {
         external_handle: "mykicktest",
         canonical_url: "https://kick.com/mykicktest",
       }),
+      { userId: "user-1" },
     );
   });
 
@@ -139,6 +140,7 @@ describe("connectKickChannelAction", () => {
       expect.anything(),
       "org-a",
       expect.objectContaining({ external_channel_id: "999" }),
+      { userId: "user-1" },
     );
     expect((res as { success?: boolean }).success).toBe(true);
   });

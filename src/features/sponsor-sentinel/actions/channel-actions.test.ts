@@ -103,7 +103,7 @@ function fd(entries: Record<string, string>): FormData {
 describe("channel-actions — connectTwitchChannelAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports", name: "TAG" }, membership: { role: "owner" } });
+    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports", name: "TAG" }, membership: { role: "owner" }, user: { id: "user-1" } });
     mockRequireEntitlement.mockResolvedValue({});
     mockCreateClient.mockResolvedValue({});
     mockListChannels.mockResolvedValue([]);
@@ -122,7 +122,7 @@ describe("channel-actions — connectTwitchChannelAction", () => {
     mockCreateConnectedChannel.mockResolvedValue({ id: "ch-1", platform: "twitch" } as never);
     const result = await connectTwitchChannelAction(fd({ orgSlug: "tag-esports", handle: "kaushaltag" }));
     expect(result).toEqual(expect.objectContaining({ success: true }));
-    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), "org-a", expect.objectContaining({ platform: "twitch", external_channel_id: "12345" }));
+    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), "org-a", expect.objectContaining({ platform: "twitch", external_channel_id: "12345" }), { userId: "user-1" });
     // No secrets in result
     expect(JSON.stringify(result)).not.toMatch(/csec|cid|clientSecret/);
   });
@@ -236,7 +236,7 @@ describe("channel-actions — connectTwitchChannelAction", () => {
     const result = await connectTwitchChannelAction(f);
     expect(result).toEqual(expect.objectContaining({ success: true }));
     // Verify org-a from context was used, not org-evil
-    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), "org-a", expect.anything());
+    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), "org-a", expect.anything(), { userId: "user-1" });
     expect(mockRequireOrg).toHaveBeenCalledWith("tag-esports");
   });
 
@@ -260,7 +260,7 @@ describe("channel-actions — connectTwitchChannelAction", () => {
 describe("channel-actions — disconnectTwitchChannelAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports" } } as never);
+    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports" }, user: { id: "user-1" } } as never);
     mockRequireEntitlement.mockResolvedValue({});
     mockCreateClient.mockResolvedValue({});
   });
@@ -309,7 +309,7 @@ describe("channel-actions — disconnectTwitchChannelAction", () => {
 describe("channel-actions — connectYouTubeChannelAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports", name: "TAG" }, membership: { role: "owner" } });
+    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports", name: "TAG" }, membership: { role: "owner" }, user: { id: "user-1" } });
     mockRequireEntitlement.mockResolvedValue({});
     mockCreateClient.mockResolvedValue({});
     mockListChannels.mockResolvedValue([]);
@@ -328,7 +328,7 @@ describe("channel-actions — connectYouTubeChannelAction", () => {
     mockCreateConnectedChannel.mockResolvedValue({ id: "ch-yt-1", platform: "youtube" } as never);
     const result = await connectYouTubeChannelAction(fd({ orgSlug: "tag-esports", handle: "@GoogleDevelopers" }));
     expect(result).toEqual(expect.objectContaining({ success: true }));
-    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), "org-a", expect.objectContaining({ platform: "youtube", external_channel_id: "UC_x5XG1OV2P6uZZ5FSM9Ttw" }));
+    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), "org-a", expect.objectContaining({ platform: "youtube", external_channel_id: "UC_x5XG1OV2P6uZZ5FSM9Ttw" }), { userId: "user-1" });
     expect(JSON.stringify(result)).not.toMatch(/yt-key|apiKey/);
   });
 
@@ -448,7 +448,7 @@ describe("channel-actions — connectYouTubeChannelAction", () => {
     f.set("organization_id", "org-evil");
     const result = await connectYouTubeChannelAction(f);
     expect(result).toEqual(expect.objectContaining({ success: true }));
-    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), "org-a", expect.anything());
+    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), "org-a", expect.anything(), { userId: "user-1" });
   });
 
   it("no API key appears in returned result", async () => {
@@ -469,7 +469,7 @@ describe("channel-actions — connectYouTubeChannelAction", () => {
 describe("channel-actions — disconnectYouTubeChannelAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports" } } as never);
+    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports" }, user: { id: "user-1" } } as never);
     mockRequireEntitlement.mockResolvedValue({});
     mockCreateClient.mockResolvedValue({});
   });
@@ -515,7 +515,7 @@ describe("channel-actions — disconnectYouTubeChannelAction", () => {
 describe("channel-actions — disconnectChannelAction (generic)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports" } } as never);
+    mockRequireOrg.mockResolvedValue({ organization: { id: "org-a", slug: "tag-esports" }, user: { id: "user-1" } } as never);
     mockRequireEntitlement.mockResolvedValue({});
     mockCreateClient.mockResolvedValue({});
   });

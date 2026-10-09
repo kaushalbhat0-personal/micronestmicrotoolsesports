@@ -50,3 +50,16 @@ export async function deleteUserGrant(supabase: SupabaseClient, userId: string, 
     .eq("tool_id", toolId);
   if (error) throw error;
 }
+
+export async function upsertUserGrant(
+  supabase: SupabaseClient,
+  input: { user_id: string; tool_id: string; source: UserToolEntitlement["source"]; expires_at: string | null }
+): Promise<UserToolEntitlement> {
+  const { data, error } = await supabase
+    .from("user_tool_entitlements")
+    .upsert(input, { onConflict: "user_id,tool_id" })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as UserToolEntitlement;
+}

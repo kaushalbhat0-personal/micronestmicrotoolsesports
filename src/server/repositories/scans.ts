@@ -113,14 +113,20 @@ export async function listScansByCampaign(
   organizationId: string,
   campaignId: string,
   limit: number = 5,
+  opts?: { historyWindowDays?: number | null },
 ): Promise<Scan[]> {
-  const { data, error } = await supabase
+  const windowDays = opts?.historyWindowDays;
+  const cutoff =
+    typeof windowDays === "number" && windowDays >= 0
+      ? new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+  const baseQuery = supabase
     .from("scans")
     .select("id, campaign_id, organization_id, platform, status, started_at, completed_at, created_at")
     .eq("organization_id", organizationId)
-    .eq("campaign_id", campaignId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .eq("campaign_id", campaignId);
+  const windowedQuery = cutoff ? baseQuery.gte("created_at", cutoff) : baseQuery;
+  const { data, error } = await windowedQuery.order("created_at", { ascending: false }).limit(limit);
   if (error) throw error;
   return (data ?? []) as Scan[];
 }

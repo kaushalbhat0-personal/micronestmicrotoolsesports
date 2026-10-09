@@ -7,6 +7,10 @@ vi.mock("@/server/services/user-sponsorship-service", async (importOriginal) => 
   return {
     ...actual,
     getUserSponsorshipGrant: (...args: unknown[]) => (mockGetUserSponsorshipGrant as (...a: unknown[]) => unknown)(...args),
+    // Billing discovery uses the expiry-inclusive lookup so expired paid
+    // grants stay visible as the logical Free state. Mirror it here.
+    getUserSponsorshipGrantIncludingExpired: (...args: unknown[]) =>
+      (mockGetUserSponsorshipGrant as (...a: unknown[]) => unknown)(...args),
   };
 });
 

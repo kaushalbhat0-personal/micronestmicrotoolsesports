@@ -31,7 +31,7 @@ export async function createCampaignAction(formData: FormData): Promise<ActionRe
     const starts_at = String(formData.get("starts_at") ?? "");
     const ends_at = String(formData.get("ends_at") ?? "");
 
-    const campaign = await createCampaign(supabase, ctx.organization.id, { name, description, starts_at, ends_at, status: "draft" });
+    const campaign = await createCampaign(supabase, ctx.organization.id, { name, description, starts_at, ends_at, status: "draft" }, { userId: ctx.user.id });
     revalidatePath(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns`);
     campaignId = campaign.id;
   } catch (e) {
@@ -236,6 +236,20 @@ export async function requestScanAction(formData: FormData): Promise<{ ok?: bool
     const usable = channels.filter((c) => c.connection_status === "connected");
     if (usable.length === 0) return { error: "Connect a creator channel before checking." };
     if (deliverables.length === 0) return { error: "Add a requirement before checking." };
+
+    // Free-tier fast check: surface quota errors immediately instead of
+    // scheduling doomed background work. Authoritative enforcement still
+    // happens inside executeScan (concurrency-safe).
+    try {
+      const { assertFreeScanEligible } = await import("@/server/services/sponsorship-limits");
+      await assertFreeScanEligible(supabase, { userId: ctx.user.id, organizationId: ctx.organization.id, campaignId });
+    } catch (e) {
+      if (e instanceof AppError) {
+        console.warn(`[AppError ${e.code}]`, e.safeMessage);
+        return { error: e.safeMessage };
+      }
+      throw e;
+    }
   } catch (e) {
     if (e instanceof AppError) {
       console.warn(`[AppError ${e.code}]`, e.safeMessage);

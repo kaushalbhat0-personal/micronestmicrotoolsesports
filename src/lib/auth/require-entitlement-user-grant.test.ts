@@ -34,8 +34,9 @@ function memberOf(orgId: string) {
 /** Chainable mock: terminals single/maybeSingle/list per table. */
 function setupDb(opts: {
   rpcAccess: boolean;
-  userGrant?: { expires_at: string | null } | null;
+  userGrant?: { expires_at: string | null; source?: string } | null;
   orgGrantRows?: Array<{ expires_at: string | null }>;
+  memberOrgs?: string[];
 }) {
   const calls: Array<{ table: string; op: string }> = [];
   mockRpc.mockResolvedValue({ data: opts.rpcAccess, error: null });
@@ -43,6 +44,10 @@ function setupDb(opts: {
     const self: Record<string, unknown> = {};
     const terminal = () => {
       if (table === "tools") return Promise.resolve({ data: { id: SPONSOR_TOOL_ID, slug: "sponsor-sentinel", is_active: true }, error: null });
+      if (table === "organization_members") {
+        // Access-level resolver re-verifies membership from the DB.
+        return Promise.resolve({ data: { id: "m1" }, error: null });
+      }
       if (table === "user_tool_entitlements") {
         calls.push({ table, op: "read" });
         return Promise.resolve({ data: opts.userGrant ?? null, error: null });
@@ -83,7 +88,7 @@ beforeEach(() => {
 describe("sponsor-sentinel with user grants", () => {
   it("1. member with valid user grant is allowed in Organization A (no org grant)", async () => {
     memberOf("org-a1");
-    const calls = setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE } });
+    const calls = setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE, source: "subscription" } });
     const result = await requireEntitlement("org-a1", "sponsor-sentinel");
     expect(result.hasAccess).toBe(true);
     expect(calls.some((c) => c.table === "user_tool_entitlements")).toBe(true);
@@ -91,7 +96,7 @@ describe("sponsor-sentinel with user grants", () => {
 
   it("2. same user is allowed in Organization B where they are a member", async () => {
     memberOf("org-b2");
-    setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE } });
+    setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE, source: "subscription" } });
     const result = await requireEntitlement("org-b2", "sponsor-sentinel");
     expect(result.hasAccess).toBe(true);
   });
@@ -166,17 +171,45 @@ describe("operational tools never consult user grants", () => {
   });
 });
 
+describe("expired paid grants fall back to Free (logical expiry → free)", () => {
+  // NOTE: requireEntitlement is React-cache()d, so every case uses a distinct
+  // org id to avoid cross-test cache hits.
+  it.each([
+    ["subscription", "org-x1a"],
+    ["manual", "org-x1b"],
+    ["promo", "org-x1c"],
+  ])("expired %s user grant is allowed as Free", async (source, orgId) => {
+    memberOf(orgId);
+    setupDb({ rpcAccess: false, userGrant: { expires_at: PAST, source } });
+    const result = await requireEntitlement(orgId, "sponsor-sentinel");
+    expect(result.hasAccess).toBe(true);
+  });
+
+  it("expired grant of unknown source still denies (fail closed)", async () => {
+    memberOf("org-x4");
+    setupDb({ rpcAccess: false, userGrant: { expires_at: PAST } });
+    await expect(requireEntitlement("org-x4", "sponsor-sentinel")).rejects.toMatchObject({ code: "ENTITLEMENT_REQUIRED" });
+  });
+
+  it("expired paid grant surfaces in slugs as Free access", async () => {
+    memberOf("org-x5");
+    setupDb({ rpcAccess: false, userGrant: { expires_at: PAST, source: "subscription" }, orgGrantRows: [] });
+    const slugs = await getAccessibleToolSlugs("org-x5");
+    expect(slugs).toContain("sponsor-sentinel");
+  });
+});
+
 describe("getAccessibleToolSlugs with user grants", () => {
   it("adds sponsor-sentinel for members with a user grant but no org grant", async () => {
     memberOf("org-nav1");
-    setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE }, orgGrantRows: [] });
+    setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE, source: "subscription" }, orgGrantRows: [] });
     const slugs = await getAccessibleToolSlugs("org-nav1");
     expect(slugs).toContain("sponsor-sentinel");
   });
 
   it("never adds operational tools from a user grant", async () => {
     memberOf("org-nav2");
-    setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE }, orgGrantRows: [] });
+    setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE, source: "subscription" }, orgGrantRows: [] });
     const slugs = await getAccessibleToolSlugs("org-nav2");
     expect(slugs).toEqual(["sponsor-sentinel"]);
   });

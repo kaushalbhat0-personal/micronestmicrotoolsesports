@@ -86,6 +86,23 @@ export async function getUserSponsorshipGrant(supabase: SupabaseClient, userId: 
   }
 }
 
+/**
+ * Raw user grant including expired rows. Billing-discovery only: expired paid
+ * rows must remain visible so the UI can render the logical Free state
+ * (source + original expiry preserved for audit/support). Never use for
+ * authorization — gates use the access-level resolver instead.
+ */
+export async function getUserSponsorshipGrantIncludingExpired(supabase: SupabaseClient, userId: string) {
+  try {
+    const toolId = await sponsorshipToolId(supabase);
+    if (!toolId) return null;
+    return (await findUserGrant(supabase, userId, toolId)) ?? null;
+  } catch (e) {
+    if (isMissingUserGrantTableError(e)) return null;
+    throw e;
+  }
+}
+
 /** All user grants for UI/admin display (sponsorship scope only in practice). */
 export async function listUserSponsorshipGrants(supabase: SupabaseClient, userId: string) {
   return listUserGrants(supabase, userId);
@@ -115,4 +132,34 @@ export async function revokeUserSponsorshipAccess(supabase: SupabaseClient, user
   const toolId = await sponsorshipToolId(supabase);
   if (!toolId) return;
   await deleteUserGrant(supabase, userId, toolId);
+}
+
+/** True when the user's valid grant is the free tier (source='free'). Paid sources are never free. */
+export async function isFreeSponsorshipGrant(supabase: SupabaseClient, userId: string): Promise<boolean> {
+  const grant = await getUserSponsorshipGrant(supabase, userId);
+  if (!grant) return false;
+  return (grant.source as EntitlementSource) === "free";
+}
+
+/**
+ * Idempotent free-tier issuance. Server-side callers only (service-role
+ * client): RLS denies authenticated writes, so no user can self-grant.
+ * - No row, or an EXPIRED row (any source) → (re)issue source='free',
+ *   expires_at NULL (lifetime; quotas enforce monetization). This is the
+ *   paid-expiry revert path: an expired paid grant becomes free on claim.
+ * - Valid unexpired row (any source, including paid) → return untouched.
+ *   Paid users are NEVER downgraded to free; retries are safe.
+ */
+export async function ensureFreeSponsorshipGrant(supabase: SupabaseClient, userId: string) {
+  const toolId = await sponsorshipToolId(supabase);
+  if (!toolId) throw new Error("Sponsorship Tracking tool is not registered");
+  const existing = await findUserGrant(supabase, userId, toolId);
+  if (existing && isUnexpired(existing.expires_at)) return existing;
+  const { upsertUserGrant } = await import("@/server/repositories/user-entitlements");
+  return upsertUserGrant(supabase, {
+    user_id: userId,
+    tool_id: toolId,
+    source: "free",
+    expires_at: null,
+  });
 }

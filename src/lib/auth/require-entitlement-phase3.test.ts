@@ -30,12 +30,14 @@ function memberOnlyOf(orgId: string) {
   });
 }
 
-function setupDb(opts: { rpcAccess: boolean; userGrant?: { expires_at: string | null } | null }) {
+function setupDb(opts: { rpcAccess: boolean; userGrant?: { expires_at: string | null; source?: string } | null }) {
   mockRpc.mockResolvedValue({ data: opts.rpcAccess, error: null });
   mockFrom.mockImplementation((table: string) => {
     const self: Record<string, unknown> = {};
     const terminal = () => {
       if (table === "tools") return Promise.resolve({ data: { id: SPONSOR_TOOL_ID, slug: "sponsor-sentinel", is_active: true }, error: null });
+      // Access-level resolver re-verifies membership from the DB.
+      if (table === "organization_members") return Promise.resolve({ data: { id: "m1" }, error: null });
       if (table === "user_tool_entitlements") return Promise.resolve({ data: opts.userGrant ?? null, error: null });
       return Promise.resolve({ data: null, error: null });
     };
@@ -67,14 +69,14 @@ describe("phase 3 access resolution — RCCF-MULTI-SCOPE-IMPLEMENT-03", () => {
 
   it("SCENARIO B: grandfathered user creates/joins Org B (no org row) → allowed via user grant", async () => {
     memberOnlyOf("org-b-new");
-    setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE } });
+    setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE, source: "manual" } });
     const result = await requireEntitlement("org-b-new", "sponsor-sentinel");
     expect(result.hasAccess).toBe(true);
   });
 
   it("lifetime user grant (NULL expiry) allows access in a new org", async () => {
     memberOnlyOf("org-b-life");
-    setupDb({ rpcAccess: false, userGrant: { expires_at: null } });
+    setupDb({ rpcAccess: false, userGrant: { expires_at: null, source: "manual" } });
     const result = await requireEntitlement("org-b-life", "sponsor-sentinel");
     expect(result.hasAccess).toBe(true);
   });
@@ -93,7 +95,7 @@ describe("phase 3 access resolution — RCCF-MULTI-SCOPE-IMPLEMENT-03", () => {
 
   it("new org shows Sponsorship in accessible slugs for entitled members", async () => {
     memberOnlyOf("org-b-nav");
-    setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE } });
+    setupDb({ rpcAccess: false, userGrant: { expires_at: FUTURE, source: "manual" } });
     const slugs = await getAccessibleToolSlugs("org-b-nav");
     expect(slugs).toContain("sponsor-sentinel");
   });

@@ -70,14 +70,65 @@ export async function handleSentinelWebhookEvent(
   }
   if (toScan.length === 0) return { status: "NO_ACTION", category, reason: "scan throttled (recent scan)" };
 
-  const campaignIds = toScan.map((c) => c.id);
+  // Free-tier gate: skip campaigns that are not quota-eligible (over-quota
+  // campaign/channel or exhausted monthly budget). No scan row, no provider
+  // call. Paid coverage proceeds unaffected. This pre-filter is a cost-saving
+  // optimization; the database RPC at insert time remains authoritative.
+  // Fail closed: if the principal cannot be established, do not scan.
+  const quotaEligible: typeof toScan = [];
+  let freeQuotaUserId: string | null = null;
+  try {
+    const { resolveOrgCheckPrincipal, assertFreeScanEligible } = await import("@/server/services/sponsorship-limits");
+    const principal = await resolveOrgCheckPrincipal(supabase, organizationId);
+    if (principal.level === "none") {
+      return { status: "NO_ACTION", category, reason: "no sponsorship coverage for workspace" };
+    }
+    if (principal.level === "paid") {
+      // Paid coverage: unmetered direct path. Entered ONLY on an explicit
+      // paid level — never inferred from a missing userId.
+      quotaEligible.push(...toScan);
+    } else if (principal.level === "free") {
+      // Free coverage: the quota owner is required. A free principal without
+      // a userId must fail closed — never fall into paid/unmetered.
+      if (!principal.userId) {
+        return { status: "NO_ACTION", category, reason: "free quota owner unavailable" };
+      }
+      freeQuotaUserId = principal.userId;
+      for (const campaign of toScan) {
+        try {
+          await assertFreeScanEligible(supabase, { userId: principal.userId, organizationId, campaignId: campaign.id });
+          quotaEligible.push(campaign);
+        } catch {
+          continue;
+        }
+      }
+    } else {
+      return { status: "NO_ACTION", category, reason: "coverage check unavailable" };
+    }
+  } catch (e) {
+    // Fail closed: an unresolvable principal must not admit unscanned-gated
+    // provider traffic. (Principal resolution catches its own DB errors, so
+    // this only triggers on catastrophic failure, where scanning is unsafe.)
+    console.warn(JSON.stringify({ event: "sentinel_webhook_principal_unavailable", organizationId, category, error: e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200) }));
+    return { status: "NO_ACTION", category, reason: "coverage check unavailable" };
+  }
+  if (quotaEligible.length === 0) return { status: "NO_ACTION", category, reason: "free quota exhausted" };
+
+  const campaignIds = quotaEligible.map((c) => c.id);
   const scanIds: string[] = [];
   let anyFailed = false;
   let lastError = "";
   // Sequential bounded execution
-  for (const campaign of toScan) {
+  for (const campaign of quotaEligible) {
     try {
-      const res = await executeScan({ supabase, input: { organizationId, campaignId: campaign.id } });
+      // Thread the server-derived principal so the database RPC performs the
+      // authoritative insert-time reservation (paid: absent, direct path).
+      const res = await executeScan({
+        supabase,
+        input: freeQuotaUserId
+          ? { organizationId, campaignId: campaign.id, userId: freeQuotaUserId }
+          : { organizationId, campaignId: campaign.id },
+      });
       const sid = (res.scan as { id?: string })?.id;
       if (sid) scanIds.push(sid);
       console.warn(JSON.stringify({ event: "sentinel_webhook_scan", organizationId, campaignId: campaign.id, channelId: event.externalChannelId, provider: event.provider, eventType: event.eventType, category, scanId: sid }));
@@ -86,6 +137,16 @@ export async function handleSentinelWebhookEvent(
       if (code === "CONFLICT" || String((e as Error).message ?? "").includes("already running")) {
         console.warn(JSON.stringify({ event: "sentinel_webhook_scan_skipped_already_running", organizationId, campaignId: campaign.id, category }));
         continue; // webhook already persisted, active Check will discover it
+      }
+      // Free-quota race between pre-check and insert — skip quietly.
+      try {
+        const { isFreeQuotaError } = await import("@/server/services/sponsorship-limits");
+        if (isFreeQuotaError(e)) {
+          console.warn(JSON.stringify({ event: "sentinel_webhook_scan_skipped_free_quota", organizationId, campaignId: campaign.id, category }));
+          continue;
+        }
+      } catch {
+        // fall through to failure handling below
       }
       anyFailed = true;
       lastError = e instanceof Error ? e.message : String(e);

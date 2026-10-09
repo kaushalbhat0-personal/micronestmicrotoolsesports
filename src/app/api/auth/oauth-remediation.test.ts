@@ -100,12 +100,16 @@ describe("security boundaries preserved (static)", () => {
 
   it("user grants consulted ONLY for sponsor-sentinel", () => {
     const gate = src("src/lib/auth/require-entitlement.ts");
-    const calls = gate.match(/await hasUserSponsorshipAccess/g) ?? [];
-    // requireEntitlement gate + accessible-slugs helper — both sponsorship-only.
-    expect(calls.length).toBe(2);
+    // Both sponsorship branches resolve through the single access-level
+    // resolver (which also encodes expired-paid → Free); the unexpired-only
+    // helper is no longer the gate decision. Fence stays sponsor-only.
+    expect(gate).not.toContain("hasUserSponsorshipAccess");
+    // Exactly the two sponsorship branches (gate + slugs helper) consult the
+    // shared resolver; operational tools never do.
+    const resolverUses = gate.match(/await import\("@\/server\/services\/sponsorship-limits"\)/g) ?? [];
+    expect(resolverUses).toHaveLength(2);
     expect(gate).toContain("toolSlug === SPONSORSHIP_TOOL_SLUG");
     expect(gate).toContain("slugs.push(SPONSORSHIP_TOOL_SLUG)");
-    expect(gate).not.toMatch(/hasUserSponsorshipAccess\([^)]*all-access/);
   });
 
   it("disconnect verifies ownership before delete", () => {

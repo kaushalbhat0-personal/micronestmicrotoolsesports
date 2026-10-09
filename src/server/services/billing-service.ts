@@ -3,9 +3,10 @@ import { listActivePlans } from "@/server/repositories/plans";
 import { listOrdersForOrg } from "@/server/repositories/orders";
 import { listPaymentsForOrg } from "@/server/repositories/payments";
 import { listEntitlementsForOrg } from "@/server/repositories/entitlements";
-import { getUserSponsorshipGrant, SPONSORSHIP_TOOL_SLUG } from "@/server/services/user-sponsorship-service";
+import { getUserSponsorshipGrantIncludingExpired, SPONSORSHIP_TOOL_SLUG } from "@/server/services/user-sponsorship-service";
+import { PAID_SOURCES } from "@/server/services/sponsorship-limits";
 import { TOOLS } from "@/config/app/tools";
-import type { Plan, Order, Payment, ToolEntitlement } from "@/types/database";
+import type { Plan, Order, Payment, ToolEntitlement, EntitlementSource } from "@/types/database";
 
 export type BillingEntitlementView = {
   toolSlug: string | null;
@@ -136,6 +137,8 @@ export type BillingToolCard = {
   viaAllAccess: boolean;
   /** True when Sponsorship access flows through the caller's user grant. */
   viaUserGrant: boolean;
+  /** True when the user-grant coverage is the free tier (quotas apply). */
+  isFree?: boolean;
 };
 
 /** One card in "Available to Add" — derived from registry × active plans. */
@@ -153,11 +156,13 @@ type DiscoveryInput = {
   plans: Pick<Plan, "id" | "tool_id" | "billing_period" | "amount_minor" | "currency" | "is_active">[];
   tools: { id: string; slug: string; is_active: boolean }[];
   /**
-   * Authenticated caller's sponsorship user grant (exact expires_at).
+   * Authenticated caller's sponsorship user grant (exact expires_at + source).
    * Resolved by the caller via getUserSponsorshipGrant — never from client
    * input. Affects sponsor-sentinel only; all other tools ignore it.
+   * source='free' renders the Free-tier card state (quotas apply); paid
+   * sources render the standard user-grant state.
    */
-  userSponsorshipGrant?: { expires_at: string | null } | null;
+  userSponsorshipGrant?: { expires_at: string | null; source?: string } | null;
 };
 
 /**
@@ -187,6 +192,15 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
   // User-grant validity mirrors the grant service (null = lifetime, future = valid).
   const userGrant = input.userSponsorshipGrant;
   const hasValidUserGrant = !!userGrant && (userGrant.expires_at === null || new Date(userGrant.expires_at) > new Date());
+  // Expired paid grants resolve logically to Free (same decision table as the
+  // access-level resolver): they render the existing Free card instead of
+  // vanishing. Expired rows of unknown source stay invisible (fail closed).
+  const isExpiredPaidGrant =
+    !!userGrant &&
+    !hasValidUserGrant &&
+    userGrant.expires_at !== null &&
+    typeof userGrant.source === "string" &&
+    PAID_SOURCES.has(userGrant.source as EntitlementSource);
 
   const yourTools: BillingToolCard[] = [];
   for (const cfg of commercial) {
@@ -213,14 +227,29 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
         viaAllAccess: true,
         viaUserGrant: false,
       });
-    } else if (cfg.slug === SPONSORSHIP_TOOL_SLUG && hasValidUserGrant) {
-      yourTools.push({
-        ...base,
-        status: userGrant!.expires_at === null ? "permanent" : "active",
-        expiresAt: userGrant!.expires_at,
-        viaAllAccess: false,
-        viaUserGrant: true,
-      });
+    } else if (cfg.slug === SPONSORSHIP_TOOL_SLUG && (hasValidUserGrant || isExpiredPaidGrant)) {
+      if (isExpiredPaidGrant) {
+        // Expired paid logically provides Free access: same Free card, free
+        // quotas, and upgrade CTA as a valid free grant. The original expiry
+        // is intentionally not shown as an access end-date.
+        yourTools.push({
+          ...base,
+          status: "active",
+          expiresAt: null,
+          viaAllAccess: false,
+          viaUserGrant: true,
+          isFree: true,
+        });
+      } else {
+        yourTools.push({
+          ...base,
+          status: userGrant!.expires_at === null ? "permanent" : "active",
+          expiresAt: userGrant!.expires_at,
+          viaAllAccess: false,
+          viaUserGrant: true,
+          isFree: userGrant!.source === "free",
+        });
+      }
     }
   }
 
@@ -264,14 +293,16 @@ export async function getBillingToolSections(
   userId?: string
 ): Promise<{ yourTools: BillingToolCard[]; availableToAdd: BillingAvailableCard[] }> {
   const overview = await getBillingOverview(supabase, organizationId);
+  // Raw grant including expired rows: expired paid must stay visible so the
+  // Free fallback card can render. Authorization never uses this value.
   const [{ data: tools }, userSponsorshipGrant] = await Promise.all([
     supabase.from("tools").select("id, slug, is_active"),
-    userId ? getUserSponsorshipGrant(supabase, userId) : Promise.resolve(null),
+    userId ? getUserSponsorshipGrantIncludingExpired(supabase, userId) : Promise.resolve(null),
   ]);
   return buildBillingToolSections({
     entitlements: overview.entitlements,
     plans: overview.plans,
     tools: ((tools ?? []) as { id: string; slug: string; is_active: boolean }[]).filter((t) => typeof t.slug === "string"),
-    userSponsorshipGrant: userSponsorshipGrant ? { expires_at: userSponsorshipGrant.expires_at } : null,
+    userSponsorshipGrant: userSponsorshipGrant ? { expires_at: userSponsorshipGrant.expires_at, source: userSponsorshipGrant.source } : null,
   });
 }

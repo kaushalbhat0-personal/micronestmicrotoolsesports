@@ -33,6 +33,10 @@ vi.mock("@/server/integrations/kick/oauth", () => ({
   exchangeKickCode: (...a: unknown[]) => (mockExchangeKickCode as unknown as (...args: unknown[]) => unknown)(...a),
   getKickUser: (...a: unknown[]) => (mockGetKickUser as unknown as (...args: unknown[]) => unknown)(...a),
 }));
+const mockAssertChannelQuota = vi.fn(async () => undefined);
+vi.mock("@/server/services/sponsorship-limits", () => ({
+  assertFreeChannelConnectAllowed: (...a: unknown[]) => (mockAssertChannelQuota as unknown as (...args: unknown[]) => unknown)(...a),
+}));
 
 import { GET } from "./route";
 import { generateState } from "@/server/oauth/state";
@@ -85,7 +89,7 @@ describe("GET /api/auth/kick/callback — persistence failure handling", () => {
     validState = state;
 
     mockGetCurrentUser.mockResolvedValue({ id: userId });
-    mockRequireOrg.mockResolvedValue({ organization: { id: orgId, slug: orgSlug } } as never);
+    mockRequireOrg.mockResolvedValue({ organization: { id: orgId, slug: orgSlug }, user: { id: userId } } as never);
     mockCreateAdminClient.mockReturnValue(makeAdminOrgMock(orgId, orgSlug) as never);
     mockCookiesGet.mockImplementation((name: string) => {
       if (name === "oauth_state_kick") return { value: validState };
@@ -103,7 +107,7 @@ describe("GET /api/auth/kick/callback — persistence failure handling", () => {
     const res = await GET(callbackUrl());
     expect(res.status).toBe(307);
     expect(mockUpsertOAuthTokens).toHaveBeenCalled();
-    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), orgId, expect.objectContaining({ platform: "kick", connection_mode: "authorized" }));
+    expect(mockCreateConnectedChannel).toHaveBeenCalledWith(expect.anything(), orgId, expect.objectContaining({ platform: "kick", connection_mode: "authorized" }), { userId });
     const loc = res.headers.get("location") ?? "";
     expect(loc).not.toContain("channel_save_failed");
   });
@@ -150,6 +154,17 @@ describe("GET /api/auth/kick/callback — persistence failure handling", () => {
     expect(ch.updateMock).toHaveBeenCalled();
     const loc = res.headers.get("location") ?? "";
     expect(loc).not.toContain("channel_save_failed");
+  });
+
+  it("free channel quota → quota_exceeded redirect (OAuth callback cannot bypass limits)", async () => {
+    mockCreateConnectedChannel.mockRejectedValueOnce(
+      new Error("You're using your free channel slot. Disconnect it to connect a different channel — or upgrade for unlimited channels."),
+    );
+    const res = await GET(callbackUrl());
+    expect(res.status).toBe(307);
+    const loc = res.headers.get("location") ?? "";
+    expect(loc).toContain("oauth=quota_exceeded");
+    expect(loc).toContain("provider=kick");
   });
 
   it("cross-org OAuth state cannot attach another org's channel", async () => {

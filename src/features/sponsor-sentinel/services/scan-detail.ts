@@ -18,10 +18,20 @@ export async function getScanDetail(
   supabase: SupabaseClient,
   organizationId: string,
   scanId: string,
+  opts?: { historyWindowDays?: number | null },
 ): Promise<ScanDetail> {
   const scan = await findScanById(supabase, scanId);
   if (!scan) throw notFoundError("Scan not found");
   if (scan.organization_id !== organizationId) throw notFoundError("Scan not found");
+
+  // Free-tier read window (non-destructive): scans older than the window are
+  // hidden, never deleted. Paid (null window) sees full retained history.
+  const windowDays = opts?.historyWindowDays;
+  if (typeof windowDays === "number" && windowDays >= 0) {
+    const cutoffMs = Date.now() - windowDays * 24 * 60 * 60 * 1000;
+    const scanTs = Date.parse(scan.created_at);
+    if (!Number.isNaN(scanTs) && scanTs < cutoffMs) throw notFoundError("Scan not found");
+  }
 
   // Fetch campaign name
   let campaignName: string | null = null;

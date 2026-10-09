@@ -9,6 +9,12 @@ export interface ScanInput {
   readonly campaignId: string;
   readonly platformFilter?: Platform;
   readonly scannerVersion?: string;
+  /**
+   * Authenticated caller for free-tier quota accounting. Browser-invoked
+   * scans pass the caller's user id; background paths (cron/webhook) omit it
+   * and are gated by the caller via resolveOrgCheckPrincipal instead.
+   */
+  readonly userId?: string;
 }
 
 export interface DiscoveredItem {

@@ -54,9 +54,14 @@ export async function createCampaign(
   supabase: SupabaseClient,
   organizationId: string,
   rawInput: unknown,
+  opts?: { userId?: string },
 ) {
   if (!organizationId) throw validationError("organizationId required");
   const input = parseOrThrow(createCampaignSchema, rawInput);
+  if (opts?.userId) {
+    const { assertFreeCampaignCreateAllowed } = await import("@/server/services/sponsorship-limits");
+    await assertFreeCampaignCreateAllowed(supabase, { userId: opts.userId, organizationId });
+  }
   return repo.createSponsorCampaign(supabase, {
     organization_id: organizationId,
     name: input.name,

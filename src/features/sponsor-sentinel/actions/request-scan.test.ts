@@ -49,6 +49,10 @@ vi.mock("../services/scan-action", async (importOriginal) => {
     requestManualScan: vi.fn(async () => ({ scan: { id: "scan-1" } })),
   };
 });
+const mockAssertFreeScanEligible = vi.fn(async () => ({ coveredChannelId: null }));
+vi.mock("@/server/services/sponsorship-limits", () => ({
+  assertFreeScanEligible: (...args: unknown[]) => (mockAssertFreeScanEligible as (...a: unknown[]) => unknown)(...args),
+}));
 
 import { requestScanAction } from "./campaign-actions";
 import * as campaignRepo from "@/server/repositories/sponsor-campaigns";
@@ -154,6 +158,14 @@ describe("requestScanAction — PERF-02B async", () => {
     void [...consoleSpy.mock.calls.flat(), ...warnSpy.mock.calls.flat()].join(" ");
     consoleSpy.mockRestore();
     warnSpy.mockRestore();
+  });
+
+  it("free quota exhausted → immediate error, no background (direct calls cannot bypass)", async () => {
+    const { validationError } = await import("@/lib/errors");
+    mockAssertFreeScanEligible.mockRejectedValueOnce(validationError("You've used all 10 free checks this month. Checks reset on the 1st (UTC). Upgrade for unlimited checks."));
+    const result = await requestScanAction(fd("tag-esports", "camp-1"));
+    expect(result?.error).toMatch(/10 free checks/);
+    expect(mockAfter).not.toHaveBeenCalled();
   });
 
   it("does not accept organizationId from client input", async () => {

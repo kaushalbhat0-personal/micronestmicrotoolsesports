@@ -6,6 +6,12 @@ import { AppError } from "@/lib/errors";
 export interface EligibleCampaign {
   readonly campaign: SponsorCampaign;
   readonly organizationId: string;
+  /**
+   * Server-derived free quota owner for atomic reservation. Present only when
+   * the organization principal resolved to free; paid orgs scan without a
+   * principal (unmetered direct path). Never client-supplied.
+   */
+  readonly freeQuotaUserId?: string | null;
 }
 
 export async function loadEligibleCampaigns(
@@ -33,6 +39,35 @@ export async function loadEligibleCampaigns(
     const hasEntitlement = await hasSponsorSentinelEntitlement(supabase, c.organization_id);
     if (!hasEntitlement) continue;
 
+    // Free-tier gate: only the deterministic covered campaign/channel may be
+    // scanned and only while monthly budget remains. Skip quietly — no scan
+    // row, no provider call. This is a cost-saving pre-filter only; the
+    // database RPC at insert time remains authoritative.
+    let freeQuotaUserId: string | null = null;
+    try {
+      const { resolveOrgCheckPrincipal, assertFreeScanEligible } = await import("@/server/services/sponsorship-limits");
+      const principal = await resolveOrgCheckPrincipal(supabase, c.organization_id);
+      if (principal.level === "none") continue;
+      if (principal.level === "paid") {
+        // Paid coverage: unmetered direct path (freeQuotaUserId stays null).
+        // Entered ONLY on an explicit paid level — never inferred.
+      } else if (principal.level === "free") {
+        // Free coverage: the quota owner is required. A free principal
+        // without a userId must fail closed — never fall into paid/unmetered.
+        if (!principal.userId) continue;
+        await assertFreeScanEligible(supabase, {
+          userId: principal.userId,
+          organizationId: c.organization_id,
+          campaignId: c.id,
+        });
+        freeQuotaUserId = principal.userId;
+      } else {
+        continue;
+      }
+    } catch {
+      continue;
+    }
+
     const { count: deliverableCount } = await supabase
       .from("deliverables")
       .select("id", { count: "exact", head: true })
@@ -47,7 +82,7 @@ export async function loadEligibleCampaigns(
 
     if (!channelCount || channelCount === 0) continue;
 
-    eligible.push({ campaign: c, organizationId: c.organization_id });
+    eligible.push({ campaign: c, organizationId: c.organization_id, freeQuotaUserId });
   }
 
   return eligible;
@@ -126,8 +161,16 @@ export async function runCampaignScans(
           organizationId,
         }),
       );
-      // executeScan already handles tenant isolation via campaign.organization_id check and RLS
-      const res = await executeScan({ supabase, input: { organizationId, campaignId } });
+      // executeScan already handles tenant isolation via campaign.organization_id check and RLS.
+      // Free quota owners are threaded through so the database RPC performs
+      // the authoritative insert-time reservation (paid orgs: userId absent,
+      // direct unmetered path).
+      const res = await executeScan({
+        supabase,
+        input: item.freeQuotaUserId
+          ? { organizationId, campaignId, userId: item.freeQuotaUserId }
+          : { organizationId, campaignId },
+      });
       const durationMs = Math.round((typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now()) - campaignStart);
       const scanId = (res.scan as { id?: string })?.id;
       succeeded++;
@@ -152,6 +195,19 @@ export async function runCampaignScans(
         succeeded++;
         results.push({ campaignId, organizationId, ok: true, durationMs, errorKind: "already_running", error: "already running" });
         continue;
+      }
+      // Free-tier quota exhaustion is an expected skip, not a failure.
+      try {
+        const { isFreeQuotaError } = await import("@/server/services/sponsorship-limits");
+        if (isFreeQuotaError(e)) {
+          const durationMs = Math.round((typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now()) - campaignStart);
+          console.warn(JSON.stringify({ event: "sentinel_campaign_skipped_free_quota", cronRunId, campaignId, organizationId, durationMs }));
+          succeeded++;
+          results.push({ campaignId, organizationId, ok: true, durationMs, errorKind: "quota_exhausted", error: "free quota exhausted" });
+          continue;
+        }
+      } catch {
+        // fall through to failure handling below
       }
       const durationMs = Math.round((typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now()) - campaignStart);
       const errorKind = classifyError(e);
