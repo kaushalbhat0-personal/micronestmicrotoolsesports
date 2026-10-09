@@ -56,6 +56,13 @@ export interface Organization {
   slug: string;
   owner_id: string;
   logo_url?: string | null;
+  /**
+   * Canonical workspace timezone (IANA identifier, e.g. "Asia/Kolkata").
+   * Authoritative workspace configuration — see
+   * src/server/services/organization-timezone.ts. Distinct from APP_TIMEZONE
+   * (display-formatting default in src/lib/utils/format.ts).
+   */
+  timezone: string;
   created_at: string;
   updated_at: string;
 }
