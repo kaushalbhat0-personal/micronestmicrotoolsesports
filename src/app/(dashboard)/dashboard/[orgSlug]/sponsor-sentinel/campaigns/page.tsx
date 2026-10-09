@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { listCampaigns } from "@/features/sponsor-sentinel/services/campaign-service";
 import { getRequirementCounts } from "@/features/sponsor-sentinel/services/deliverable-service";
 import { getScanHistory } from "@/features/sponsor-sentinel/services/scan-history";
+import { resolveSponsorshipLimits } from "@/server/services/sponsorship-limits";
+import { FreeUsageMeter } from "@/features/sponsor-sentinel/components/free-usage-meter";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,9 +27,13 @@ export default async function CampaignsPage({ params }: { params: Promise<{ orgS
     throw e;
   }
   const supabase = await createClient();
+  // Free tier sees a 7-day read window; paid sees full retained history.
+  // Rows outside the window stay stored and re-appear on upgrade.
+  const callerLimits = await resolveSponsorshipLimits(supabase, { userId: ctx.user.id, organizationId: ctx.organization.id }).catch(() => null);
+  const historyWindowDays = callerLimits?.level === "free" ? callerLimits.historyWindowDays : null;
   const [campaigns, scanHistory, reqCounts] = await Promise.all([
     listCampaigns(supabase, ctx.organization.id),
-    getScanHistory(supabase, ctx.organization.id).catch(() => ({ scans: [], total: 0 }) as never),
+    getScanHistory(supabase, ctx.organization.id, { historyWindowDays }).catch(() => ({ scans: [], total: 0 }) as never),
     getRequirementCounts(supabase, ctx.organization.id),
   ]);
   const scanByCampaign = new Map<string, (typeof scanHistory.scans)[number]>();
@@ -48,6 +54,8 @@ export default async function CampaignsPage({ params }: { params: Promise<{ orgS
           </Link>
         }
       />
+
+      <FreeUsageMeter userId={ctx.user.id} organizationId={ctx.organization.id} orgSlug={orgSlug} />
 
       {campaigns.length === 0 ? (
         <EmptyState

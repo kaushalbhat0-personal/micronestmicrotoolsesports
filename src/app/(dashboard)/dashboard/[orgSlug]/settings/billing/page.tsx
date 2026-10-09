@@ -35,6 +35,17 @@ export default async function BillingPage({
   const overview = await getBillingOverview(supabase, ctx.organization.id);
   const sections = await getBillingToolSections(supabase, ctx.organization.id, user.id);
 
+  // Free-tier claim: offered only when the caller has NO sponsorship coverage
+  // in this workspace (no org grant, no All Access, no user grant of any
+  // source). Claiming never touches billing/orders/Razorpay.
+  let showFreeClaim = false;
+  try {
+    const { resolveSponsorshipAccessLevel } = await import("@/server/services/sponsorship-limits");
+    showFreeClaim = (await resolveSponsorshipAccessLevel(supabase, { userId: user.id, organizationId: ctx.organization.id })) === "none";
+  } catch {
+    showFreeClaim = false;
+  }
+
   // Enrich entitlements with tool metadata for display
   const toolMap = new Map(TOOLS.map((t) => [t.slug, t]));
   const enriched = overview.entitlements.map((e) => {
@@ -60,6 +71,7 @@ export default async function BillingPage({
         history={overview.history}
         currentPlan={overview.currentPlan}
         hintedPlanSlug={hintedPlanSlug}
+        showFreeClaim={showFreeClaim}
       />
     </div>
   );

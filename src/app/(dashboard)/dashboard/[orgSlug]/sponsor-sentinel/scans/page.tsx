@@ -4,6 +4,8 @@ import { isEntitlementDenied } from "@/lib/errors";
 import { AccessDenied } from "@/components/shared/access-denied";
 import { createClient } from "@/lib/supabase/server";
 import { getScanHistory } from "@/features/sponsor-sentinel/services/scan-history";
+import { resolveSponsorshipLimits } from "@/server/services/sponsorship-limits";
+import { FreeUsageMeter } from "@/features/sponsor-sentinel/components/free-usage-meter";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -27,11 +29,17 @@ export default async function ScanHistoryPage({ params }: { params: Promise<{ or
   }
 
   const supabase = await createClient();
-  const { scans, total } = await getScanHistory(supabase, ctx.organization.id);
+  const callerLimits = await resolveSponsorshipLimits(supabase, { userId: ctx.user.id, organizationId: ctx.organization.id }).catch(() => null);
+  const historyWindowDays = callerLimits?.level === "free" ? callerLimits.historyWindowDays : null;
+  const { scans, total } = await getScanHistory(supabase, ctx.organization.id, { historyWindowDays });
 
   return (
     <div className="space-y-8">
       <PageHeader title="Check History" description={`Recent checks across your sponsorship campaigns — ${ctx.organization.name}. Each check evaluates all requirements against discovered content.`} />
+      <FreeUsageMeter userId={ctx.user.id} organizationId={ctx.organization.id} orgSlug={orgSlug} />
+      {callerLimits?.level === "free" ? (
+        <p className="text-xs text-muted-foreground">Free shows the last 7 days. Upgrade to see full proof history.</p>
+      ) : null}
 
       {scans.length === 0 ? (
         <EmptyState

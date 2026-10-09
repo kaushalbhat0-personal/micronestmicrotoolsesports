@@ -18,6 +18,7 @@ type ToolCard = {
   expiresAt: string | null;
   viaAllAccess: boolean;
   viaUserGrant: boolean;
+  isFree?: boolean;
 };
 
 type AvailableCard = {
@@ -101,6 +102,7 @@ export function BillingClient({
   history,
   currentPlan,
   hintedPlanSlug,
+  showFreeClaim = false,
 }: {
   organizationId: string;
   organizationSlug: string;
@@ -112,6 +114,7 @@ export function BillingClient({
   history: HistoryEntry[];
   currentPlan: Plan | null;
   hintedPlanSlug?: string | null;
+  showFreeClaim?: boolean;
 }) {
   const displayOrgName = organizationName ?? organizationSlug;
   const initialHintedPlanId = React.useMemo(() => {
@@ -236,6 +239,20 @@ export function BillingClient({
     }
   }
 
+  async function handleClaimFree() {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const { claimFreeSponsorshipAction } = await import("@/features/sponsor-sentinel/actions/free-tier-actions");
+      const res = await claimFreeSponsorshipAction(organizationSlug);
+      if (res?.error) throw new Error(res.error);
+      router.refresh();
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Could not start free access" });
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       {purchase ? (
@@ -281,9 +298,15 @@ export function BillingClient({
                     <CardTitle className="flex items-center gap-2 text-sm">
                       <Icon className="h-4 w-4 text-primary" aria-hidden />
                       {t.displayName}
-                      {t.status === "permanent" && <Badge variant="secondary">Permanent</Badge>}
-                      {t.status === "active" && <Badge variant="success">Active</Badge>}
-                      {t.status === "expiring_soon" && <Badge variant="warning">Expiring soon</Badge>}
+                      {t.isFree ? (
+                        <Badge variant="secondary">Free plan</Badge>
+                      ) : (
+                        <>
+                          {t.status === "permanent" && <Badge variant="secondary">Permanent</Badge>}
+                          {t.status === "active" && <Badge variant="success">Active</Badge>}
+                          {t.status === "expiring_soon" && <Badge variant="warning">Expiring soon</Badge>}
+                        </>
+                      )}
                     </CardTitle>
                     <CardDescription className="text-xs">{t.description}</CardDescription>
                   </CardHeader>
@@ -293,7 +316,19 @@ export function BillingClient({
                       {expiryLabel(t.expiresAt, t.status)}
                     </p>
                     {t.viaAllAccess && <p className="mt-1 text-xs text-muted-foreground">Included with All Access</p>}
-                    {t.viaUserGrant && <p className="mt-1 text-xs text-muted-foreground">Included with your Sponsorship access</p>}
+                    {t.viaUserGrant && !t.isFree && <p className="mt-1 text-xs text-muted-foreground">Included with your Sponsorship access</p>}
+                    {t.isFree && (
+                      <>
+                        <p className="mt-1 text-xs text-muted-foreground">Free Sponsorship Tracking — 1 campaign, 1 channel, 10 checks a month, 7-day history.</p>
+                        <Link
+                          href="/pricing"
+                          className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          Upgrade to Sponsorship Tracking
+                        </Link>
+                        <p className="mt-1 text-[11px] text-muted-foreground">Manual renewal. No AutoPay.</p>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -301,6 +336,23 @@ export function BillingClient({
           )}
         </div>
       </section>
+
+      {/* Free Sponsorship Tracking claim — no payment, no order, no Razorpay */}
+      {showFreeClaim ? (
+        <section aria-label="Try Sponsorship Tracking free">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="text-sm">Try Sponsorship Tracking free</CardTitle>
+              <CardDescription>1 campaign, 1 channel, 10 checks a month. No payment required.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button size="sm" className="min-h-[44px]" disabled={loading} onClick={handleClaimFree}>
+                Start free
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
 
       {/* Available to Add */}
       <section>
@@ -416,7 +468,7 @@ export function BillingClient({
                     : yearlyPlan
                       ? `All currently available tools — ${formatAmount(yearlyPlan.amount_minor, yearlyPlan.currency)} / year.`
                       : "All currently available tools.";
-                  return (
+  return (
                     <>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {headline} Covers only the tools available at the time of purchase; future tools are not automatically included.

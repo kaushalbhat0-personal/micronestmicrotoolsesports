@@ -7,6 +7,7 @@ import { isEntitlementDenied } from "@/lib/errors";
 import { AccessDenied } from "@/components/shared/access-denied";
 import { createClient } from "@/lib/supabase/server";
 import { getScanDetail } from "@/features/sponsor-sentinel/services/scan-detail";
+import { resolveSponsorshipLimits } from "@/server/services/sponsorship-limits";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,9 +41,13 @@ export default async function ScanDetailPage({
 
   const supabase = await createClient();
 
+  // Free tier: scans older than 7 days are hidden (stored, re-appear on upgrade).
+  const callerLimits = await resolveSponsorshipLimits(supabase, { userId: ctx.user.id, organizationId: ctx.organization.id }).catch(() => null);
+  const historyWindowDays = callerLimits?.level === "free" ? callerLimits.historyWindowDays : null;
+
   let detail;
   try {
-    detail = await getScanDetail(supabase, ctx.organization.id, scanId);
+    detail = await getScanDetail(supabase, ctx.organization.id, scanId, { historyWindowDays });
   } catch (e) {
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound();
     throw e;

@@ -107,6 +107,15 @@ export function PricingClient({ plans }: PricingClientProps) {
         </div>
       </div>
       <p className="mt-3 text-center text-xs text-muted-foreground">Prices in INR. No automatic renewal — manual renewal only.</p>
+      <div className="mx-auto mt-4 max-w-2xl rounded-[16px] border border-border bg-card p-4 text-center">
+        <p className="text-sm font-medium">Try Sponsorship Tracking free — 1 campaign, 1 channel, 10 checks a month. No payment required.</p>
+        <Link
+          href="/signup"
+          className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Start free
+        </Link>
+      </div>
 
       {/* Cards */}
       <div id="pricing-cards" className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">

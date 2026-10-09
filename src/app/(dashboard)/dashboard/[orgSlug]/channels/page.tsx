@@ -16,6 +16,7 @@ import { ConnectedChannelsList } from "@/features/sponsor-sentinel/components/co
 import { ConnectYouTubeForm } from "@/features/sponsor-sentinel/components/connect-youtube-form";
 import { ConnectTwitchForm } from "@/features/sponsor-sentinel/components/connect-twitch-form";
 import { ConnectKickForm } from "@/features/sponsor-sentinel/components/connect-kick-form";
+import { FreeUsageMeter } from "@/features/sponsor-sentinel/components/free-usage-meter";
 import Link from "next/link";
 import type { Route } from "next";
 import { Tv, Users, ExternalLink } from "lucide-react";
@@ -66,6 +67,8 @@ export default async function ChannelsPage({ params }: { params: Promise<{ orgSl
         </p>
         <p className="mt-1 text-muted-foreground">Connect a platform in Connections, then add the creator handle/login. We verify it exists and make it available to every campaign in this workspace. One connection can support multiple channels.</p>
       </div>
+
+      <FreeUsageMeter userId={ctx.user.id} organizationId={ctx.organization.id} orgSlug={orgSlug} />
 
       {!anyConnected && (
         <div className="rounded-[12px] border border-warning/30 bg-warning-soft p-4 text-sm">

@@ -8,6 +8,8 @@ import { getCampaign } from "@/features/sponsor-sentinel/services/campaign-servi
 import { listDeliverablesByCampaign } from "@/server/repositories/deliverables";
 import { listConnectedChannelsByOrg } from "@/server/repositories/connected-channels";
 import { listScansByCampaign } from "@/server/repositories/scans";
+import { resolveSponsorshipLimits } from "@/server/services/sponsorship-limits";
+import { FreeUsageMeter } from "@/features/sponsor-sentinel/components/free-usage-meter";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -56,11 +58,15 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   }
   const supabase = await createClient();
 
+  // Free tier: latest-check reads respect the 7-day window (paid: full history).
+  const callerLimits = await resolveSponsorshipLimits(supabase, { userId: ctx.user.id, organizationId: ctx.organization.id }).catch(() => null);
+  const historyWindowDays = callerLimits?.level === "free" ? callerLimits.historyWindowDays : null;
+
   const [campaign, deliverables, channels, campaignScans] = await Promise.all([
     getCampaign(supabase, ctx.organization.id, campaignId),
     listDeliverablesByCampaign(supabase, campaignId),
     listConnectedChannelsByOrg(supabase, ctx.organization.id),
-    listScansByCampaign(supabase, ctx.organization.id, campaignId, 5),
+    listScansByCampaign(supabase, ctx.organization.id, campaignId, 5, { historyWindowDays }),
   ]);
   const usableChannels = channels.filter((c) => c.connection_status === "connected");
 
@@ -101,6 +107,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="space-y-8">
+      <FreeUsageMeter userId={ctx.user.id} organizationId={ctx.organization.id} orgSlug={orgSlug} />
       {/* 1 — Identity / Hero */}
       <PageHeader
         title={campaign.name}
