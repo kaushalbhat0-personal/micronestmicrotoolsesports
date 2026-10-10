@@ -44,8 +44,14 @@ URL orgSlug → findOrganizationBySlug → verify organization_members → trust
 
 ## Webhook / Cron
 
-- **Webhooks:** verify signature (`STRIPE_WEBHOOK_SECRET` / `RAZORPAY_*`), insert `webhook_events(provider_event_id unique)` for idempotency, delegate to billing service. See `src/app/api/webhooks/stripe/route.ts:1`.
-- **Cron:** `Authorization: Bearer <CRON_SECRET>` via `assertCronAuth` `src/server/cron/cron-auth.ts:1`, server-only, idempotent, `handleRouteError`, `vercel.json` cron.
+- **Webhooks:** verify signature per provider (`src/app/api/webhooks/stripe|razorpay|twitch|youtube|kick/route.ts:1` + `src/server/integrations/<provider>/verifier`), insert `webhook_events(provider_event_id unique)` for idempotency, delegate to billing/event service. Stripe uses `STRIPE_WEBHOOK_SECRET`; Razorpay uses HMAC `RAZORPAY_*`; Twitch EventSub uses HMAC `Twitch-Eventsub-Message-*`; Kick uses RSA `Kick-Event-Signature`; YouTube uses PubSubHubbub challenge + `videos.list` re-fetch.
+- **Cron:** `Authorization: Bearer <CRON_SECRET>` via `assertCronAuth` `src/server/cron/cron-auth.ts:1`, server-only, idempotent, `handleRouteError`, `vercel.json` cron. Live jobs: `/api/cron/sentinel-scan`, `/api/cron/sentinel-retention` (+ `/api/cron/subscriptions` route).
+
+## Additional Invariants (added since foundation)
+
+- **Sponsorship access is user-scoped exception:** org membership + (legacy org grant OR valid `user_tool_entitlements` row); background paths use `hasSponsorshipAccessForOrg()` (`src/server/services/sponsorship-access.ts:1`). See `ARCHITECTURE.md` §5.
+- **Primary workspace is preference-only:** `profiles.primary_organization_id`, never consulted by entitlement/RLS (`src/server/services/primary-workspace-service.ts:1`).
+- **Admin audit is append-only:** `admin_audit_logs` + `BEFORE UPDATE/DELETE` trigger rejects all mutation; writes only via `recordAdminAudit()` with `safeAuditProjection()` before render (`src/server/admin/audit-log.ts:15`). Admin gate is `requireSuperAdmin()` → `rpc is_super_admin`; never client flags.
 
 ## Checklist Before Committing
 

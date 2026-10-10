@@ -9,7 +9,7 @@ description: "Use for future E2E/browser testing — role/label selectors, isola
 
 **When not to use:** Unit/service tests (use `testing` skill), pure styling without interaction, or when dependency not yet needed — skill can exist before `npm install -D @playwright/test`.
 
-**Source:** Adapted from PyModel React Frontend Skills — `playwright` skill (MIT). Project currently **does not have** `@playwright/test` installed (intentional — install only when E2E needed). Keep skill minimal until then.
+**Source:** Adapted from PyModel React Frontend Skills — `playwright` skill (MIT). Project now **has** `@playwright/test 1.63` installed (range `^1.63.0`) but **no `playwright.config.ts` yet** (intentional — add only with the first E2E spec).
 
 ## Rules
 
@@ -41,10 +41,9 @@ Bad: Only 1280px, no `prefers-reduced-motion` check.
 ## Future Enablement
 
 When first E2E added:
-1. `npm install -D @playwright/test`
-2. `npx playwright init` → `playwright.config.ts` (baseURL `http://localhost:3000`, `webServer: { command: 'npm run build && npm start' }`)
-3. `tests/e2e/org-context.spec.ts` — cases from `ARCHITECTURE.md` §6 (member allowed, non-member denied, nonexistent 404, sponsor-sentinel requires membership).
-4. Add `npm run test:e2e` script.
+1. `playwright.config.ts` (baseURL `http://localhost:3000`, `webServer: { command: 'npm run build && npm start' }`) — dependency already installed, skip `npm install`
+2. `tests/e2e/org-context.spec.ts` — cases from `ARCHITECTURE.md` §6 (member allowed, non-member denied, nonexistent 404, sponsor-sentinel requires membership).
+3. Add `npm run test:e2e` script.
 
 ## Checklist
 

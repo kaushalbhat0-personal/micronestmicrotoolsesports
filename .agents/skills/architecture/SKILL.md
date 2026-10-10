@@ -9,7 +9,7 @@ description: "Use before any code change. Enforces MicroNest's authoritative fol
 
 **When not to use:** Pure docs typo fix with no code/structure impact (still skim invariants).
 
-**Installed context:** Next.js `15.4.2` App Router, React `19.1`, TypeScript `5.8.3` strict, Tailwind `4.1.11`. Do not assume newer APIs.
+**Installed context:** Next.js `15.5.26` lockfile (range `^15.4.2`) App Router, React `19.1`, TypeScript `5.8.3` strict, Tailwind `4.1.11`. Do not assume newer APIs.
 
 ## Invariants
 
@@ -20,14 +20,16 @@ description: "Use before any code change. Enforces MicroNest's authoritative fol
 
 ```
 src/app/            orchestration only (get context → call service → pass data → render)
-src/features/<slug>/ domain capability
+src/features/<slug>/ domain capability (billing, draft-ban, prize-splitter, sponsor-sentinel, tie-breaker)
 src/server/repositories/ DB access (one file per table/domain)
 src/server/services/  business/application logic (pure, testable)
-src/server/integrations/ external provider boundaries (twitch/discord/stripe/razorpay)
-src/lib/             cross-cutting infra (auth, supabase, env, errors, validation, utils)
+src/server/integrations/ external provider boundaries (twitch/youtube/kick/discord/stripe/razorpay + mock, selected via registry.ts)
+src/server/scanner|subscriptions|billing|oauth|credentials|events|webhooks|cron|admin|testing/  server subdomains (scanner orchestration, subscription reconciler, billing contracts, OAuth/PKCE, event pipeline, webhook verifiers, cron auth, admin audit, embedded-postgres harnesses)
+src/lib/             cross-cutting infra (auth, supabase, env, errors, validation, utils, purchase, format)
 src/components/ui/    design system primitives (Button, Input, Card, …)
 src/components/shared/ shared application UI (OrgSwitcher)
-src/config/           configuration (tools, navigation)
+src/components/layout|admin|freemium|marketing/  shell, admin surfaces, freemium gates, marketing sections
+src/config/           configuration (app/tools, navigation, content, marketing)
 src/types/            shared types
 src/styles/           tokens (globals.css @theme)
 ```

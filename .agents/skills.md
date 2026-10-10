@@ -4,14 +4,14 @@
 
 ## Authority & Scope
 
-- **Project-owned (authoritative):** `architecture`, `security`, `ui-ux` — encode MicroNest rules. If any external skill conflicts, **project wins** unless changed via RCCF.
+- **Project-owned (authoritative):** `architecture`, `security`, `ui-ux`, plus project-bounded provider skills `twitch`, `youtube`, `kick` — encode MicroNest rules. If any external skill conflicts, **project wins** unless changed via RCCF.
 - **Framework guidance (supplemental):** `nextjs`, `react`, `typescript`, `tailwind`, `supabase`, `postgres-rls`, `testing`, `playwright` — version-aware, narrow, used only when relevant. Never allow generic framework advice to override security/architecture.
 
 External skills are **small + authoritative + relevant** over large + generic. Verify source/license/freshness before importing.
 
 ## Installed Versions (authoritative, do not migrate via skill)
 
-- Next.js `15.4.2` (App Router, `typedRoutes:true`), React `19.1`, TypeScript `5.8.3` (strict), Tailwind `4.1.11`, Supabase JS `2.48` + SSR `0.6.1`, Vitest `3.2.4`. Skills target these versions; newer APIs must not be assumed.
+- Next.js `15.5.26` lockfile (range `^15.4.2`, App Router, `typedRoutes:true`), React `19.1`, TypeScript `5.8.3` (strict), Tailwind `4.1.11`, Supabase JS `2.48` + SSR `0.6.1`, Vitest `3.2.7` (range `^3.2.4`), Playwright `1.63` (installed). Skills target these versions; newer APIs must not be assumed.
 
 ## When to Load Each Skill
 
@@ -25,11 +25,14 @@ External skills are **small + authoritative + relevant** over large + generic. V
 | `tailwind` | Styling, tokens (`src/styles/globals.css`), responsive, primitives |
 | `supabase` | Auth, SSR, DB, migrations, storage, CLI, troubleshooting |
 | `postgres-rls` | **Before** any schema, index, RLS policy, function, or tenant-isolation change |
-| `testing` | Writing/reviewing tests (Vitest) — unit, service, security boundary |
-| `playwright` | E2E/browser testing (Playwright not yet installed — skill may exist before dep) |
+| `testing` | Writing/reviewing tests (Vitest) — unit lane (`npm run test`), integration lane (`npm run test:integration`), full (`npm run test:all`). Never run watch mode in agents. |
+| `playwright` | E2E/browser testing (`@playwright/test` installed, no `playwright.config.ts` yet — init only when first E2E lands) |
 | `ui-ux` | Any UI change — design-system-first, a11y, responsive, states |
+| `twitch` | Twitch Helix/EventSub changes under `src/server/integrations/twitch/` (real provider live, mock fallback via registry) |
+| `youtube` | YouTube Data API v3 changes under `src/server/integrations/youtube/` (real provider live, mock fallback via registry) |
+| `kick` | Kick Public API changes under `src/server/integrations/kick/` (real provider live, mock fallback; VOD NOT_SUPPORTED) |
 
-Future provider skills (`twitch`, `discord`, `stripe`, `razorpay`) only when that integration work begins. Directory convention reserved: `.agents/skills/<provider>/SKILL.md`.
+`discord` / `stripe` / `razorpay` have real integration clients (`src/server/integrations/<vendor>/client.ts`) but no dedicated skills yet — treat the client file + `registry.ts` as source of truth and do not hallucinate provider APIs. Directory convention: `.agents/skills/<provider>/SKILL.md`.
 
 ## Skill Precedence (high → low)
 

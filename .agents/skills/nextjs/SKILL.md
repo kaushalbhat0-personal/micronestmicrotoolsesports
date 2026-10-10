@@ -1,19 +1,19 @@
 ---
 name: nextjs
-description: "Use for App Router, Server Components, route handlers, Server Actions, typedRoutes, and caching — version-aware for Next.js 15.4.2. Verify installed version before applying."
+description: "Use for App Router, Server Components, route handlers, Server Actions, typedRoutes, and caching — version-aware for Next.js 15.5 lockfile. Verify installed version before applying."
 ---
 
-# Next.js — Framework Guidance (15.4.2)
+# Next.js — Framework Guidance (15.5.26 lockfile, range ^15.4.2)
 
 **When to use:** App Router structure, layouts/pages, route handlers (`src/app/api/`), Server Actions, `loading.tsx`/`error.tsx`, `typedRoutes`, server/client boundaries, caching.
 
 **When not to use:** Pure UI styling or DB/RLS without routing concern.
 
-**Source:** Adapted from PyModel React Frontend Skills — https://github.com/PyModel/react-frontend-skills (`nextjs` skill, MIT). Installed version **15.4.2** takes precedence over any 16-only APIs in upstream.
+**Source:** Adapted from PyModel React Frontend Skills — https://github.com/PyModel/react-frontend-skills (`nextjs` skill, MIT). Installed version **15.5.26** (range `^15.4.2`) takes precedence over any 16-only APIs in upstream.
 
 ## Version Discipline
 
-> Verify `package.json` (`next: ^15.4.2`) before applying guidance. Do not migrate to Next.js 16 APIs merely because a skill documents them.
+> Verify `package.json` (`next: ^15.4.2`, lockfile `15.5.26`) before applying guidance. Do not migrate to Next.js 16 APIs merely because a skill documents them.
 
 ## Rules
 
@@ -39,7 +39,7 @@ Bad: `href={t.href as never}` to silence — fix link.
 
 **Rule: Server Actions & Route Handlers — secure**
 Why: Auth/validation boundary.
-Good: `src/app/(dashboard)/dashboard/organizations/new/page.tsx:12` Server Action `createOrgAction` → `requireUser()` → `createOrganizationForUser` (Zod) → `redirect`. Cron `src/app/api/cron/example-job/route.ts:1` checks `assertCronAuth` `src/server/cron/cron-auth.ts:1` (Bearer `CRON_SECRET`).
+Good: `src/app/(dashboard)/dashboard/organizations/new/page.tsx:12` Server Action `createOrgAction` → `requireUser()` → `createOrganizationForUser` (Zod) → `redirect`. Cron `src/app/api/cron/sentinel-scan/route.ts:1` checks `assertCronAuth` `src/server/cron/cron-auth.ts:1` (Bearer `CRON_SECRET`).
 Bad: `POST /api/organizations` trusting `body.organizationId` without `requireOrganizationContext`.
 
 **Rule: Caching — version-aware**
