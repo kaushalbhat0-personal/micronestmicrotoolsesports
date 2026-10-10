@@ -5,14 +5,16 @@ import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createClient } from "@/lib/supabase/server";
 import { AppError } from "@/lib/errors";
+import { isDraftBanTemplateLimitError } from "@/server/services/draft-ban-policy";
 import { createTemplate, deleteTemplate, ensureStarterTemplate, renameTemplate, updateTemplate } from "../services/template-service";
 
-type ActionResult = { error?: string; templateId?: string };
+type ActionResult = { error?: string; templateId?: string; templateLimited?: boolean };
 
 function toResult(e: unknown, fallback: string): ActionResult {
   if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
   if (e instanceof AppError) {
     console.warn(`[AppError ${e.code}]`, e.safeMessage);
+    if (isDraftBanTemplateLimitError(e)) return { error: e.safeMessage, templateLimited: true };
     return { error: e.safeMessage };
   }
   console.error("[draft-ban template action] unexpected", e);

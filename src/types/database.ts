@@ -327,6 +327,8 @@ export interface DraftTemplate {
     teamA: string | null;
     teamB: string | null;
   };
+  /** True for starter templates (quota-exempt). Server-minted only. */
+  is_starter: boolean;
   created_by: string;
   created_at: string;
   updated_at: string;

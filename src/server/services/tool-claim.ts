@@ -11,6 +11,10 @@ import {
   TIE_BREAKER_TOOL_SLUG,
   ensureFreeTieBreakerGrant,
 } from "@/server/services/tie-breaker-policy";
+import {
+  DRAFT_BAN_TOOL_SLUG,
+  ensureFreeDraftBanGrant,
+} from "@/server/services/draft-ban-policy";
 import { AppError } from "@/lib/errors";
 
 /**
@@ -18,7 +22,8 @@ import { AppError } from "@/lib/errors";
  *
  * Claims Free access for a policy-enabled tool without payment, orders,
  * or billing changes. Gates are generic; issuance delegates to the
- * tool's policy module (Sponsorship user grants, Tie-Breaker org grants).
+ * tool's policy module (Sponsorship user grants, Tie-Breaker and Draft & Ban
+ * org grants).
  *
  * Requirements enforced here, in order:
  * - membership first (via organization context — same precedence as before)
@@ -62,6 +67,10 @@ export async function claimFreeTool(
     }
     if (policy.toolSlug === TIE_BREAKER_TOOL_SLUG) {
       await ensureFreeTieBreakerGrant(admin as never, ctx.organization.id);
+      return { ok: true };
+    }
+    if (policy.toolSlug === DRAFT_BAN_TOOL_SLUG) {
+      await ensureFreeDraftBanGrant(admin as never, ctx.organization.id);
       return { ok: true };
     }
     return { error: UNAVAILABLE_MESSAGE };

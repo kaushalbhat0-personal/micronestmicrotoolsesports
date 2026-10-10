@@ -11,6 +11,7 @@ const mockRequireOrganizationContext = vi.fn();
 const mockCreateAdminClient = vi.fn();
 const mockEnsureFree = vi.fn();
 const mockEnsureFreeTieBreaker = vi.fn();
+const mockEnsureFreeDraftBan = vi.fn();
 
 vi.mock("@/lib/auth/organization-context", () => ({
   requireOrganizationContext: (...args: unknown[]) =>
@@ -39,6 +40,15 @@ vi.mock("@/server/services/tie-breaker-policy", async (importOriginal) => {
   };
 });
 
+vi.mock("@/server/services/draft-ban-policy", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/services/draft-ban-policy")>();
+  return {
+    ...actual,
+    ensureFreeDraftBanGrant: (...args: unknown[]) =>
+      (mockEnsureFreeDraftBan as (...a: unknown[]) => unknown)(...args),
+  };
+});
+
 function adminClient(toolRow: unknown) {
   return {
     from: (table: string) => {
@@ -58,6 +68,7 @@ function adminClient(toolRow: unknown) {
 const CTX = { user: { id: "u1" }, organization: { id: "org-a" } };
 const ACTIVE_SPONSOR_TOOL = { id: "tool-sponsor-id", slug: "sponsor-sentinel", is_active: true };
 const ACTIVE_TIE_TOOL = { id: "tool-tie-id", slug: "tie-breaker", is_active: true };
+const ACTIVE_DRAFT_TOOL = { id: "tool-draft-id", slug: "draft-ban", is_active: true };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -65,6 +76,7 @@ beforeEach(() => {
   mockCreateAdminClient.mockReturnValue(adminClient(ACTIVE_SPONSOR_TOOL));
   mockEnsureFree.mockResolvedValue({ id: "g1" });
   mockEnsureFreeTieBreaker.mockResolvedValue({ id: "gt1" });
+  mockEnsureFreeDraftBan.mockResolvedValue({ id: "gd1" });
 });
 
 describe("claimFreeTool", () => {
@@ -99,11 +111,31 @@ describe("claimFreeTool", () => {
     expect(mockEnsureFree).not.toHaveBeenCalled();
   });
 
-  it("disabled policy tool (draft-ban) is denied without issuance", async () => {
+  it("draft-ban Free claim issues the org grant (happy path delegates issuance)", async () => {
+    mockCreateAdminClient.mockReturnValue(adminClient(ACTIVE_DRAFT_TOOL));
     const res = await claimFreeTool("draft-ban", "acme");
+    expect(res).toEqual({ ok: true });
+    expect(mockRequireOrganizationContext).toHaveBeenCalledWith("acme");
+    expect(mockEnsureFreeDraftBan).toHaveBeenCalledTimes(1);
+    expect(mockEnsureFreeDraftBan).toHaveBeenCalledWith(expect.anything(), "org-a");
+    // Sponsorship and Tie-Breaker issuance never run for Draft & Ban claims.
+    expect(mockEnsureFree).not.toHaveBeenCalled();
+    expect(mockEnsureFreeTieBreaker).not.toHaveBeenCalled();
+  });
+
+  it("disabled policy tool (prize-splitter) is denied without issuance", async () => {
+    const res = await claimFreeTool("prize-splitter", "acme");
     expect(res.error).toBeDefined();
     expect(mockEnsureFree).not.toHaveBeenCalled();
     expect(mockEnsureFreeTieBreaker).not.toHaveBeenCalled();
+    expect(mockEnsureFreeDraftBan).not.toHaveBeenCalled();
+  });
+
+  it("draft-ban claim against an inactive tool row is denied without issuance", async () => {
+    mockCreateAdminClient.mockReturnValue(adminClient({ ...ACTIVE_DRAFT_TOOL, is_active: false }));
+    const res = await claimFreeTool("draft-ban", "acme");
+    expect(res.error).toBeDefined();
+    expect(mockEnsureFreeDraftBan).not.toHaveBeenCalled();
   });
 
   it("tie-breaker claim against an inactive tool row is denied without issuance", async () => {

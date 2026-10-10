@@ -10,6 +10,7 @@ import { DraftWorkspace } from "@/features/draft-ban/components/draft-workspace"
 import { ResultCard } from "@/features/draft-ban/components/result-card";
 import { findOrganizationById } from "@/server/repositories/organizations";
 import { getMatch } from "@/features/draft-ban/services/match-service";
+import { draftBanResultLogoUrl, resolveDraftBanAccessLevel } from "@/server/services/draft-ban-policy";
 
 export const metadata = {
   title: "Draft — Draft & Ban",
@@ -29,6 +30,12 @@ export default async function DraftBanMatchPage({ params }: { params: Promise<{ 
   const match = await getMatch(supabase, ctx.organization.id, matchId).catch(() => null);
   if (!match) notFound();
   const org = await findOrganizationById(supabase, ctx.organization.id).catch(() => null);
+  // Branding is paid-only: the logo renders only with active paid (or All
+  // Access) coverage, resolved server-side. Free workspaces see the
+  // initials fallback; layout and all functionality are unchanged.
+  const accessLevel = await resolveDraftBanAccessLevel(supabase, { organizationId: ctx.organization.id }).catch(
+    () => "free" as const,
+  );
 
   const title = match.match_name ?? `${match.team_a} vs ${match.team_b}`;
 
@@ -43,7 +50,10 @@ export default async function DraftBanMatchPage({ params }: { params: Promise<{ 
         <ResultCard
           match={match}
           organizationName={ctx.organization.name}
-          organizationLogoUrl={(org as { logo_url?: string | null } | null)?.logo_url ?? null}
+          organizationLogoUrl={draftBanResultLogoUrl(
+            accessLevel === "paid" ? "paid" : "free",
+            (org as { logo_url?: string | null } | null)?.logo_url ?? null,
+          )}
           shareUrl={`/share/draft-ban/${match.share_token}`}
           showNotes
         />

@@ -5,9 +5,11 @@ import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createClient } from "@/lib/supabase/server";
 import { AppError } from "@/lib/errors";
+import { claimFreeTool } from "@/server/services/tool-claim";
+import { DRAFT_BAN_TOOL_SLUG, isDraftBanQuotaError } from "@/server/services/draft-ban-policy";
 import { abandonMatch, applyMatchAction, createMatch, deleteMatch, duplicateMatch, finalizeMatch, resetMatchActions, undoMatchAction } from "../services/match-service";
 
-type ActionResult = { error?: string; matchId?: string };
+type ActionResult = { error?: string; matchId?: string; quotaLimited?: boolean };
 
 function toResult(e: unknown, fallback: string): ActionResult {
   if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
@@ -104,11 +106,16 @@ export async function finalizeDraftMatchAction(input: { orgSlug: string; matchId
   try {
     const ctx = await orgContext(input.orgSlug);
     const supabase = await createClient();
-    const match = await finalizeMatch(supabase, ctx.organization.id, input.matchId);
+    const match = await finalizeMatch(supabase, ctx.organization.id, input.matchId, ctx.user.id);
     revalidatePath(`/dashboard/${input.orgSlug}/draft-ban`);
     revalidatePath(`/dashboard/${input.orgSlug}/draft-ban/${match.id}`);
     return { matchId: match.id };
   } catch (e) {
+    // Quota rejections carry an upgrade affordance for the workspace; every
+    // other error keeps the existing safe-message behavior.
+    if (isDraftBanQuotaError(e)) {
+      return { error: (e as AppError).safeMessage, quotaLimited: true };
+    }
     return toResult(e, "Something went wrong. Please try again.");
   }
 }
@@ -147,4 +154,13 @@ export async function duplicateDraftMatchAction(input: { orgSlug: string; matchI
   } catch (e) {
     return toResult(e, "Something went wrong. Please try again.");
   }
+}
+
+/**
+ * Claim Free Draft & Ban for the workspace (no payment, no order).
+ * Thin alias over the generic claim dispatch — membership first,
+ * org-scoped issuance only, never downgrades paid.
+ */
+export async function claimFreeDraftBanAction(orgSlug: string): Promise<{ ok?: boolean; error?: string }> {
+  return claimFreeTool(DRAFT_BAN_TOOL_SLUG, orgSlug);
 }

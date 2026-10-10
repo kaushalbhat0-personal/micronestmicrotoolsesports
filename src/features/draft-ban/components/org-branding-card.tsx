@@ -11,11 +11,18 @@ export function OrgBrandingCard({
   orgName,
   logoUrl,
   canManage,
+  brandingEnabled,
 }: {
   orgSlug: string;
   orgName: string;
   logoUrl: string | null;
   canManage: boolean;
+  /**
+   * Whether the workspace's paid Draft & Ban coverage renders the logo on
+   * official results/share output. Resolved server-side by the caller
+   * (never from browser state) — this card only presents the resulting copy.
+   */
+  brandingEnabled: boolean;
 }) {
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
@@ -39,13 +46,23 @@ export function OrgBrandingCard({
     <Card>
       <CardHeader>
         <CardTitle>Workspace branding</CardTitle>
-        <CardDescription>Your name and logo appear on every official draft record. PNG, JPEG, or WebP up to 512 KB.</CardDescription>
+        <CardDescription>
+          {brandingEnabled
+            ? "Your name and logo appear on every official draft record. PNG, JPEG, or WebP up to 512 KB."
+            : "Your name appears on every official draft record. Your logo is stored and will appear after upgrading. PNG, JPEG, or WebP up to 512 KB."}
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <OrgLogo name={orgName} logoUrl={logoUrl} size="lg" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{orgName}</p>
-          <p className="text-xs text-muted-foreground">{logoUrl ? "Logo shown on official results." : "No logo yet — initials are shown instead."}</p>
+          <p className="text-xs text-muted-foreground">
+            {!logoUrl
+              ? "No logo yet — initials are shown instead."
+              : brandingEnabled
+                ? "Logo shown on official results."
+                : "Logo stored — official results use your workspace initials. Upgrade to show your logo."}
+          </p>
         </div>
         {canManage && (
           <div className="flex flex-wrap gap-2">

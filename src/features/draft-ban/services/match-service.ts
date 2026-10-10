@@ -1,8 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import { conflictError, forbiddenError, notFoundError, validationError } from "@/lib/errors";
 import { parseOrThrow } from "@/lib/validation";
+import { createAdminClient } from "@/lib/supabase/admin";
 import * as matchRepo from "@/server/repositories/draft-matches";
 import * as templateRepo from "@/server/repositories/draft-templates";
+import { FREE_DRAFT_BAN_HISTORY_LIMIT, mapConsumeDraftBanCompletionError } from "@/server/services/draft-ban-policy";
 import { applyActionInputSchema, createMatchInputSchema } from "../schemas/draft-config";
 import { applyAction, isComplete, validateConfig } from "./draft-engine";
 import type { DraftState } from "../types";
@@ -78,6 +81,87 @@ export async function listMatches(supabase: SupabaseClient, organizationId: stri
   return { matches, total };
 }
 
+const historyQuerySchema = z.object({
+  search: z.string().trim().max(80).optional(),
+  status: z.enum(["in_progress", "completed", "abandoned"]).optional(),
+  limit: z.number().int().min(1).max(100).default(50),
+});
+
+export type HistoryQuery = z.infer<typeof historyQuerySchema>;
+
+/**
+ * Draft & Ban history with the Free visibility window.
+ *
+ * Free workspaces see every in-progress/abandoned draft plus the latest
+ * FREE_DRAFT_BAN_HISTORY_LIMIT completed official matches (completed_at
+ * DESC — never created_at). Older completed rows stay stored; upgrade
+ * reveals them with no migration. Paid workspaces see the full history.
+ * Search/filter predicates always apply BEFORE the Free slice, and the
+ * returned completedTotal is the pre-slice matching-completed count so the
+ * UI can report "latest 5 of N" honestly. The window is presentation-only:
+ * direct match routes, share, print, duplicate, and quota are unaffected.
+ */
+export async function getHistory(
+  supabase: SupabaseClient,
+  organizationId: string,
+  rawQuery: unknown = {},
+  accessLevel: "paid" | "free" = "paid",
+) {
+  const query = parseOrThrow(historyQuerySchema, rawQuery ?? {});
+  if (accessLevel !== "free") {
+    const [matches, total] = await Promise.all([
+      matchRepo.searchDraftMatches(supabase, organizationId, {
+        ...(query.search ? { search: query.search } : {}),
+        ...(query.status ? { status: query.status } : {}),
+        limit: query.limit,
+      }),
+      matchRepo.countDraftMatchesByOrg(supabase, organizationId),
+    ]);
+    const completedTotal = query.status && query.status !== "completed"
+      ? 0
+      : await matchRepo.countCompletedDraftMatches(supabase, organizationId, {
+        ...(query.search ? { search: query.search } : {}),
+      });
+    return { matches, total, completedTotal };
+  }
+  // Free: open drafts (in_progress/abandoned, unlimited — fetched per status
+  // so an old-created but newly-completed record can never fall off a
+  // created_at page) + latest completed window. Search predicates apply
+  // inside each repository query, strictly before the slice below.
+  const [inProgress, abandoned, completed, completedTotal, total] = await Promise.all([
+    matchRepo.searchDraftMatches(supabase, organizationId, {
+      ...(query.search ? { search: query.search } : {}),
+      status: "in_progress",
+      limit: query.limit,
+    }),
+    matchRepo.searchDraftMatches(supabase, organizationId, {
+      ...(query.search ? { search: query.search } : {}),
+      status: "abandoned",
+      limit: query.limit,
+    }),
+    matchRepo.listCompletedDraftMatchesByOrg(supabase, organizationId, {
+      ...(query.search ? { search: query.search } : {}),
+    }),
+    matchRepo.countCompletedDraftMatches(supabase, organizationId, {
+      ...(query.search ? { search: query.search } : {}),
+    }),
+    matchRepo.countDraftMatchesByOrg(supabase, organizationId),
+  ]);
+  const visibleCompletedIds = new Set(completed.slice(0, FREE_DRAFT_BAN_HISTORY_LIMIT).map((c) => c.id));
+  const visibleCompleted = completed.filter((c) => visibleCompletedIds.has(c.id));
+  const matches =
+    query.status === "completed"
+      ? visibleCompleted
+      : query.status === "in_progress"
+        ? inProgress
+        : query.status === "abandoned"
+          ? abandoned
+          : [...inProgress, ...abandoned, ...visibleCompleted];
+  // Preserve the existing newest-created presentation order.
+  matches.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+  return { matches, total, completedTotal };
+}
+
 export async function applyMatchAction(supabase: SupabaseClient, organizationId: string, rawInput: unknown) {
   const input = parseOrThrow(applyActionInputSchema, rawInput);
   const row = requireOwned(await matchRepo.findDraftMatchById(supabase, input.matchId), organizationId);
@@ -115,7 +199,7 @@ export async function resetMatchActions(supabase: SupabaseClient, organizationId
   return matchRepo.appendDraftAction(supabase, row.id, []);
 }
 
-export async function finalizeMatch(supabase: SupabaseClient, organizationId: string, matchId: string) {
+export async function finalizeMatch(supabase: SupabaseClient, organizationId: string, matchId: string, userId: string) {
   const row = requireOwned(await matchRepo.findDraftMatchById(supabase, matchId), organizationId);
   // Idempotent: a completed record finalizes exactly once; repeats return the locked record
   // instead of tripping the completed-row immutability guard with a confusing error.
@@ -125,7 +209,24 @@ export async function finalizeMatch(supabase: SupabaseClient, organizationId: st
   if (!isComplete(state)) throw validationError(`Draft is not complete (${row.actions.length} of ${row.sequence.length} steps done)`);
   const configCheck = validateConfig(state.config);
   if (!configCheck.valid) throw validationError(configCheck.errors[0] ?? "Invalid draft configuration");
-  return matchRepo.finalizeDraftMatch(supabase, row.id, new Date().toISOString());
+  // Authoritative completion through consume_draft_ban_completion, which
+  // commits membership + coverage + workspace-month ledger quota + the
+  // completed UPDATE (completed_at from the database clock) in one
+  // transaction. Reads stay on the caller's RLS-aware client; only the
+  // finalize RPC call uses the service-role client (the RPC revokes
+  // authenticated execution).
+  try {
+    return await matchRepo.finalizeDraftMatchViaQuota(createAdminClient() as unknown as SupabaseClient, {
+      organizationId,
+      matchId: row.id,
+      userId,
+    });
+  } catch (e) {
+    // A lost concurrent race resolves inside the RPC (winner's record is
+    // returned idempotently). Anything else maps to a safe domain error —
+    // SQLSTATEs and internals never reach the caller.
+    throw mapConsumeDraftBanCompletionError(e);
+  }
 }
 
 export async function abandonMatch(supabase: SupabaseClient, organizationId: string, matchId: string) {

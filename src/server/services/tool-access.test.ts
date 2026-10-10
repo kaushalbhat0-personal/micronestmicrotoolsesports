@@ -122,18 +122,20 @@ describe("policy registry", () => {
     }
   });
 
-  it("11. sponsorship and tie-breaker are freeEnabled", () => {
+  it("11. sponsorship, tie-breaker, and draft-ban are freeEnabled", () => {
     expect(getToolFreePolicy("sponsor-sentinel")?.freeEnabled).toBe(true);
     expect(getToolFreePolicy("tie-breaker")?.freeEnabled).toBe(true);
-    for (const slug of ["draft-ban", "prize-splitter"]) {
+    expect(getToolFreePolicy("draft-ban")?.freeEnabled).toBe(true);
+    for (const slug of ["prize-splitter"]) {
       expect(getToolFreePolicy(slug)?.freeEnabled).toBe(false);
     }
   });
 
-  it("12. sponsorship and tie-breaker are claimable", () => {
+  it("12. sponsorship, tie-breaker, and draft-ban are claimable", () => {
     expect(getToolFreePolicy("sponsor-sentinel")?.claimable).toBe(true);
     expect(getToolFreePolicy("tie-breaker")?.claimable).toBe(true);
-    for (const slug of ["draft-ban", "prize-splitter"]) {
+    expect(getToolFreePolicy("draft-ban")?.claimable).toBe(true);
+    for (const slug of ["prize-splitter"]) {
       expect(getToolFreePolicy(slug)?.claimable).toBe(false);
     }
   });
@@ -142,6 +144,14 @@ describe("policy registry", () => {
     expect(getToolFreePolicy("tie-breaker")?.limits).toMatchObject({
       lockedOfficialRecordsPerMonth: 3,
       freeHistoryLimit: 3,
+    });
+  });
+
+  it("12c. draft-ban Free expresses 1 completed match, 5 visible records, 3 templates (descriptive)", () => {
+    expect(getToolFreePolicy("draft-ban")?.limits).toMatchObject({
+      completedMatchesPerMonth: 1,
+      freeHistoryLimit: 5,
+      customTemplatesMax: 3,
     });
   });
 });

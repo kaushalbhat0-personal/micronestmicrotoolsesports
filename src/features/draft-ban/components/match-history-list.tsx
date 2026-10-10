@@ -17,10 +17,16 @@ export function MatchHistoryList({
   orgSlug,
   matches,
   total,
+  completedTotal,
+  accessLevel = "paid",
 }: {
   orgSlug: string;
   matches: readonly DraftMatch[];
   total: number;
+  /** Total matching completed records before the Free window slice (honest "latest 5 of N"). */
+  completedTotal?: number | undefined;
+  /** Free workspaces see the latest 5 completed records; paid sees everything. */
+  accessLevel?: "paid" | "free" | undefined;
 }) {
   if (matches.length === 0) {
     return (
@@ -32,11 +38,21 @@ export function MatchHistoryList({
     );
   }
 
+  const visibleCompleted = matches.filter((m) => m.status === "completed").length;
+  const freeWindow = accessLevel === "free" && typeof completedTotal === "number" && completedTotal > visibleCompleted;
+
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground" aria-live="polite">
-        Showing {matches.length} of {total}
+        {accessLevel === "free"
+          ? "Showing the 5 most recent completed matches"
+          : `Showing ${matches.length} of ${total}`}
       </p>
+      {freeWindow ? (
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          Latest {visibleCompleted} of {completedTotal} completed matches
+        </p>
+      ) : null}
       <div className="hidden md:block">
         <Table aria-label="Draft history">
           <TableHeader>

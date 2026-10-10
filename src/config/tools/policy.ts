@@ -34,7 +34,7 @@ export interface ToolFreePolicy {
    * Only Sponsorship today; org-scoped tools must never consult user grants.
    */
   readonly userGrantable: boolean;
-  /** Master Free switch. Sponsorship and Tie-Breaker are enabled. */
+  /** Master Free switch. Sponsorship, Tie-Breaker, and Draft & Ban are enabled. */
   readonly freeEnabled: boolean;
   /** Whether users may self-claim Free via a claim action. */
   readonly claimable: boolean;
@@ -67,6 +67,20 @@ const TIE_BREAKER_LIMITS: Readonly<Record<string, number | null>> = {
   freeHistoryLimit: 3,
 };
 
+/**
+ * Draft & Ban Free limits. Descriptive metadata only — no enforcement in
+ * this phase. Later phases consume these through a dedicated Draft & Ban
+ * policy module plus a transactional completion RPC:
+ * one completed official match per workspace-local month, the latest five
+ * completed matches visible, and three custom templates (starter templates
+ * never consume custom slots).
+ */
+const DRAFT_BAN_LIMITS: Readonly<Record<string, number | null>> = {
+  completedMatchesPerMonth: 1,
+  freeHistoryLimit: 5,
+  customTemplatesMax: 3,
+};
+
 const POLICIES: ReadonlyMap<string, ToolFreePolicy> = new Map([
   [
     "sponsor-sentinel",
@@ -96,9 +110,9 @@ const POLICIES: ReadonlyMap<string, ToolFreePolicy> = new Map([
       toolSlug: "draft-ban",
       scope: "org",
       userGrantable: false,
-      freeEnabled: false,
-      claimable: false,
-      limits: {},
+      freeEnabled: true,
+      claimable: true,
+      limits: DRAFT_BAN_LIMITS,
     },
   ],
   [

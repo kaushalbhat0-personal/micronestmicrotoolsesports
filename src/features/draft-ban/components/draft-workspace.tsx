@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { applyDraftActionAction, finalizeDraftMatchAction, resetDraftActionsAction, undoDraftActionAction } from "../actions/match-actions";
+import { UpgradeCTA } from "@/components/freemium/upgrade-cta";
 import { createState, deriveView } from "../services/draft-engine";
 import type { DraftMatch } from "@/types/database";
 
@@ -18,6 +19,7 @@ function teamName(match: DraftMatch, team: "A" | "B"): string {
 export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: DraftMatch }) {
   const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
+  const [quotaLimited, setQuotaLimited] = React.useState(false);
   const [pendingItem, setPendingItem] = React.useState<string | null>(null);
   const [pendingOp, setPendingOp] = React.useState(false);
   const [confirmReset, setConfirmReset] = React.useState(false);
@@ -44,14 +46,17 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
       ? `${turnName} to ${view.currentStep.type}, step ${view.stepIndex + 1} of ${view.totalSteps}.`
       : "Draft ready.";
 
-  async function runOp(fn: () => Promise<{ error?: string }>, itemKey?: string) {
+  async function runOp(fn: () => Promise<{ error?: string; quotaLimited?: boolean }>, itemKey?: string) {
     setError(null);
+    setQuotaLimited(false);
     if (itemKey) setPendingItem(itemKey);
     else setPendingOp(true);
     try {
       const result = await fn();
-      if (result.error) setError(result.error);
-      else router.refresh();
+      if (result.error) {
+        setError(result.error);
+        setQuotaLimited(result.quotaLimited === true);
+      } else router.refresh();
     } finally {
       setPendingItem(null);
       setPendingOp(false);
@@ -88,6 +93,13 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
         <p role="alert" className="rounded-[12px] border border-destructive/20 bg-destructive-soft p-3 text-sm">
           {error}
         </p>
+      )}
+      {quotaLimited && (
+        <UpgradeCTA
+          href={`/dashboard/${orgSlug}/settings/billing`}
+          label="Upgrade for unlimited matches"
+          ariaLabel="Upgrade for unlimited official matches"
+        />
       )}
 
       <div className="grid gap-4 lg:grid-cols-5">

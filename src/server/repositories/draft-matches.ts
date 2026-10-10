@@ -89,6 +89,92 @@ export async function countDraftMatchesByOrg(supabase: SupabaseClient, organizat
   return typeof count === "number" ? count : 0;
 }
 
+export interface DraftMatchHistoryQuery {
+  search?: string;
+  status?: DraftMatchStatus;
+  limit?: number;
+}
+
+/** Org-scoped history with optional status + text search, newest-created first. */
+export async function searchDraftMatches(
+  supabase: SupabaseClient,
+  organizationId: string,
+  query: DraftMatchHistoryQuery = {},
+): Promise<DraftMatchRow[]> {
+  const limit = Math.min(Math.max(query.limit ?? 50, 1), 100);
+  let builder = supabase
+    .from("draft_matches")
+    .select(MATCH_COLUMNS)
+    .eq("organization_id", organizationId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (query.status) builder = builder.eq("status", query.status);
+  const term = query.search?.trim();
+  if (term) {
+    const escaped = term.replace(/[%_,\\]/g, (c) => `\\${c}`);
+    builder = builder.or(
+      `match_name.ilike.%${escaped}%,event_name.ilike.%${escaped}%,ref_code.ilike.%${escaped}%,team_a.ilike.%${escaped}%,team_b.ilike.%${escaped}%`,
+    );
+  }
+  const { data, error } = await builder;
+  if (error) throw error;
+  return (data ?? []) as DraftMatchRow[];
+}
+
+/**
+ * Completed official matches, newest-completed first (completed_at DESC,
+ * id DESC for deterministic ties). Completed rows always carry
+ * completed_at (DB CHECK), so ordering never touches created_at.
+ */
+export async function listCompletedDraftMatchesByOrg(
+  supabase: SupabaseClient,
+  organizationId: string,
+  query: Pick<DraftMatchHistoryQuery, "search" | "limit"> = {},
+): Promise<DraftMatchRow[]> {
+  const limit = Math.min(Math.max(query.limit ?? 100, 1), 100);
+  let builder = supabase
+    .from("draft_matches")
+    .select(MATCH_COLUMNS)
+    .eq("organization_id", organizationId)
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit);
+  const term = query.search?.trim();
+  if (term) {
+    const escaped = term.replace(/[%_,\\]/g, (c) => `\\${c}`);
+    builder = builder.or(
+      `match_name.ilike.%${escaped}%,event_name.ilike.%${escaped}%,ref_code.ilike.%${escaped}%,team_a.ilike.%${escaped}%,team_b.ilike.%${escaped}%`,
+    );
+  }
+  const { data, error } = await builder;
+  if (error) throw error;
+  return (data ?? []) as DraftMatchRow[];
+}
+
+/** Total matching completed records BEFORE any Free-window slicing (honest "N of latest 5 of N" copy). */
+export async function countCompletedDraftMatches(
+  supabase: SupabaseClient,
+  organizationId: string,
+  query: Pick<DraftMatchHistoryQuery, "search"> = {},
+): Promise<number> {
+  let builder = supabase
+    .from("draft_matches")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("status", "completed");
+  const term = query.search?.trim();
+  if (term) {
+    const escaped = term.replace(/[%_,\\]/g, (c) => `\\${c}`);
+    builder = builder.or(
+      `match_name.ilike.%${escaped}%,event_name.ilike.%${escaped}%,ref_code.ilike.%${escaped}%,team_a.ilike.%${escaped}%,team_b.ilike.%${escaped}%`,
+    );
+  }
+  const res = await builder;
+  const count = (res as { count?: unknown }).count;
+  return typeof count === "number" ? count : 0;
+}
+
 export async function appendDraftAction(
   supabase: SupabaseClient,
   id: string,
@@ -99,14 +185,26 @@ export async function appendDraftAction(
   return data as DraftMatchRow;
 }
 
-export async function finalizeDraftMatch(supabase: SupabaseClient, id: string, completedAt: string): Promise<DraftMatchRow> {
-  const { data, error } = await supabase
-    .from("draft_matches")
-    .update({ status: "completed" as DraftMatchStatus, completed_at: completedAt })
-    .eq("id", id)
-    .select(MATCH_COLUMNS)
-    .single();
+/**
+ * Quota-aware finalize through the SECURITY DEFINER RPC.
+ * Must be called with the service-role client (the RPC revokes
+ * authenticated execution): membership, coverage, workspace-month ledger
+ * quota, and the completed UPDATE commit atomically with completed_at from
+ * the database clock. Returns the finalized (or already-completed) row.
+ * This is the sole production completion path; the completion-path guard
+ * trigger rejects direct status→completed writes.
+ */
+export async function finalizeDraftMatchViaQuota(
+  supabase: SupabaseClient,
+  input: { organizationId: string; matchId: string; userId: string },
+): Promise<DraftMatchRow> {
+  const { data, error } = await supabase.rpc("consume_draft_ban_completion", {
+    p_org_id: input.organizationId,
+    p_match_id: input.matchId,
+    p_user_id: input.userId,
+  });
   if (error) throw error;
+  if (!data) throw new Error("Completion reservation returned no draft match row");
   return data as DraftMatchRow;
 }
 
