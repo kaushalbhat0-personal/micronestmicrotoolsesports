@@ -1,0 +1,23 @@
+-- MicroNest — Tie-Breaker share: additive service_role EXECUTE grant
+-- (RCCF-TIEBREAKER-SHARE-EXECUTE-IMPLEMENT-01)
+--
+-- The public share page (src/app/share/tie-breaker/[token]/page.tsx) calls
+-- public.get_completed_tie_breaker_share(uuid) via createAdminClient()
+-- (service_role). The authoritative migrations grant EXECUTE only to
+-- anon, authenticated, so the service_role RPC fails with permission denied
+-- and the page renders "Record not available."
+--
+-- SECURITY DEFINER does not waive the EXECUTE check; service_role bypasses
+-- RLS but still requires an explicit grant. This migration adds that grant.
+--
+-- What this migration does (one statement, idempotent):
+-- grant EXECUTE on the exact share RPC signature to service_role.
+--
+-- What this migration does NOT do:
+--   * No function rewrite (no CREATE OR REPLACE / ALTER FUNCTION).
+--   * No REVOKE of the existing anon/authenticated grants.
+--   * No grant to public or any additional role.
+--   * No SECURITY DEFINER / search_path change.
+--   * No RLS / policy / token / branding / quota / locking change.
+
+grant execute on function public.get_completed_tie_breaker_share(uuid) to service_role;
