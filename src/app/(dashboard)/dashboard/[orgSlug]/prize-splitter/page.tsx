@@ -4,6 +4,7 @@ import { isEntitlementDenied } from "@/lib/errors";
 import { AccessDenied } from "@/components/shared/access-denied";
 import { PageHeader } from "@/components/ui/page-header";
 import { PrizeSplitterCalculator } from "@/features/prize-splitter/components/prize-splitter-calculator";
+import { ClaimFreePrizeSplitterCard } from "@/features/prize-splitter/components/claim-free-card";
 
 export const metadata = {
   title: "Prize Pool Splitter — MicroNest",
@@ -16,7 +17,14 @@ export default async function PrizeSplitterPage({ params }: { params: Promise<{ 
   try {
     await requireEntitlement(ctx.organization.id, "prize-splitter");
   } catch (e) {
-    if (isEntitlementDenied(e)) return <AccessDenied orgSlug={orgSlug} />;
+    if (isEntitlementDenied(e)) {
+      return (
+        <div className="space-y-6">
+          <AccessDenied orgSlug={orgSlug} />
+          <ClaimFreePrizeSplitterCard orgSlug={orgSlug} />
+        </div>
+      );
+    }
     throw e;
   }
 

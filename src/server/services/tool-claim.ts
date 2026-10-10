@@ -15,6 +15,10 @@ import {
   DRAFT_BAN_TOOL_SLUG,
   ensureFreeDraftBanGrant,
 } from "@/server/services/draft-ban-policy";
+import {
+  PRIZE_SPLITTER_TOOL_SLUG,
+  ensureFreePrizeSplitterGrant,
+} from "@/server/services/prize-splitter-policy";
 import { AppError } from "@/lib/errors";
 
 /**
@@ -22,8 +26,8 @@ import { AppError } from "@/lib/errors";
  *
  * Claims Free access for a policy-enabled tool without payment, orders,
  * or billing changes. Gates are generic; issuance delegates to the
- * tool's policy module (Sponsorship user grants, Tie-Breaker and Draft & Ban
- * org grants).
+ * tool's policy module (Sponsorship user grants; Tie-Breaker, Draft & Ban,
+ * and Prize Splitter org grants).
  *
  * Requirements enforced here, in order:
  * - membership first (via organization context — same precedence as before)
@@ -71,6 +75,10 @@ export async function claimFreeTool(
     }
     if (policy.toolSlug === DRAFT_BAN_TOOL_SLUG) {
       await ensureFreeDraftBanGrant(admin as never, ctx.organization.id);
+      return { ok: true };
+    }
+    if (policy.toolSlug === PRIZE_SPLITTER_TOOL_SLUG) {
+      await ensureFreePrizeSplitterGrant(admin as never, ctx.organization.id);
       return { ok: true };
     }
     return { error: UNAVAILABLE_MESSAGE };

@@ -121,8 +121,12 @@ const POLICIES: ReadonlyMap<string, ToolFreePolicy> = new Map([
       toolSlug: "prize-splitter",
       scope: "org",
       userGrantable: false,
-      freeEnabled: false,
-      claimable: false,
+      freeEnabled: true,
+      claimable: true,
+      // Intentionally empty: Free is unlimited (calculations, shares, CSV)
+      // and unmetered. No quota, ledger, history, template, or branding
+      // limits exist for this tool; input-validation bounds elsewhere are
+      // integrity guards, not usage limits.
       limits: {},
     },
   ],

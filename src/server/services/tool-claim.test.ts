@@ -12,6 +12,7 @@ const mockCreateAdminClient = vi.fn();
 const mockEnsureFree = vi.fn();
 const mockEnsureFreeTieBreaker = vi.fn();
 const mockEnsureFreeDraftBan = vi.fn();
+const mockEnsureFreePrizeSplitter = vi.fn();
 
 vi.mock("@/lib/auth/organization-context", () => ({
   requireOrganizationContext: (...args: unknown[]) =>
@@ -49,6 +50,15 @@ vi.mock("@/server/services/draft-ban-policy", async (importOriginal) => {
   };
 });
 
+vi.mock("@/server/services/prize-splitter-policy", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/services/prize-splitter-policy")>();
+  return {
+    ...actual,
+    ensureFreePrizeSplitterGrant: (...args: unknown[]) =>
+      (mockEnsureFreePrizeSplitter as (...a: unknown[]) => unknown)(...args),
+  };
+});
+
 function adminClient(toolRow: unknown) {
   return {
     from: (table: string) => {
@@ -69,6 +79,7 @@ const CTX = { user: { id: "u1" }, organization: { id: "org-a" } };
 const ACTIVE_SPONSOR_TOOL = { id: "tool-sponsor-id", slug: "sponsor-sentinel", is_active: true };
 const ACTIVE_TIE_TOOL = { id: "tool-tie-id", slug: "tie-breaker", is_active: true };
 const ACTIVE_DRAFT_TOOL = { id: "tool-draft-id", slug: "draft-ban", is_active: true };
+const ACTIVE_PRIZE_TOOL = { id: "tool-prize-id", slug: "prize-splitter", is_active: true };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -77,6 +88,7 @@ beforeEach(() => {
   mockEnsureFree.mockResolvedValue({ id: "g1" });
   mockEnsureFreeTieBreaker.mockResolvedValue({ id: "gt1" });
   mockEnsureFreeDraftBan.mockResolvedValue({ id: "gd1" });
+  mockEnsureFreePrizeSplitter.mockResolvedValue({ id: "gp1" });
 });
 
 describe("claimFreeTool", () => {
@@ -123,12 +135,24 @@ describe("claimFreeTool", () => {
     expect(mockEnsureFreeTieBreaker).not.toHaveBeenCalled();
   });
 
-  it("disabled policy tool (prize-splitter) is denied without issuance", async () => {
+  it("prize-splitter Free claim issues the org grant (happy path delegates issuance)", async () => {
+    mockCreateAdminClient.mockReturnValue(adminClient(ACTIVE_PRIZE_TOOL));
     const res = await claimFreeTool("prize-splitter", "acme");
-    expect(res.error).toBeDefined();
+    expect(res).toEqual({ ok: true });
+    expect(mockRequireOrganizationContext).toHaveBeenCalledWith("acme");
+    expect(mockEnsureFreePrizeSplitter).toHaveBeenCalledTimes(1);
+    expect(mockEnsureFreePrizeSplitter).toHaveBeenCalledWith(expect.anything(), "org-a");
+    // Sponsorship, Tie-Breaker, and Draft & Ban issuance never run for Prize Splitter claims.
     expect(mockEnsureFree).not.toHaveBeenCalled();
     expect(mockEnsureFreeTieBreaker).not.toHaveBeenCalled();
     expect(mockEnsureFreeDraftBan).not.toHaveBeenCalled();
+  });
+
+  it("prize-splitter claim against an inactive tool row is denied without issuance", async () => {
+    mockCreateAdminClient.mockReturnValue(adminClient({ ...ACTIVE_PRIZE_TOOL, is_active: false }));
+    const res = await claimFreeTool("prize-splitter", "acme");
+    expect(res.error).toBeDefined();
+    expect(mockEnsureFreePrizeSplitter).not.toHaveBeenCalled();
   });
 
   it("draft-ban claim against an inactive tool row is denied without issuance", async () => {

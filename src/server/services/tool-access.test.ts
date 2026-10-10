@@ -122,22 +122,22 @@ describe("policy registry", () => {
     }
   });
 
-  it("11. sponsorship, tie-breaker, and draft-ban are freeEnabled", () => {
+  it("11. sponsorship, tie-breaker, draft-ban, and prize-splitter are freeEnabled", () => {
     expect(getToolFreePolicy("sponsor-sentinel")?.freeEnabled).toBe(true);
     expect(getToolFreePolicy("tie-breaker")?.freeEnabled).toBe(true);
     expect(getToolFreePolicy("draft-ban")?.freeEnabled).toBe(true);
-    for (const slug of ["prize-splitter"]) {
-      expect(getToolFreePolicy(slug)?.freeEnabled).toBe(false);
-    }
+    expect(getToolFreePolicy("prize-splitter")?.freeEnabled).toBe(true);
   });
 
-  it("12. sponsorship, tie-breaker, and draft-ban are claimable", () => {
+  it("12. sponsorship, tie-breaker, draft-ban, and prize-splitter are claimable", () => {
     expect(getToolFreePolicy("sponsor-sentinel")?.claimable).toBe(true);
     expect(getToolFreePolicy("tie-breaker")?.claimable).toBe(true);
     expect(getToolFreePolicy("draft-ban")?.claimable).toBe(true);
-    for (const slug of ["prize-splitter"]) {
-      expect(getToolFreePolicy(slug)?.claimable).toBe(false);
-    }
+    expect(getToolFreePolicy("prize-splitter")?.claimable).toBe(true);
+  });
+
+  it("12d. prize-splitter Free expresses no limits (unlimited, unmetered)", () => {
+    expect(getToolFreePolicy("prize-splitter")?.limits).toEqual({});
   });
 
   it("12b. tie-breaker Free expresses 3 locked records per workspace month", () => {
