@@ -6,12 +6,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import type { ToolAccent } from "@/config/marketing/tools";
+import { freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
 import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Esports Tools — MicroNest Collection",
   description:
-    "Explore MicroNest's subscription software for esports: Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, and Tie-Breaker Resolver, available now. Scrim Matchmaker, VOD Clipper, and Roster Sentinel are coming soon.",
+    "Explore MicroNest's subscription software for esports: Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, and Tie-Breaker Resolver, available now — every tool can be started free. Scrim Matchmaker, VOD Clipper, and Roster Sentinel are coming soon.",
   alternates: { canonical: "/tools" },
   openGraph: {
     title: "Esports Tools — MicroNest",
@@ -64,6 +65,7 @@ export default function ToolsPage() {
             <h1 className="font-display text-3xl font-normal tracking-tight sm:text-4xl">Tools for the business of esports</h1>
             <p className="mt-3 max-w-2xl text-muted-foreground leading-relaxed">
               MicroNest is a growing collection of focused microtools. Each solves one operational problem well — use what you need, skip the rest.
+              Every available tool can be started free.
             </p>
           </div>
 
@@ -71,6 +73,7 @@ export default function ToolsPage() {
             {MARKETING_TOOLS.map((tool, idx) => {
               const Icon = iconMap[tool.icon] ?? ShieldCheck;
               const isAvailable = tool.status === "available";
+              const free = isAvailable ? freeTierByMarketingSlug(tool.slug) : null;
               return (
                 <Card
                   key={tool.slug}
@@ -89,10 +92,14 @@ export default function ToolsPage() {
                       <span className="flex items-center gap-2">
                         <span className={`font-mono text-[11px] tracking-widest ${accentClass(tool.accent)}`}>{tool.number}</span>
                         {isAvailable ? <Badge variant="success">Available</Badge> : <Badge variant="secondary">Coming soon</Badge>}
+                        {free ? <Badge variant="outline">Free forever</Badge> : null}
                       </span>
                     </div>
                     <CardTitle className="text-base mt-3">{tool.name}</CardTitle>
                     <CardDescription>{tool.shortDescription}</CardDescription>
+                    {free ? (
+                      <p className="mt-2 text-sm"><span className="sr-only">Free allowance: </span><span className="text-muted-foreground">Free: {free.allowance}</span></p>
+                    ) : null}
                     <p className="font-mono text-[11px] tracking-wide text-muted-foreground mt-2">{tool.motif}</p>
                   </CardHeader>
                   <CardContent>

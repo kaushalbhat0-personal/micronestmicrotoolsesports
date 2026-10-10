@@ -13,7 +13,7 @@ describe("homepage metadata — sponsorship-first SEO", () => {
   it("title and description match the approved wording", () => {
     expect(metadata.title).toBe("Sponsorship Tracking for Esports Creators & Teams | MicroNest");
     expect(metadata.description).toBe(
-      "Verify sponsor deliverables and organize proof for YouTube, Twitch and Kick creators. Plus prize splitter, draft & ban, and tie-breaker tools."
+      "Verify sponsor deliverables and organize proof for YouTube, Twitch and Kick creators. Every MicroNest esports tool — prize splitter, draft & ban, tie-breaker — can be started free."
     );
   });
 

@@ -12,7 +12,7 @@ export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Pricing — MicroNest MicroTools",
-  description: "Simple INR pricing for focused esports tools. Choose Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, or All Access. Monthly and yearly plans, manual renewal only.",
+  description: "Simple INR pricing for focused esports tools, each with a Free forever tier. Choose Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, or All Access. Monthly and yearly plans, manual renewal only.",
   alternates: { canonical: "/pricing" },
   openGraph: {
     title: "Pricing — MicroNest MicroTools",

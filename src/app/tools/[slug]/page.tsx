@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/footer";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { MARKETING_TOOLS, getMarketingTool } from "@/config/marketing/tools";
+import { freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
 import type { ToolAccent } from "@/config/marketing/tools";
 import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, Check, ArrowRight } from "lucide-react";
 import { BrowserFrame } from "@/components/marketing/browser-frame";
@@ -106,6 +107,7 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
         })()
       : null;
   const monthlyPlanSlug = tool.status === "available" && TOOL_PLAN_PREFIX[tool.slug] ? `${TOOL_PLAN_PREFIX[tool.slug]}-monthly` : null;
+  const free = tool.status === "available" ? freeTierByMarketingSlug(tool.slug) : null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -137,6 +139,29 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
               <p className="mt-2 max-w-2xl text-muted-foreground leading-relaxed">{tool.longDescription}</p>
             </div>
           </div>
+
+          {/* Free tier — every available tool starts free */}
+          {free ? (
+            <section aria-label={`${tool.name} Free tier`} className="mt-8 rounded-[16px] border border-border bg-card p-5 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 text-sm">
+                    <Badge variant="success">Free forever</Badge>
+                    <span className="font-medium">{free.allowance}</span>
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">{free.details}. No credit card required — Free never expires. Need more? Paid plans unlock the full allowance.</p>
+                </div>
+                <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                  <Link href="/signup" aria-label={`Start using ${tool.name} free`} className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    Start free
+                  </Link>
+                  <Link href="/pricing" aria-label={`View ${tool.name} paid plans and pricing`} className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    View pricing
+                  </Link>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           {/* Product visualization — editorial browser frame */}
           <section className="relative mt-10 overflow-hidden rounded-[20px] border border-border bg-surface-muted/30 p-4 sm:p-6">
@@ -210,10 +235,11 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
                   ) : null}
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-3">
+                  <Link href="/signup" aria-label={`Start using ${tool.name} free`} className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Start free</Link>
                   {monthlyPlanSlug ? (
-                    <Link href={`/signup?plan=${monthlyPlanSlug}`} className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Get {tool.name}</Link>
+                    <Link href={`/signup?plan=${monthlyPlanSlug}`} aria-label={`Get ${tool.name} paid plan`} className="inline-flex h-10 items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Get {tool.name}</Link>
                   ) : (
-                    <Link href="/signup" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Get started</Link>
+                    <Link href="/signup" className="inline-flex h-10 items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Get started</Link>
                   )}
                   <Link href="/dashboard" className="inline-flex h-10 items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Go to dashboard</Link>
                 </CardContent>

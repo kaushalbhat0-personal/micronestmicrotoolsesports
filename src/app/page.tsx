@@ -6,6 +6,7 @@ import { LogoMark } from "@/components/shared/logo";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
+import { FREE_TIERS, freeTierBySlug } from "@/config/marketing/free-tiers";
 import { ProofStrip } from "@/components/marketing/proof-strip";
 import { createClient } from "@/lib/supabase/server";
 import { listActivePlans } from "@/server/repositories/plans";
@@ -16,12 +17,12 @@ export const revalidate = 60;
 export const metadata: Metadata = {
   title: "Sponsorship Tracking for Esports Creators & Teams | MicroNest",
   description:
-    "Verify sponsor deliverables and organize proof for YouTube, Twitch and Kick creators. Plus prize splitter, draft & ban, and tie-breaker tools.",
+    "Verify sponsor deliverables and organize proof for YouTube, Twitch and Kick creators. Every MicroNest esports tool — prize splitter, draft & ban, tie-breaker — can be started free.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Sponsorship Tracking for Esports Creators & Teams | MicroNest",
     description:
-      "Verify sponsor deliverables and organize proof for YouTube, Twitch and Kick creators. Plus prize splitter, draft & ban, and tie-breaker tools.",
+      "Verify sponsor deliverables and organize proof for YouTube, Twitch and Kick creators. Start every MicroNest esports tool free, upgrade when you need more.",
     type: "website",
     url: "/",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "MicroNest — Sponsorship Tracking for esports creators and teams" }],
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Sponsorship Tracking for Esports Creators & Teams | MicroNest",
     description:
-      "Verify sponsor deliverables and organize proof for YouTube, Twitch and Kick creators. Plus prize splitter, draft & ban, and tie-breaker tools.",
+      "Verify sponsor deliverables and organize proof for YouTube, Twitch and Kick creators. Start every MicroNest esports tool free.",
     images: ["/opengraph-image"],
   },
 };
@@ -115,6 +116,7 @@ export default async function MarketingPage() {
                 <Badge variant="success" className="mb-3">Featured • Available now</Badge>
                 <h2 className="font-display text-2xl font-normal tracking-tight">Sponsorship Tracking</h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Know if every creator posted what the sponsor paid for.</p>
+                <p className="mt-2 text-sm"><span className="font-medium text-foreground">Free forever</span> <span className="text-muted-foreground">· {freeTierBySlug("sponsor-sentinel")?.allowance}</span></p>
                 <ul className="mt-4 space-y-2 text-sm">
                   {featured.features.slice(0, 4).map((f) => (
                     <li key={f} className="flex items-start gap-2">
@@ -206,14 +208,18 @@ export default async function MarketingPage() {
           <div className="mx-auto mt-8 grid max-w-4xl gap-5 sm:grid-cols-3">
             {organizerTools.map((tool) => {
               const Icon = iconMap[tool.icon] ?? ShieldCheck;
+              const free = tool.internalSlug ? freeTierBySlug(tool.internalSlug) : null;
               return (
                 <Card key={tool.slug} className="border-border/60">
                   <CardHeader>
                     <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-surface-muted border border-border">
-                      <Icon className="h-5 w-5 text-muted-foreground" aria-hidden />
+                      <Icon className="h-5 w-5 text-muted-foreground" />
                     </span>
                     <CardTitle className="text-base mt-3">{tool.name}</CardTitle>
                     <CardDescription>{tool.shortDescription}</CardDescription>
+                    {free ? (
+                      <p className="mt-2 text-sm"><span className="font-medium text-foreground">Free forever</span> <span className="text-muted-foreground">· {free.allowance}</span></p>
+                    ) : null}
                   </CardHeader>
                   <CardContent>
                     <Link
@@ -226,6 +232,31 @@ export default async function MarketingPage() {
                 </Card>
               );
             })}
+          </div>
+        </section>
+
+        {/* Free discovery — every tool starts free */}
+        <section className="container-nest py-12" aria-label="Start free">
+          <div className="mx-auto max-w-4xl rounded-[20px] border border-border bg-card p-6 sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary">Start free. Upgrade when you need more.</p>
+            <h2 className="font-display mt-2 text-2xl font-normal tracking-tight">Every MicroNest tool has a Free tier</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Try the real workflow in your workspace before paying. No credit card required — Free never expires.</p>
+            <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+              {FREE_TIERS.map((tier) => (
+                <li key={tier.slug} className="rounded-[12px] border border-border bg-surface-muted/40 p-4">
+                  <p className="text-sm font-semibold">{tier.name}</p>
+                  <p className="mt-1 text-sm"><span className="font-medium text-primary">Free forever</span> <span className="text-muted-foreground">· {tier.allowance}</span></p>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Link href="/tools" className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                Explore free tools
+              </Link>
+              <Link href="/pricing" className="inline-flex h-11 items-center justify-center rounded-full border border-border bg-card px-8 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                View pricing
+              </Link>
+            </div>
           </div>
         </section>
 

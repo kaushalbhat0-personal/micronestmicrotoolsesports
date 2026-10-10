@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, Split, Layers, Check, Swords, Scale } from "lucide-react";
 import type { Route } from "next";
 import type { Plan } from "@/types/database";
+import { FREE_TIERS } from "@/config/marketing/free-tiers";
 
 type BillingPeriod = "monthly" | "yearly";
 
@@ -107,15 +108,27 @@ export function PricingClient({ plans }: PricingClientProps) {
         </div>
       </div>
       <p className="mt-3 text-center text-xs text-muted-foreground">Prices in INR. No automatic renewal — manual renewal only.</p>
-      <div className="mx-auto mt-4 max-w-2xl rounded-[16px] border border-border bg-card p-4 text-center">
-        <p className="text-sm font-medium">Try Sponsorship Tracking free — 1 campaign, 1 channel, 10 checks a month. No payment required.</p>
+
+      {/* Free forever — every available tool starts free */}
+      <section aria-label="Free forever plans" className="mx-auto mt-6 max-w-3xl rounded-[16px] border border-border bg-card p-5 text-center sm:p-6">
+        <p className="text-sm"><span className="font-semibold">Free</span> <span className="text-muted-foreground">₹0 forever · no credit card · never expires</span></p>
+        <p className="mx-auto mt-1 max-w-xl text-sm text-muted-foreground">Try every available tool before upgrading. Paid plans unlock the full allowance.</p>
+        <ul className="mx-auto mt-4 grid max-w-xl gap-2 text-left sm:grid-cols-2">
+          {FREE_TIERS.map((tier) => (
+            <li key={tier.slug} className="rounded-[12px] border border-border bg-surface-muted/40 px-4 py-3">
+              <p className="text-sm font-semibold">{tier.name}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Free: {tier.allowance}</p>
+            </li>
+          ))}
+        </ul>
         <Link
           href="/signup"
-          className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Start using MicroNest tools free"
+          className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Start free
         </Link>
-      </div>
+      </section>
 
       {/* Cards */}
       <div id="pricing-cards" className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
