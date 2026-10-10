@@ -1,0 +1,70 @@
+{
+  "generated": "2026-10-10",
+  "phase": "RCCF-DEMO-03",
+  "note": "Pre-publication license record for the MicroNest demo pipeline. Items marked PENDING HUMAN VERIFICATION must be cleared before commercial publication. Nothing here is legal advice.",
+  "items": [
+    {
+      "item": "Ultrademo pipeline",
+      "version": "commit e7bdcfc (2026-10)",
+      "license": "Apache-2.0",
+      "commercialStatus": "permitted",
+      "attribution": "retain Apache-2.0 LICENSE/NOTICE if redistributing pipeline code; rendered MP4s carry no Ultrademo branding requirement",
+      "verificationSource": "repository LICENSE file (D:/Projects/micronest-demo-lab/ultrademo/LICENSE)",
+      "pendingHumanVerification": false
+    },
+    {
+      "item": "FFmpeg (Gyan full build, Windows)",
+      "version": "9.0.2-full_build-www.gyan.dev",
+      "license": "GPL version 3 (build flags: --enable-gpl --enable-version3)",
+      "commercialStatus": "free of charge; no royalty on produced MP4s. Do NOT redistribute the binary without meeting GPL obligations.",
+      "attribution": "not required for video output",
+      "verificationSource": "ffmpeg -version banner (configuration line)",
+      "pendingHumanVerification": false
+    },
+    {
+      "item": "Piper TTS engine (piper-tts, PyPI)",
+      "version": "1.8.0",
+      "license": "GPL-3.0-or-later",
+      "commercialStatus": "permitted as a local narration tool; engine is GPL, used unmodified to render audio. No GPL source-distribution trigger from MP4 output alone.",
+      "attribution": "preserve engine license if redistributing the tool itself",
+      "verificationSource": "installed package METADATA (License: GPL-3.0-or-later, Home-page github.com/OHF-voice/piper1-gpl)",
+      "pendingHumanVerification": false
+    },
+    {
+      "item": "Piper voice en_US-libritts-high",
+      "version": "rhasspy/piper-voices (v1.0.0 lineage)",
+      "license": "CC-BY-4.0 (LibriTTS dataset; model trained from scratch, not a Lessac derivative)",
+      "commercialStatus": "permitted WITH attribution",
+      "attribution": "REQUIRED at publication, e.g. end-credits/description: Narration voice: Piper en_US-libritts-high (LibriTTS dataset, CC-BY-4.0) via rhasspy/piper-voices",
+      "verificationSource": "HuggingFace MODEL_CARD for en/en_US/libritts/high + piper-voices licensing discussion #271 (verified 2026-10-10). The rejected default voice en_US-lessac-medium (Blizzard research-only license) was deleted and is banned via lab .env PIPER_MODEL.",
+      "pendingHumanVerification": false
+    },
+    {
+      "item": "Remotion (renderer dependency of Ultrademo)",
+      "version": "4.0.487",
+      "license": "Proprietary — SEE LICENSE IN LICENSE.md (free for individuals and for-profit companies with up to 3 employees; paid company license above that)",
+      "commercialStatus": "PENDING HUMAN VERIFICATION — confirm MicroNest headcount/eligibility at remotion.dev/license before publishing marketing masters",
+      "attribution": "per Remotion license terms",
+      "verificationSource": "node_modules/remotion/package.json license field",
+      "pendingHumanVerification": true
+    },
+    {
+      "item": "Playwright (browser automation)",
+      "version": "1.61.1 (lab) / 1.63.0 (app devDependency)",
+      "license": "Apache-2.0",
+      "commercialStatus": "permitted",
+      "attribution": "none required",
+      "verificationSource": "node_modules/playwright/package.json license field",
+      "pendingHumanVerification": false
+    },
+    {
+      "item": "MicroNest logo assets (Final_MicroNest_Logo.svg, Final_MicroNest_Logo_Animation-1.mp4)",
+      "version": "production assets, unmodified",
+      "license": "Proprietary — MicroNest internal",
+      "commercialStatus": "permitted (first-party use); assets used read-only, never altered",
+      "attribution": "n/a (own brand)",
+      "verificationSource": "repository public/ directory",
+      "pendingHumanVerification": false
+    }
+  ]
+}

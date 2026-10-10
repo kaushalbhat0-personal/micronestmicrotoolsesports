@@ -16,7 +16,8 @@
     "test:watch": "vitest --exclude \"**/*.integration.test.ts\" --watch",
     "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > src/types/database.ts",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "demo:generate": "node demos/run.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
