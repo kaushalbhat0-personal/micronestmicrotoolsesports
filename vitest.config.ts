@@ -6,6 +6,12 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    exclude: ["node_modules", ".next"],
+    testTimeout: 15_000,
+    hookTimeout: 180_000,
+    teardownTimeout: 30_000,
+    pool: "forks",
+    sequence: { shuffle: false },
   },
   resolve: {
     alias: {

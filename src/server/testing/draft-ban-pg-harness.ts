@@ -1,27 +1,33 @@
 /**
- * Real-Postgres integration harness for Tie-Breaker Free (IMPLEMENT-07).
+ * Real-Postgres integration harness for Draft & Ban Free completion
+ * (IMPLEMENT-02A).
  *
- * Same pattern as the FIX-06 harness (`pg-harness.ts`): an embedded
- * PostgreSQL server (multi-backend: true concurrent connections) with the
- * minimal faithful subset of the production schema, plus the ACTUAL shipped
- * SQL extracted verbatim from the migration files (so the tested SQL is
- * byte-identical to what the owner applies).
+ * Same pattern as the Tie-Breaker harness (`tie-breaker-pg-harness.ts`): an
+ * embedded PostgreSQL server (multi-backend: true concurrent connections)
+ * with the minimal faithful subset of the production schema, plus the ACTUAL
+ * shipped SQL extracted verbatim from the migration file (so the tested SQL
+ * is byte-identical to what the owner applies).
  *
- * Subset mapping (columns mirror the real migrations):
+ * Subset mapping:
  * - profiles / organizations (+timezone + IANA CHECK) / organization_members
  *   / tools / tool_entitlements (source CHECK incl. 'free'):
- *   20250930000001 + 20251026000001 + 20251027000001 (§1)
- * - tie_breaker_competitions (+ locked-field CHECKs) + ref sequence +
- *   tie_breaker_next_ref(): 20251017000001
- * - consume_tie_breaker_lock + lock-path guard + share RPC: extracted from
- *   20251027000001_tie_breaker_free_tier.sql
- * - orders / payments (minimal columns touched by the billing function) +
- *   complete_billing_payment: extracted from 20251027000001 (§5)
+ *   same shape as the Tie-Breaker harness.
+ * - draft_ban_monthly_completions + consume_draft_ban_completion +
+ *   completion-path guard: extracted from
+ *   20251028000001_draft_ban_free_completion.sql
+ * - draft_matches: minimal faithful subset (id, organization_id,
+ *   created_by, status + completed_at + CHECKs). ref_code/share_token/
+ *   actions/config columns never participate in quota decisions and are
+ *   omitted; engine completeness is a service-layer concern.
+ * - user_tool_entitlements (minimal): proves Sponsorship-style user grants
+ *   never unlock Draft & Ban.
+ * - The pre-existing completed-row immutability guard is intentionally out
+ *   of scope here (service unit tests pin it); this harness proves the NEW
+ *   completion-path guard.
  *
- * Not created (RPC paths never touch them): teams/results (quota counts
- * locked competitions only), plans/subscriptions, user grants, RLS policies
- * (tests connect as the cluster superuser — equivalent to service_role
- * bypass for these tables).
+ * Not created (RPC paths never touch them): plans/subscriptions, orders/
+ * payments, RLS policies (tests connect as the cluster superuser —
+ * equivalent to service_role bypass for these tables).
  */
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -31,8 +37,9 @@ import { Pool, type PoolClient } from "pg";
 import { killPortListener, withTimeout } from "./pg-harness";
 
 const TIMEZONE_MIGRATION = "supabase/migrations/20251026000001_organization_timezone.sql";
-const CORE_MIGRATION = "supabase/migrations/20251017000001_tie_breaker_core.sql";
-const FREE_MIGRATION = "supabase/migrations/20251027000001_tie_breaker_free_tier.sql";
+const FREE_MIGRATION = "supabase/migrations/20251028000001_draft_ban_free_completion.sql";
+const TEMPLATE_CAPS_MIGRATION = "supabase/migrations/20251029000001_draft_ban_template_caps.sql";
+const SHARE_BRANDING_MIGRATION = "supabase/migrations/20251030000001_draft_ban_share_branding.sql";
 
 /** Extract a shipped SQL block verbatim between two markers (inclusive). */
 export function extractSqlBlock(migrationSql: string, startMarker: string, endMarker: string): string {
@@ -104,60 +111,50 @@ create table public.tool_entitlements (
 create unique index if not exists tool_entitlements_all_access_unique
   on public.tool_entitlements(organization_id) where is_all_access = true;
 
-create table public.tie_breaker_competitions (
+create table public.user_tool_entitlements (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  tool_id uuid not null references public.tools(id) on delete cascade,
+  source text not null default 'subscription' check (source in ('subscription','manual','promo','free')),
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (user_id, tool_id)
+);
+
+create table public.draft_matches (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   created_by uuid not null references public.profiles(id) on delete restrict,
-  name text not null check (char_length(name) between 1 and 80),
-  description text check (description is null or char_length(description) <= 500),
-  status text not null default 'draft' check (status in ('draft', 'active', 'locked')),
-  scoring_win smallint not null default 3,
-  scoring_draw smallint not null default 1,
-  scoring_loss smallint not null default 0,
-  draws_enabled boolean not null default false,
-  round_label text not null default 'rounds',
-  rule_order text[] not null default array['points']::text[],
-  preset_ref text,
+  ref_code text,
+  match_name text,
+  event_name text,
+  format_label text,
+  team_a text,
+  team_b text,
+  sequence jsonb not null default '[]',
+  pool jsonb not null default '[]',
+  actions jsonb not null default '[]',
   share_token uuid not null unique default gen_random_uuid(),
-  record_number text unique,
-  locked_at timestamptz,
-  locked_snapshot jsonb,
-  cloned_from uuid,
+  status text not null default 'in_progress' check (status in ('in_progress', 'completed', 'abandoned')),
+  completed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint tie_breaker_locked_fields_check check (
-    (status = 'locked' and locked_at is not null and record_number is not null and locked_snapshot is not null)
-    or (status <> 'locked')
+  constraint draft_matches_completed_fields_check check (
+    (status = 'completed' and completed_at is not null)
+    or (status <> 'completed')
   )
 );
 
-create sequence if not exists public.tie_breaker_ref_seq as bigint start with 1 increment by 1;
-
-create table public.orders (
+create table public.draft_templates (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  tool_id uuid references public.tools(id) on delete cascade,
-  is_all_access boolean not null default false,
-  buyer_user_id uuid references public.profiles(id) on delete set null,
-  amount_minor integer not null default 0,
-  currency text not null default 'INR',
-  status text not null default 'created',
-  razorpay_order_id text,
+  name text not null check (char_length(name) between 1 and 60),
+  config jsonb not null,
+  is_starter boolean not null default false,
+  created_by uuid not null references public.profiles(id) on delete restrict,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table public.payments (
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references public.orders(id) on delete cascade,
-  organization_id uuid not null references public.organizations(id) on delete cascade,
-  razorpay_payment_id text,
-  razorpay_signature text,
-  amount_minor integer not null default 0,
-  currency text not null default 'INR',
-  status text not null default 'created',
-  verified_at timestamptz,
-  created_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint draft_templates_org_name_unique unique (organization_id, name)
 );
 `;
 
@@ -184,12 +181,12 @@ async function tryStart(port: number, databaseDir: string) {
   return pg as unknown as { stop: () => Promise<void> };
 }
 
-export async function startTieBreakerTestPostgres(): Promise<TestPostgres> {
-  const dataDir = mkdtempSync(join(tmpdir(), "micronest-tb-test-"));
+export async function startDraftBanTestPostgres(): Promise<TestPostgres> {
+  const dataDir = mkdtempSync(join(tmpdir(), "micronest-db-test-"));
   let pg: { stop: () => Promise<void> } | null = null;
   let port = 0;
   let lastError: unknown = null;
-  for (let p = 54351; p <= 54365; p++) {
+  for (let p = 54371; p <= 54385; p++) {
     try {
       pg = await tryStart(p, `${dataDir}-${p}`);
       port = p;
@@ -205,10 +202,8 @@ export async function startTieBreakerTestPostgres(): Promise<TestPostgres> {
   const admin = await pool.connect();
   try {
     const tzMigration = readFileSync(join(process.cwd(), TIMEZONE_MIGRATION), "utf8");
-    const coreMigration = readFileSync(join(process.cwd(), CORE_MIGRATION), "utf8");
     const freeMigration = readFileSync(join(process.cwd(), FREE_MIGRATION), "utf8");
     // IANA validator must exist before the organizations CHECK references it.
-    // Extracted without its GRANT (roles are created below); grants re-applied after.
     await admin.query(
       extractSqlBlock(
         tzMigration,
@@ -220,47 +215,44 @@ export async function startTieBreakerTestPostgres(): Promise<TestPostgres> {
     await admin.query(
       "grant execute on function public.is_valid_iana_timezone(text) to authenticated, service_role, anon",
     );
-    // Record-number allocator (shipped core definition).
-    await admin.query(
-      extractSqlBlock(
-        coreMigration,
-        "create or replace function public.tie_breaker_next_ref()",
-        "grant execute on function public.tie_breaker_next_ref() to authenticated, service_role;",
-      ),
-    );
-    // Quota RPC + lock-path guard (shipped free-tier definitions).
+    // Ledger table (shipped definition, verbatim).
     await admin.query(
       extractSqlBlock(
         freeMigration,
-        "create or replace function public.consume_tie_breaker_lock(",
-        "grant execute on function public.consume_tie_breaker_lock(uuid, uuid, uuid, jsonb, timestamptz) to service_role;",
+        "create table if not exists public.draft_ban_monthly_completions (",
+        ");",
       ),
     );
+    await admin.query("alter table public.draft_ban_monthly_completions enable row level security");
+    // Quota RPC (shipped definition, verbatim).
     await admin.query(
       extractSqlBlock(
         freeMigration,
-        "create or replace function public.tie_breaker_require_authorized_lock()",
-        "for each row execute function public.tie_breaker_require_authorized_lock();",
+        "create or replace function public.consume_draft_ban_completion(",
+        "grant execute on function public.consume_draft_ban_completion(uuid, uuid, uuid) to service_role;",
       ),
     );
-    // Paid-only share branding (shipped free-tier definition).
+    // Completion-path guard (shipped definition, verbatim).
     await admin.query(
       extractSqlBlock(
         freeMigration,
-        "create or replace function public.get_completed_tie_breaker_share(p_token uuid)",
-        "to anon, authenticated;",
+        "create or replace function public.draft_ban_require_authorized_completion()",
+        "for each row execute function public.draft_ban_require_authorized_completion();",
       ),
     );
-    // Billing completion with the Free→Paid org transition.
+    // Template caps (shipped migration, applied verbatim end-to-end: column +
+    // backfill + cap fn + guard/trigger + creation RPC + starter RPC +
+    // grants). The harness draft_templates DDL already carries is_starter,
+    // so section 1 is a no-op here; every function/trigger below is
+    // byte-identical to what the owner applies.
+    const templateMigration = readFileSync(join(process.cwd(), TEMPLATE_CAPS_MIGRATION), "utf8");
+    await admin.query(templateMigration);
+    // Share branding gate (shipped migration, applied verbatim end-to-end:
+    // paid-only organization_logo_url in get_completed_draft_share).
+    const shareBrandingMigration = readFileSync(join(process.cwd(), SHARE_BRANDING_MIGRATION), "utf8");
+    await admin.query(shareBrandingMigration);
     await admin.query(
-      extractSqlBlock(
-        freeMigration,
-        "create or replace function public.complete_billing_payment(",
-        "grant execute on function public.complete_billing_payment(uuid, text, text, integer, text, timestamptz, text) to service_role;",
-      ),
-    );
-    await admin.query(
-      "insert into public.tools (slug, name) values ('tie-breaker', 'Tie-Breaker Resolver') on conflict (slug) do nothing",
+      "insert into public.tools (slug, name) values ('draft-ban', 'Draft & Ban'), ('sponsor-sentinel', 'Sponsorship Tracking') on conflict (slug) do nothing",
     );
   } finally {
     admin.release();
@@ -281,7 +273,7 @@ export async function startTieBreakerTestPostgres(): Promise<TestPostgres> {
     } catch {
       // best effort
     }
-    for (let p = 54351; p <= 54365; p++) {
+    for (let p = 54371; p <= 54385; p++) {
       try {
         rmSync(`${dataDir}-${p}`, { recursive: true, force: true });
       } catch {
@@ -298,44 +290,37 @@ export async function startTieBreakerTestPostgres(): Promise<TestPostgres> {
 }
 
 /** Remove all tenant rows between tests (tool catalog + functions retained). */
-export async function truncateTieBreakerTables(pg: Pick<TestPostgres, "query">): Promise<void> {
+export async function truncateDraftBanTables(pg: Pick<TestPostgres, "query">): Promise<void> {
   await pg.query(
-    "truncate public.payments, public.orders, public.tie_breaker_competitions, public.tool_entitlements, public.organization_members, public.organizations, public.profiles restart identity cascade",
+    "truncate public.draft_ban_monthly_completions, public.draft_matches, public.draft_templates, public.user_tool_entitlements, public.tool_entitlements, public.organization_members, public.organizations, public.profiles restart identity cascade",
   );
 }
 
-/** Ref-sequence restart so record numbers are deterministic per test. */
-export async function restartTieBreakerRefSeq(pg: Pick<TestPostgres, "query">): Promise<void> {
-  await pg.query("alter sequence public.tie_breaker_ref_seq restart with 1");
-}
-
-export interface TieBreakerSeed {
+export interface DraftBanSeed {
   userId: string;
   orgId: string;
   toolId: string;
 }
 
-export async function seedTieBreakerWorkspace(
+export async function seedDraftBanWorkspace(
   pg: Pick<TestPostgres, "query">,
   opts: {
     timezone?: string;
-    grant?: "free" | "paid" | "all-access" | null;
-    grantExpired?: boolean;
-    logoUrl?: string | null;
+    grant?: "free" | "paid" | "all-access" | "expired-free" | "expired-paid" | null;
   } = {},
-): Promise<TieBreakerSeed> {
+): Promise<DraftBanSeed> {
   const userId = crypto.randomUUID();
   const orgId = crypto.randomUUID();
   await pg.query("insert into public.profiles (id) values ($1)", [userId]);
   await pg.query(
-    "insert into public.organizations (id, name, slug, owner_id, timezone, logo_url) values ($1, 'Org', $2, $3, $4, $5)",
-    [orgId, `org-${orgId.slice(0, 8)}`, userId, opts.timezone ?? "Asia/Kolkata", opts.logoUrl ?? null],
+    "insert into public.organizations (id, name, slug, owner_id, timezone) values ($1, 'Org', $2, $3, $4)",
+    [orgId, `org-${orgId.slice(0, 8)}`, userId, opts.timezone ?? "Asia/Kolkata"],
   );
   await pg.query("insert into public.organization_members (organization_id, user_id, role) values ($1, $2, 'owner')", [
     orgId,
     userId,
   ]);
-  const tool = await pg.query("select id from public.tools where slug = 'tie-breaker'");
+  const tool = await pg.query("select id from public.tools where slug = 'draft-ban'");
   const toolId = String(tool.rows[0]?.id ?? "");
   const grant = opts.grant === undefined ? "free" : opts.grant;
   if (grant === "all-access") {
@@ -344,8 +329,11 @@ export async function seedTieBreakerWorkspace(
       [orgId],
     );
   } else if (grant !== null) {
-    const source = grant === "free" ? "free" : "subscription";
-    const expires = grant === "free" ? null : opts.grantExpired ? new Date(Date.now() - 86400000).toISOString() : null;
+    const source = grant === "free" || grant === "expired-free" ? "free" : "subscription";
+    const expires =
+      grant === "expired-free" || grant === "expired-paid"
+        ? new Date(Date.now() - 86400000).toISOString()
+        : null;
     await pg.query(
       "insert into public.tool_entitlements (organization_id, tool_id, is_all_access, source, expires_at) values ($1, $2, false, $3, $4)",
       [orgId, toolId, source, expires],
@@ -354,25 +342,18 @@ export async function seedTieBreakerWorkspace(
   return { userId, orgId, toolId };
 }
 
-/** Deterministic fixture numbers (TB-2026-80xxx): never collide with the
- *  restarted ref sequence (00001…) nor with each other across the run. */
-let fixtureRecordCounter = 80000;
-
-export async function insertCompetition(
+export async function insertMatch(
   pg: Pick<TestPostgres, "query">,
-  seed: TieBreakerSeed,
-  opts: { status?: string; lockedAt?: string | null; recordNumber?: string | null } = {},
+  seed: DraftBanSeed,
+  opts: { status?: string; completedAt?: string | null } = {},
 ): Promise<string> {
   const id = crypto.randomUUID();
-  const status = opts.status ?? "active";
-  const locked = status === "locked";
-  const recordNumber = locked ? (opts.recordNumber ?? `TB-2026-${String(++fixtureRecordCounter).padStart(5, "0")}`) : null;
+  const status = opts.status ?? "in_progress";
+  const completed = status === "completed";
   await pg.query(
-    `insert into public.tie_breaker_competitions
-      (id, organization_id, created_by, name, status, rule_order, record_number, locked_at, locked_snapshot)
-     values ($1, $2, $3, 'Cup', $4, array['points','h2h']::text[], $5, $6,
-       case when $4 = 'locked' then '{"standings":[],"explanations":[]}'::jsonb else null end)`,
-    [id, seed.orgId, seed.userId, status, recordNumber, locked ? (opts.lockedAt ?? new Date().toISOString()) : null],
+    `insert into public.draft_matches (id, organization_id, created_by, status, completed_at)
+     values ($1, $2, $3, $4, $5)`,
+    [id, seed.orgId, seed.userId, status, completed ? (opts.completedAt ?? new Date().toISOString()) : null],
   );
   return id;
 }

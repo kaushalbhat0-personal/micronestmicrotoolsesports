@@ -28,6 +28,7 @@
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFile } from "node:child_process";
 import { default as EmbeddedPostgres } from "embedded-postgres";
 import { Pool, type PoolClient } from "pg";
 
@@ -158,6 +159,94 @@ export interface TestPostgres {
   stop: () => Promise<void>;
 }
 
+/**
+ * Race a promise against a timer so `afterAll(stop)` can never hang the
+ * vitest run forever. The underlying operation keeps running in the
+ * background; `killPortListener` below cleans up anything it leaves behind.
+ */
+export async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms);
+        timer.unref?.();
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
+ * Best-effort killer for orphaned embedded-postgres backends.
+ *
+ * On Windows, `postgres.exe --forkchild` workers can outlive the vitest
+ * worker that spawned them. They inherit stdio, so a shelled-out run
+ * (`npx vitest run | Select-Object ...`) never sees EOF and the prompt
+ * never returns — the "tests pass but the terminal keeps looping" hang.
+ * Only ever targets test-only ports / embedded-postgres binaries, never a
+ * developer's real PostgreSQL.
+ */
+export async function killPortListener(port: number): Promise<void> {
+  if (process.platform === "win32") {
+    const out = await execFileAsync("netstat", ["-ano", "-p", "TCP"], 10_000);
+    const pids = new Set<string>();
+    for (const line of out.split("\n")) {
+      // e.g. "  TCP    127.0.0.1:54371    0.0.0.0:0    LISTENING    1234"
+      const parts = line.trim().split(/\s+/);
+      if (parts.length < 4 || parts[0]?.toUpperCase() !== "TCP" || parts[3]?.toUpperCase() !== "LISTENING") {
+        continue;
+      }
+      const local = parts[1] ?? "";
+      const idx = local.lastIndexOf(":");
+      if (idx < 0 || Number(local.slice(idx + 1)) !== port) continue;
+      const pid = parts[parts.length - 1] ?? "";
+      if (/^\d+$/.test(pid) && Number(pid) !== process.pid) pids.add(pid);
+    }
+    // /T kills the whole tree: taskkilling a postmaster alone orphans its
+    // --forkchild workers, which is exactly how the pipe-holders survive.
+    for (const pid of pids) await killPidTree(pid);
+    // Second sweep: non-listening leftovers (children of an already-dead
+    // postmaster). Scoped to embedded-postgres binaries only.
+    await killEmbeddedPostgresOrphans();
+    return;
+  }
+  await execFileAsync("sh", ["-c", `lsof -ti tcp:${port} | xargs -r kill -9`], 10_000);
+}
+
+async function execFileAsync(file: string, args: string[], timeoutMs: number): Promise<string> {
+  return new Promise<string>((resolve) => {
+    execFile(file, args, { timeout: timeoutMs }, (err, stdout) => resolve(err ? "" : String(stdout ?? "")));
+  });
+}
+
+async function killPidTree(pid: string): Promise<void> {
+  await execFileAsync("taskkill", ["/F", "/T", "/PID", pid], 10_000);
+}
+
+async function killEmbeddedPostgresOrphans(): Promise<void> {
+  // Only true orphans: embedded-postgres processes whose parent is already
+  // dead. The live set covers ALL processes (not just postgres) — a live
+  // postmaster's parent is the vitest worker, and live servers (and their
+  // children) of concurrently-running test files are always spared.
+  const ps = `$live = @{}; Get-CimInstance Win32_Process | ForEach-Object { $live[$_.ProcessId] = $true }; Get-CimInstance Win32_Process -Filter "Name='postgres.exe'" | Where-Object { $_.CommandLine -like '*embedded-postgres*' -and -not $live.ContainsKey($_.ParentProcessId) } | ForEach-Object { $_.ProcessId }`;
+  const encoded = Buffer.from(ps, "utf16le").toString("base64");
+  const out = await execFileAsync(
+    "powershell",
+    ["-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+    30_000,
+  );
+  const pids = new Set(
+    out
+      .split(/[\r\n\s,;]+/)
+      .map((s) => s.trim())
+      .filter((s) => /^\d+$/.test(s) && Number(s) !== process.pid),
+  );
+  for (const pid of pids) await killPidTree(pid);
+}
+
 async function tryStart(port: number, databaseDir: string) {
   const pg = new EmbeddedPostgres({
     port,
@@ -212,7 +301,10 @@ export async function startTestPostgres(): Promise<TestPostgres> {
   };
   const stop = async () => {
     await pool.end().catch(() => undefined);
-    await pg!.stop().catch(() => undefined);
+    await withTimeout(pg!.stop(), 15_000).catch(() => undefined);
+    // Orphaned postgres.exe children inherit stdio and hold the shell pipe
+    // open after vitest exits — best-effort kill on our test-only port.
+    await killPortListener(port).catch(() => undefined);
     try {
       rmSync(dataDir, { recursive: true, force: true });
     } catch {
