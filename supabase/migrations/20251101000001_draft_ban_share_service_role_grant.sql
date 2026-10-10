@@ -1,0 +1,27 @@
+-- MicroNest — Draft & Ban share: record-only service_role EXECUTE grant sync
+-- (RCCF-DRAFT-BAN-SHARE-EXECUTE-SYNC-IMPLEMENT-01)
+--
+-- The public share page (src/app/share/draft-ban/[token]/page.tsx) calls
+-- public.get_completed_draft_share(uuid) via createAdminClient()
+-- (service_role). Production already carries this EXECUTE grant (verified in
+-- RCCF-DRAFT-BAN-SHARE-EXECUTE-AUDIT-01 via pg catalog inspection and a
+-- genuine service_role probe), but no repository migration records it.
+-- Without this record, a fresh database built only from repository
+-- migrations would lack the privilege and reproduce a 42501 failure.
+--
+-- SECURITY DEFINER does not waive the EXECUTE check; service_role bypasses
+-- RLS but still requires an explicit grant. This migration records that
+-- grant. It is idempotent: re-applying changes nothing in production.
+--
+-- What this migration does (one statement, idempotent):
+-- grant EXECUTE on the exact share RPC signature to service_role.
+--
+-- What this migration does NOT do:
+--   * No function rewrite (no CREATE OR REPLACE / ALTER FUNCTION).
+--   * No REVOKE of the existing anon/authenticated grants.
+--   * No grant to public or any additional role.
+--   * No SECURITY DEFINER / search_path change.
+--   * No RLS / policy / token / branding / quota / completion change.
+--   * No Tie-Breaker or other-tool change.
+
+grant execute on function public.get_completed_draft_share(uuid) to service_role;
