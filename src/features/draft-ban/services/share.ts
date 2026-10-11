@@ -10,11 +10,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const tokenSchema = z.string().uuid("Invalid share link");
 
-const shareStepSchema = z.object({ team: z.enum(["A", "B"]), type: z.enum(["ban", "pick"]) });
+const shareStepSchema = z.object({ team: z.enum(["A", "B"]), type: z.enum(["ban", "pick", "side"]) });
 const shareActionSchema = z.object({
   stepIndex: z.number().int().min(0),
   team: z.enum(["A", "B"]),
-  type: z.enum(["ban", "pick"]),
+  type: z.enum(["ban", "pick", "side"]),
   item: z.string().min(1).max(60),
   at: z.string().min(1),
 });

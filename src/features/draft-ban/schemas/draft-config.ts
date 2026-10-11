@@ -23,8 +23,13 @@ const poolItemSchema = z.string().trim().min(1, "Pool item is required").max(POO
 
 export const draftStepSchema = z.object({
   team: z.enum(["A", "B"]),
-  type: z.enum(["ban", "pick"]),
+  type: z.enum(["ban", "pick", "side"]),
 });
+
+/** Steps that consume a pool item. `side` steps consume a turn only. */
+function poolConsumingCount(sequence: Array<{ type: string }>): number {
+  return sequence.filter((s) => s.type === "ban" || s.type === "pick").length;
+}
 
 export const draftConfigSchema = z
   .object({
@@ -46,7 +51,7 @@ export const draftConfigSchema = z
     if (dupes.length > 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pool"], message: "Pool items must be unique (case-insensitive)" });
     }
-    const required = val.sequence.length;
+    const required = poolConsumingCount(val.sequence);
     if (val.pool.length < required) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

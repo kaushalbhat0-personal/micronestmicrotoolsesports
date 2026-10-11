@@ -10,6 +10,7 @@ import {
   resolveDraftBanAccessLevel,
 } from "@/server/services/draft-ban-policy";
 import { templateConfigSchema, templateNameSchema, TEMPLATES_PER_ORG_MAX } from "../schemas/draft-config";
+import { getGameVetoPresetById } from "./game-presets";
 
 export { FREE_DRAFT_BAN_CUSTOM_TEMPLATES_MAX };
 
@@ -29,7 +30,7 @@ function requireOwned<T extends { organization_id: string }>(row: T | null, orga
   return row;
 }
 
-function toConfig(raw: unknown): { sequence: Array<{ team: "A"; type: "ban" | "pick" } | { team: "B"; type: "ban" | "pick" }>; pool: string[]; teamA: string | null; teamB: string | null } {
+function toConfig(raw: unknown): { sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" | "side" }>; pool: string[]; teamA: string | null; teamB: string | null } {
   const parsed = parseOrThrow(templateConfigSchema, raw);
   return {
     sequence: parsed.sequence.map((s) => ({ team: s.team, type: s.type })),
@@ -123,6 +124,34 @@ export async function updateTemplate(supabase: SupabaseClient, organizationId: s
 export async function deleteTemplate(supabase: SupabaseClient, organizationId: string, templateId: string) {
   requireOwned(await templateRepo.findDraftTemplateById(supabase, templateId), organizationId);
   await templateRepo.deleteDraftTemplate(supabase, templateId);
+}
+
+/**
+ * Official game preset → normal custom template.
+ *
+ * The preset is static source data only. The saved row is an ordinary
+ * org-owned custom template: it consumes one custom-template slot (Free 3 /
+ * paid 20) through the same `createTemplate` path, never mints quota-exempt
+ * rows, and stays fully editable afterwards.
+ */
+export async function createTemplateFromGamePreset(
+  supabase: SupabaseClient,
+  organizationId: string,
+  userId: string,
+  presetId: unknown,
+) {
+  if (typeof presetId !== "string" || !presetId) throw validationError("Unknown game preset");
+  const preset = getGameVetoPresetById(presetId);
+  if (!preset) throw validationError("Unknown game preset");
+  return createTemplate(supabase, organizationId, userId, {
+    name: preset.label,
+    config: {
+      sequence: preset.sequence.map((s) => ({ team: s.team, type: s.type })),
+      pool: [],
+      teamA: null,
+      teamB: null,
+    },
+  });
 }
 
 /**

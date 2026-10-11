@@ -7,7 +7,12 @@
  */
 
 export type DraftTeam = "A" | "B";
-export type DraftActionType = "ban" | "pick";
+/**
+ * Procedure step types. `side` is RECORD-ONLY: the acting team records a
+ * freely chosen side label (e.g. "CT", "Attack"). It consumes a turn but
+ * never consumes a pool item. MicroNest never decides side assignment.
+ */
+export type DraftActionType = "ban" | "pick" | "side";
 export type DraftStatus = "in_progress" | "completed" | "abandoned";
 
 export interface DraftStep {
@@ -55,7 +60,7 @@ export type UndoResult = { readonly ok: true; readonly state: DraftState } | { r
 
 export interface PoolItemView {
   readonly name: string;
-  readonly status: "available" | "banned" | "picked";
+  readonly status: "available" | "banned" | "picked" | "side";
   readonly byTeam: DraftTeam | null;
 }
 

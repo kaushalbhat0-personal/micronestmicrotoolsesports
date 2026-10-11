@@ -68,3 +68,25 @@ describe("ResultCard branding (paid-only logo)", () => {
     expect(html).toContain("AE");
   });
 });
+
+describe("ResultCard side steps", () => {
+  it("renders Side distinctly and never as a final selection", () => {
+    const m = match();
+    m.sequence = [
+      { team: "A", type: "ban" },
+      { team: "B", type: "side" },
+      { team: "A", type: "pick" },
+    ];
+    m.pool = ["Map A", "Map B", "Map C"];
+    m.actions = [
+      { stepIndex: 0, team: "A", type: "ban", item: "Map A", at: "2026-10-09T10:00:00.000Z" },
+      { stepIndex: 1, team: "B", type: "side", item: "CT", at: "2026-10-09T10:01:00.000Z" },
+      { stepIndex: 2, team: "A", type: "pick", item: "Map B", at: "2026-10-09T10:02:00.000Z" },
+    ];
+    const html = renderToString(<ResultCard match={m} organizationName="Acme Esports" organizationLogoUrl={null} />);
+    expect(html).toContain(">Side<");
+    expect(html).toContain("CT");
+    // Decider math ignores the side label: Map C remains.
+    expect(html).toContain("Decider: Map C");
+  });
+});

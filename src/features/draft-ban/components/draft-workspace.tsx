@@ -4,6 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Check, RotateCcw, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,6 +25,7 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
   const [pendingItem, setPendingItem] = React.useState<string | null>(null);
   const [pendingOp, setPendingOp] = React.useState(false);
   const [confirmReset, setConfirmReset] = React.useState(false);
+  const [sideInput, setSideInput] = React.useState("");
 
   const state = React.useMemo(
     () =>
@@ -40,10 +43,12 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
   );
   const view = deriveView(withActions);
   const turnName = view.whoseTurn ? teamName(match, view.whoseTurn) : null;
+  const isSideStep = !view.isComplete && view.currentStep?.type === "side";
+  const turnVerb = view.currentStep?.type === "side" ? "to choose side" : view.currentStep ? `to ${view.currentStep.type}` : null;
   const turnAnnouncement = view.isComplete
     ? "Draft sequence complete. Review and finalize the record."
-    : turnName && view.currentStep
-      ? `${turnName} to ${view.currentStep.type}, step ${view.stepIndex + 1} of ${view.totalSteps}.`
+    : turnName && turnVerb
+      ? `${turnName} ${turnVerb}, step ${view.stepIndex + 1} of ${view.totalSteps}.`
       : "Draft ready.";
 
   async function runOp(fn: () => Promise<{ error?: string; quotaLimited?: boolean }>, itemKey?: string) {
@@ -108,6 +113,11 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
             <CardTitle>Available pool</CardTitle>
           </CardHeader>
           <CardContent>
+            {isSideStep && (
+              <p className="mb-3 text-sm text-muted-foreground">
+                Side step — record {turnName}&apos;s side choice below. Pool picks are paused for this step.
+              </p>
+            )}
             <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Draft pool">
               {view.available.map((item) => {
                 const taken = item.status !== "available";
@@ -115,7 +125,7 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
                   <li key={item.name}>
                     <button
                       type="button"
-                      disabled={taken || view.isComplete || pendingItem !== null || pendingOp}
+                      disabled={taken || view.isComplete || isSideStep || pendingItem !== null || pendingOp}
                       onClick={() =>
                         view.whoseTurn &&
                         runOp(
@@ -145,6 +155,54 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
           </CardContent>
         </Card>
 
+        {isSideStep && view.whoseTurn && (
+          <Card className="lg:col-span-3">
+            <CardHeader>
+              <CardTitle>Record side choice</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form
+                className="flex flex-col gap-2 sm:flex-row"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const value = sideInput.trim();
+                  if (!value || !view.whoseTurn) return;
+                  const team = view.whoseTurn;
+                  setSideInput("");
+                  void runOp(
+                    () =>
+                      applyDraftActionAction({
+                        orgSlug,
+                        matchId: match.id,
+                        team,
+                        item: value,
+                        expectedActionCount: match.actions.length,
+                      }),
+                    `side-${match.actions.length}`,
+                  );
+                }}
+              >
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="side-choice">Side for {turnName}</Label>
+                  <Input
+                    id="side-choice"
+                    value={sideInput}
+                    onChange={(e) => setSideInput(e.target.value)}
+                    placeholder="e.g. CT, Attack, Defense"
+                    maxLength={60}
+                    disabled={pendingOp || pendingItem !== null}
+                    className="font-mono"
+                  />
+                </div>
+                <Button type="submit" className="min-h-[44px] sm:self-end" disabled={!sideInput.trim() || pendingOp || pendingItem !== null}>
+                  <Check className="h-4 w-4" aria-hidden /> Record side
+                </Button>
+              </form>
+              <p className="mt-2 text-xs text-muted-foreground">Free text — any side label both teams agree on. Sides never consume pool items.</p>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2 lg:grid-cols-1">
           {(["A", "B"] as const).map((team) => (
             <Card key={team}>
@@ -162,7 +220,7 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
                     {(team === "A" ? view.teamAItems : view.teamBItems).map((item, i) => (
                       <li key={`${item.name}-${i}`} className="flex items-center justify-between rounded-[8px] bg-surface-muted/60 px-3 py-2">
                         <span className="truncate font-medium">{item.name}</span>
-                        <span className="text-xs capitalize text-muted-foreground">{item.status === "banned" ? "Ban" : "Pick"}</span>
+                        <span className="text-xs capitalize text-muted-foreground">{item.status === "banned" ? "Ban" : item.status === "picked" ? "Pick" : "Side"}</span>
                       </li>
                     ))}
                   </ol>
@@ -186,7 +244,7 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
                 <li key={a.stepIndex} className="flex flex-wrap items-center gap-x-2 rounded-[8px] bg-surface-muted/60 px-3 py-2">
                   <span className="text-muted-foreground">Step {a.stepIndex + 1}</span>
                   <span className="font-medium">{teamName(match, a.team)}</span>
-                  <Badge variant={a.type === "ban" ? "destructive" : "success"}>{a.type === "ban" ? "Ban" : "Pick"}</Badge>
+                  <Badge variant={a.type === "ban" ? "destructive" : a.type === "pick" ? "success" : "secondary"}>{a.type === "ban" ? "Ban" : a.type === "pick" ? "Pick" : "Side"}</Badge>
                   <span className="font-medium">{a.item}</span>
                 </li>
               ))}

@@ -6,7 +6,7 @@ import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { createClient } from "@/lib/supabase/server";
 import { AppError } from "@/lib/errors";
 import { isDraftBanTemplateLimitError } from "@/server/services/draft-ban-policy";
-import { createTemplate, deleteTemplate, ensureStarterTemplate, renameTemplate, updateTemplate } from "../services/template-service";
+import { createTemplate, createTemplateFromGamePreset, deleteTemplate, ensureStarterTemplate, renameTemplate, updateTemplate } from "../services/template-service";
 
 type ActionResult = { error?: string; templateId?: string; templateLimited?: boolean };
 
@@ -43,7 +43,7 @@ export async function ensureStarterTemplateAction(input: { orgSlug: string }): P
 export async function createTemplateAction(input: {
   orgSlug: string;
   name: string;
-  config: { sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" }>; pool: string[]; teamA: string | null; teamB: string | null };
+  config: { sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" | "side" }>; pool: string[]; teamA: string | null; teamB: string | null };
 }): Promise<ActionResult> {
   try {
     const ctx = await orgContext(input.orgSlug);
@@ -56,7 +56,23 @@ export async function createTemplateAction(input: {
   }
 }
 
+export async function createTemplateFromGamePresetAction(input: {
+  orgSlug: string;
+  presetId: string;
+}): Promise<ActionResult> {
+  try {
+    const ctx = await orgContext(input.orgSlug);
+    const supabase = await createClient();
+    const template = await createTemplateFromGamePreset(supabase, ctx.organization.id, ctx.user.id, input.presetId);
+    revalidatePath(`/dashboard/${input.orgSlug}/draft-ban`);
+    return { templateId: template.id };
+  } catch (e) {
+    return toResult(e, "Something went wrong. Please try again.");
+  }
+}
+
 export async function renameTemplateAction(input: { orgSlug: string; templateId: string; name: string }): Promise<ActionResult> {
+
   try {
     const ctx = await orgContext(input.orgSlug);
     const supabase = await createClient();
@@ -71,7 +87,7 @@ export async function renameTemplateAction(input: { orgSlug: string; templateId:
 export async function updateTemplateAction(input: {
   orgSlug: string;
   templateId: string;
-  config: { sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" }>; pool: string[]; teamA: string | null; teamB: string | null };
+  config: { sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" | "side" }>; pool: string[]; teamA: string | null; teamB: string | null };
 }): Promise<ActionResult> {
   try {
     const ctx = await orgContext(input.orgSlug);

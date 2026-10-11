@@ -33,7 +33,7 @@ export async function createDraftMatchAction(input: {
   teamA: string;
   teamB: string;
   pool: string[];
-  sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" }>;
+  sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" | "side" }>;
   templateId: string | null;
   matchName: string | null;
   eventName: string | null;

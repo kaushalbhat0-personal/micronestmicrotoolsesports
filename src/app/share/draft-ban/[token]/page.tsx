@@ -71,7 +71,8 @@ export default async function ShareDraftBanPage({ params }: { params: Promise<{ 
     );
   }
 
-  const remaining = record.pool.filter((p) => !record.actions.some((a) => a.item.toLowerCase() === p.toLowerCase()));
+  const consumingItems = record.actions.filter((a) => a.type === "ban" || a.type === "pick");
+  const remaining = record.pool.filter((p) => !consumingItems.some((a) => a.item.toLowerCase() === p.toLowerCase()));
 
   // Official result text — same formatter as the internal record (public projection only, no notes).
   const copyText = buildDraftCopyText(
@@ -121,7 +122,7 @@ export default async function ShareDraftBanPage({ params }: { params: Promise<{ 
                 <li key={a.stepIndex} className="flex flex-wrap items-center gap-x-2 rounded-[8px] bg-surface-muted/60 px-3 py-2">
                   <span className="text-muted-foreground">{a.stepIndex + 1}.</span>
                   <span className="font-medium">{a.team === "A" ? record.team_a : record.team_b}</span>
-                  <Badge variant={a.type === "ban" ? "destructive" : "success"}>{a.type === "ban" ? "Ban" : "Pick"}</Badge>
+                  <Badge variant={a.type === "ban" ? "destructive" : a.type === "pick" ? "success" : "secondary"}>{a.type === "ban" ? "Ban" : a.type === "pick" ? "Pick" : "Side"}</Badge>
                   <span className="font-medium">{a.item}</span>
                 </li>
               ))}

@@ -14,9 +14,9 @@ export interface DraftMatchRow {
   team_a: string;
   team_b: string;
   template_id: string | null;
-  sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" }>;
+  sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" | "side" }>;
   pool: string[];
-  actions: Array<{ stepIndex: number; team: "A" | "B"; type: "ban" | "pick"; item: string; at: string }>;
+  actions: Array<{ stepIndex: number; team: "A" | "B"; type: "ban" | "pick" | "side"; item: string; at: string }>;
   status: DraftMatchStatus;
   share_token: string;
   cloned_from: string | null;

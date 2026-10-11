@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { TemplatePicker } from "@/features/draft-ban/components/template-picker";
+import { GamePresetPicker } from "@/features/draft-ban/components/game-preset-picker";
 import { ClaimFreeDraftBanCard } from "@/features/draft-ban/components/claim-free-card";
 import { TemplateManager } from "@/features/draft-ban/components/template-manager";
 import { MatchHistoryList } from "@/features/draft-ban/components/match-history-list";
@@ -65,6 +66,7 @@ export default async function DraftBanPage({ params }: { params: Promise<{ orgSl
         description={`Professional match draft room — ${ctx.organization.name}. One screen. One sequence. Zero disputes.`}
       />
       <TemplatePicker orgSlug={orgSlug} templates={templates} />
+      <GamePresetPicker orgSlug={orgSlug} canCreate={canCreate} />
       <section className="space-y-4">
         <SectionHeader title="Recent drafts" description="Official records first — resume incomplete drafts any time. Replaying a fixture? Use Run Again from history — teams and pool carry over." />
         <MatchHistoryList

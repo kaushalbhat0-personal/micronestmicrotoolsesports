@@ -5,7 +5,7 @@ export interface DraftTemplateRow {
   organization_id: string;
   name: string;
   config: {
-    sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" }>;
+    sequence: Array<{ team: "A" | "B"; type: "ban" | "pick" | "side" }>;
     pool: string[];
     teamA: string | null;
     teamB: string | null;

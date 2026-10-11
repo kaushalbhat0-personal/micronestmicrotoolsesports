@@ -30,7 +30,8 @@ export function buildDraftCopyText(state: DraftState, ctx: DraftResultContext): 
   lines.push("ACTION HISTORY");
   state.actions.forEach((a, i) => {
     const teamName = a.team === "A" ? state.config.teamA : state.config.teamB;
-    lines.push(`${i + 1}. ${teamName} — ${a.type === "ban" ? "Ban" : "Pick"} — ${a.item}`);
+    const verb = a.type === "ban" ? "Ban" : a.type === "pick" ? "Pick" : "Side";
+    lines.push(`${i + 1}. ${teamName} — ${verb} — ${a.item}`);
   });
   lines.push("");
   lines.push("FINAL SELECTIONS");

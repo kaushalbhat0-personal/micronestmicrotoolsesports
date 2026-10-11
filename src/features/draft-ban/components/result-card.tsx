@@ -23,7 +23,10 @@ export function ResultCard({
 }) {
   const [copied, setCopied] = React.useState(false);
   const picks = match.actions.filter((a) => a.type === "pick");
-  const remaining = match.pool.filter((p) => !match.actions.some((a) => a.item.toLowerCase() === p.toLowerCase()));
+  // Remaining pool derives from map-consuming actions only. Side selections
+  // are free text and never remove pool items — even on a name collision.
+  const consumingItems = match.actions.filter((a) => a.type === "ban" || a.type === "pick");
+  const remaining = match.pool.filter((p) => !consumingItems.some((a) => a.item.toLowerCase() === p.toLowerCase()));
 
   async function copyResult() {
     const lines = [
@@ -35,7 +38,7 @@ export function ResultCard({
       `Workspace: ${organizationName}`,
       "",
       "ACTION HISTORY",
-      ...match.actions.map((a, i) => `${i + 1}. ${a.team === "A" ? match.team_a : match.team_b} — ${a.type === "ban" ? "Ban" : "Pick"} — ${a.item}`),
+      ...match.actions.map((a, i) => `${i + 1}. ${a.team === "A" ? match.team_a : match.team_b} — ${a.type === "ban" ? "Ban" : a.type === "pick" ? "Pick" : "Side"} — ${a.item}`),
       "",
       "FINAL SELECTIONS",
       ...picks.map((a) => `${a.item} — ${a.team === "A" ? match.team_a : match.team_b} pick`),
@@ -102,7 +105,7 @@ export function ResultCard({
             <li key={a.stepIndex} className="flex flex-wrap items-center gap-x-2 rounded-[8px] bg-surface-muted/60 px-3 py-2">
               <span className="text-muted-foreground">{a.stepIndex + 1}.</span>
               <span className="font-medium">{a.team === "A" ? match.team_a : match.team_b}</span>
-              <Badge variant={a.type === "ban" ? "destructive" : "success"}>{a.type === "ban" ? "Ban" : "Pick"}</Badge>
+              <Badge variant={a.type === "ban" ? "destructive" : a.type === "pick" ? "success" : "secondary"}>{a.type === "ban" ? "Ban" : a.type === "pick" ? "Pick" : "Side"}</Badge>
               <span className="font-medium">{a.item}</span>
             </li>
           ))}

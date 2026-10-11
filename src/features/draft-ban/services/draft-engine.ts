@@ -47,10 +47,11 @@ export function validateConfig(config: DraftConfig): { readonly valid: boolean; 
   if (Array.isArray(config.sequence) && config.sequence.length > 100) errors.push("Sequence supports at most 100 steps");
   for (const step of config.sequence ?? []) {
     if (!step || (step.team !== "A" && step.team !== "B")) errors.push("Sequence contains an invalid team");
-    if (!step || (step.type !== "ban" && step.type !== "pick")) errors.push("Sequence contains an invalid step type");
+    if (!step || (step.type !== "ban" && step.type !== "pick" && step.type !== "side")) errors.push("Sequence contains an invalid step type");
   }
-  if (Array.isArray(config.pool) && Array.isArray(config.sequence) && config.pool.length < config.sequence.length) {
-    errors.push(`Pool needs at least ${config.sequence.length} items for this sequence`);
+  const poolConsuming = (config.sequence ?? []).filter((s) => s && (s.type === "ban" || s.type === "pick")).length;
+  if (Array.isArray(config.pool) && Array.isArray(config.sequence) && config.pool.length < poolConsuming) {
+    errors.push(`Pool needs at least ${poolConsuming} items for this sequence`);
   }
   return { valid: errors.length === 0, errors };
 }
@@ -75,8 +76,15 @@ export function currentStep(state: DraftState): DraftStep | null {
 }
 
 function usedKeySet(state: DraftState): Set<string> {
-  return new Set(state.actions.map((a) => itemKey(a.item)));
+  // Only ban/pick actions consume pool items. Side selections are free text
+  // and must never block pool items — even on a name collision.
+  return new Set(
+    state.actions.filter((a) => a.type === "ban" || a.type === "pick").map((a) => itemKey(a.item))
+  );
 }
+
+/** Max length for a recorded side label — reuses the pool-item bound. */
+const SIDE_ITEM_MAX = 60;
 
 export function applyAction(state: DraftState, input: { team: DraftTeam; item: string }): ApplyActionResult {
   const configCheck = validateConfig(state.config);
@@ -91,6 +99,23 @@ export function applyAction(state: DraftState, input: { team: DraftTeam; item: s
   if (input.team !== step.team) {
     const expected = step.team === "A" ? state.config.teamA : state.config.teamB;
     return { ok: false, error: { code: "WRONG_TURN", message: `It is ${expected}'s turn (${step.type}).` } };
+  }
+
+  // Side steps record a free-text side label. The label is NOT a pool item:
+  // it needs no pool membership, consumes nothing, and is never added.
+  if (step.type === "side") {
+    if (!normalizedItem) return { ok: false, error: { code: "ITEM_UNKNOWN", message: "Enter the selected side." } };
+    if (normalizedItem.length > SIDE_ITEM_MAX) {
+      return { ok: false, error: { code: "ITEM_UNKNOWN", message: `Side label must be at most ${SIDE_ITEM_MAX} characters.` } };
+    }
+    const action: DraftAction = {
+      stepIndex: state.actions.length,
+      team: step.team,
+      type: step.type,
+      item: normalizedItem,
+      at: new Date().toISOString(),
+    };
+    return { ok: true, state: { config: state.config, actions: [...state.actions, action] } };
   }
 
   const poolKeys = new Map(state.config.pool.map((p) => [itemKey(p), p] as const));
@@ -121,8 +146,13 @@ export function isComplete(state: DraftState): boolean {
 }
 
 export function deriveView(state: DraftState): DraftView {
+  // Pool usage derives from ban/pick actions only. Side selections are free
+  // text and never mark pool items as used — even on a name collision.
   const used = new Map<string, DraftAction>();
-  for (const a of state.actions) used.set(itemKey(a.item), a);
+  for (const a of state.actions) {
+    if (a.type !== "ban" && a.type !== "pick") continue;
+    used.set(itemKey(a.item), a);
+  }
 
   const available: PoolItemView[] = state.config.pool.map((name) => {
     const hit = used.get(itemKey(name));
@@ -130,8 +160,13 @@ export function deriveView(state: DraftState): DraftView {
     return { name, status: hit.type === "ban" ? ("banned" as const) : ("picked" as const), byTeam: hit.team };
   });
 
-  const teamAItems = state.actions.filter((a) => a.team === "A").map((a) => ({ name: a.item, status: a.type === "ban" ? ("banned" as const) : ("picked" as const), byTeam: a.team as DraftTeam }));
-  const teamBItems = state.actions.filter((a) => a.team === "B").map((a) => ({ name: a.item, status: a.type === "ban" ? ("banned" as const) : ("picked" as const), byTeam: a.team as DraftTeam }));
+  const toItemView = (a: DraftAction): PoolItemView => ({
+    name: a.item,
+    status: a.type === "ban" ? ("banned" as const) : a.type === "pick" ? ("picked" as const) : ("side" as const),
+    byTeam: a.team,
+  });
+  const teamAItems = state.actions.filter((a) => a.team === "A").map(toItemView);
+  const teamBItems = state.actions.filter((a) => a.team === "B").map(toItemView);
 
   const step = currentStep(state);
   const complete = isComplete(state);
