@@ -1,4 +1,5 @@
 import type { GameSlug } from "@/config/games/catalog";
+import type { Route } from "next";
 import type { DraftStep } from "../types";
 
 /**
@@ -99,4 +100,27 @@ export function getGameVetoPresetById(id: string): GameVetoPreset | undefined {
 
 export function getGameVetoPresetsBySlug(slug: GameSlug): GameVetoPreset[] {
   return GAME_VETO_PRESETS.filter((preset) => preset.gameSlug === slug);
+}
+
+export type GamePresetCreateResult = { readonly error?: string; readonly templateId?: string };
+
+/**
+ * Match-setup route for a freshly saved preset template. Uses the same
+ * `?template=` contract as the template picker — no new routing convention.
+ */
+export function buildGamePresetSetupHref(orgSlug: string, templateId: string): Route {
+  return `/dashboard/${orgSlug}/draft-ban/new?template=${templateId}` as Route;
+}
+
+/**
+ * Post-creation navigation decision. Returns the setup href only when the
+ * server result carries a template id with no error; otherwise null so the
+ * caller surfaces the error state instead of navigating.
+ */
+export function resolveGamePresetSetupNavigation(
+  orgSlug: string,
+  result: GamePresetCreateResult,
+): Route | null {
+  if (result.error || !result.templateId) return null;
+  return buildGamePresetSetupHref(orgSlug, result.templateId);
 }

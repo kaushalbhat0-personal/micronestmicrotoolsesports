@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { DraftConfig } from "../types";
 import { GAMES } from "@/config/games/catalog";
 import { draftConfigSchema, TEMPLATES_PER_ORG_MAX } from "../schemas/draft-config";
-import { applyAction, createState, deriveView, isComplete, validateConfig } from "./draft-engine";
+import { applyAction, countPoolConsumingSteps, createState, deriveView, isComplete, validateConfig } from "./draft-engine";
 import { buildDraftCopyText } from "./share-text";
 import { shareRecordSchema } from "./share";
 import { GAME_VETO_PRESETS, getGameVetoPresetById } from "./game-presets";
@@ -269,5 +269,52 @@ describe("game veto presets", () => {
   it("template caps are unchanged (Free 3, paid 20)", () => {
     expect(FREE_DRAFT_BAN_CUSTOM_TEMPLATES_MAX).toBe(3);
     expect(TEMPLATES_PER_ORG_MAX).toBe(20);
+  });
+});
+
+describe("pool-consuming step count (setup display)", () => {
+  it("all ban/pick template counts every step", () => {
+    expect(
+      countPoolConsumingSteps([
+        { type: "ban" },
+        { type: "pick" },
+        { type: "ban" },
+      ])
+    ).toBe(3);
+  });
+
+  it("one side step is excluded", () => {
+    expect(
+      countPoolConsumingSteps([
+        { type: "ban" },
+        { type: "side" },
+        { type: "pick" },
+      ])
+    ).toBe(2);
+  });
+
+  it("multiple side steps are all excluded", () => {
+    expect(
+      countPoolConsumingSteps([
+        { type: "side" },
+        { type: "ban" },
+        { type: "side" },
+        { type: "side" },
+      ])
+    ).toBe(1);
+  });
+
+  it("released presets report pool-consuming counts, not total steps", () => {
+    const counts: Record<string, number> = {};
+    for (const preset of GAME_VETO_PRESETS) {
+      counts[preset.id] = countPoolConsumingSteps(preset.sequence);
+    }
+    expect(counts["cs2-major-bo1"]).toBe(6);
+    expect(counts["cs2-major-bo3"]).toBe(6);
+    expect(counts["valorant-vct-bo1"]).toBe(6);
+    expect(counts["valorant-vct-bo3"]).toBe(6);
+    expect(counts["valorant-vct-bo5"]).toBe(6);
+    expect(counts["r6-bo1"]).toBe(8);
+    expect(counts["r6-bo3"]).toBe(8);
   });
 });

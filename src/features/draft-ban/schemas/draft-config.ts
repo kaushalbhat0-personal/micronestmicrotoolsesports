@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { countPoolConsumingSteps } from "../services/draft-engine";
 
 /**
  * Draft & Ban — Zod schemas (single source for validation).
@@ -26,11 +27,6 @@ export const draftStepSchema = z.object({
   type: z.enum(["ban", "pick", "side"]),
 });
 
-/** Steps that consume a pool item. `side` steps consume a turn only. */
-function poolConsumingCount(sequence: Array<{ type: string }>): number {
-  return sequence.filter((s) => s.type === "ban" || s.type === "pick").length;
-}
-
 export const draftConfigSchema = z
   .object({
     teamA: teamNameSchema,
@@ -51,7 +47,7 @@ export const draftConfigSchema = z
     if (dupes.length > 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pool"], message: "Pool items must be unique (case-insensitive)" });
     }
-    const required = poolConsumingCount(val.sequence);
+    const required = countPoolConsumingSteps(val.sequence);
     if (val.pool.length < required) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

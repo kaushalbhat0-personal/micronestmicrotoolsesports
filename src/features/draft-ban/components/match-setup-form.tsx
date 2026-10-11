@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createDraftMatchAction } from "../actions/match-actions";
+import { countPoolConsumingSteps } from "../services/draft-engine";
 import type { DraftStep } from "../types";
 
 function parsePool(raw: string): string[] {
@@ -47,6 +48,10 @@ export function MatchSetupForm({
 
   const pool = parsePool(poolRaw);
 
+  // Display requirement counts pool-consuming steps only: side steps record
+  // a free-text choice and never need a pool item.
+  const requiredPoolItems = countPoolConsumingSteps(sequence);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -81,7 +86,7 @@ export function MatchSetupForm({
         <CardHeader>
           <CardTitle>Match setup</CardTitle>
           <CardDescription>
-            Draft setup: {templateName} · {sequence.length} steps · needs {sequence.length} pool items
+            Draft setup: {templateName} · {sequence.length} steps · needs {requiredPoolItems} pool items
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

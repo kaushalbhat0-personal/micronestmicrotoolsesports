@@ -23,6 +23,14 @@ export function normalizeItemName(item: string): string {
   return item.trim().replace(/\s+/g, " ");
 }
 
+/**
+ * Steps that consume a pool item. `side` steps consume a turn only and must
+ * never count toward pool-size requirements or pool displays.
+ */
+export function countPoolConsumingSteps(sequence: readonly { readonly type: string }[]): number {
+  return sequence.filter((s) => s && (s.type === "ban" || s.type === "pick")).length;
+}
+
 function itemKey(item: string): string {
   return normalizeItemName(item).toLowerCase();
 }
@@ -49,7 +57,7 @@ export function validateConfig(config: DraftConfig): { readonly valid: boolean; 
     if (!step || (step.team !== "A" && step.team !== "B")) errors.push("Sequence contains an invalid team");
     if (!step || (step.type !== "ban" && step.type !== "pick" && step.type !== "side")) errors.push("Sequence contains an invalid step type");
   }
-  const poolConsuming = (config.sequence ?? []).filter((s) => s && (s.type === "ban" || s.type === "pick")).length;
+  const poolConsuming = countPoolConsumingSteps(config.sequence ?? []);
   if (Array.isArray(config.pool) && Array.isArray(config.sequence) && config.pool.length < poolConsuming) {
     errors.push(`Pool needs at least ${poolConsuming} items for this sequence`);
   }

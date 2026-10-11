@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Gamepad2 } from "lucide-react";
 import { GAMES } from "@/config/games/catalog";
-import { GAME_VETO_PRESETS } from "../services/game-presets";
+import { GAME_VETO_PRESETS, resolveGamePresetSetupNavigation } from "../services/game-presets";
 import { createTemplateFromGamePresetAction } from "../actions/template-actions";
 
 const OFFICIAL_PRESET_GAME_SLUGS = [...new Set(GAME_VETO_PRESETS.map((preset) => preset.gameSlug))];
@@ -30,12 +30,16 @@ export function GamePresetPicker({ orgSlug, canCreate }: { orgSlug: string; canC
     setPendingId(presetId);
     try {
       const result = await createTemplateFromGamePresetAction({ orgSlug, presetId });
-      if (result.error || !result.templateId) {
+      // Mirror the match-setup form pattern: push first, then refresh so the
+      // navigation is never superseded by the action's path revalidation.
+      const href = resolveGamePresetSetupNavigation(orgSlug, result);
+      if (!href) {
         setError(result.error ?? "Something went wrong. Please try again.");
         setLimited(result.templateLimited === true);
-      } else {
-        router.push(`/dashboard/${orgSlug}/draft-ban/new?template=${result.templateId}`);
+        return;
       }
+      router.push(href);
+      router.refresh();
     } finally {
       setPendingId(null);
     }
