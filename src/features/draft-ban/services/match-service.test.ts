@@ -211,6 +211,95 @@ describe("match-service", () => {
   });
 });
 
+describe("finalize integrity gate (NEXT-01-P1-01 replay validation)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const completeActions = [
+    { stepIndex: 0, team: "A", type: "ban", item: "Map A", at: new Date().toISOString() },
+    { stepIndex: 1, team: "B", type: "ban", item: "Map B", at: new Date().toISOString() },
+    { stepIndex: 2, team: "A", type: "ban", item: "Map C", at: new Date().toISOString() },
+    { stepIndex: 3, team: "B", type: "ban", item: "Map D", at: new Date().toISOString() },
+    { stepIndex: 4, team: "A", type: "pick", item: "Map E", at: new Date().toISOString() },
+    { stepIndex: 5, team: "B", type: "pick", item: "Map F", at: new Date().toISOString() },
+  ] as matchRepo.DraftMatchRow["actions"];
+
+  async function expectForgedRejected(actions: matchRepo.DraftMatchRow["actions"], seq?: matchRepo.DraftMatchRow["sequence"], pool?: string[]) {
+    vi.mocked(matchRepo.findDraftMatchById).mockResolvedValue(row({ actions, ...(seq ? { sequence: seq } : {}), ...(pool ? { pool } : {}) }));
+    await expect(finalize()).rejects.toThrow(/invalid.*official record/i);
+    expect(matchRepo.finalizeDraftMatchViaQuota).not.toHaveBeenCalled();
+  }
+
+  it("finalizes a valid chain and consumes quota exactly once", async () => {
+    const full = row({ actions: completeActions });
+    vi.mocked(matchRepo.findDraftMatchById).mockResolvedValue(full);
+    vi.mocked(matchRepo.finalizeDraftMatchViaQuota).mockResolvedValue({ ...full, status: "completed" });
+    const done = await finalize();
+    expect(done.status).toBe("completed");
+    expect(matchRepo.finalizeDraftMatchViaQuota).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects correct-count chains with wrong turn order without consuming quota", async () => {
+    const forged = completeActions.map((a, i) =>
+      i === 0 ? { ...a, team: "B" as const } : i === 1 ? { ...a, team: "A" as const } : a,
+    );
+    await expectForgedRejected(forged);
+  });
+
+  it("rejects correct-count chains with a duplicate selection without consuming quota", async () => {
+    const forged = completeActions.map((a, i) => (i === 1 ? { ...a, item: "Map A" } : a));
+    await expectForgedRejected(forged);
+  });
+
+  it("rejects correct-count chains with a pool-external item without consuming quota", async () => {
+    const forged = completeActions.map((a, i) => (i === 4 ? { ...a, item: "Map Z" } : a));
+    await expectForgedRejected(forged);
+  });
+
+  it("rejects correct-count chains with a flipped step-type label without consuming quota", async () => {
+    const forged = completeActions.map((a, i) => (i === 4 ? { ...a, type: "ban" as const } : a));
+    await expectForgedRejected(forged);
+  });
+
+  it("rejects chains with a stepIndex gap without consuming quota", async () => {
+    const forged = completeActions.map((a, i) => (i === 2 ? { ...a, stepIndex: 9 } : a));
+    await expectForgedRejected(forged);
+  });
+
+  it("rejects chains longer than the sequence without consuming quota", async () => {
+    const forged: matchRepo.DraftMatchRow["actions"] = [
+      ...completeActions,
+      { stepIndex: 6, team: "A", type: "ban", item: "Map G", at: new Date().toISOString() },
+    ];
+    await expectForgedRejected(forged);
+  });
+
+  it("rejects invalid side labels and accepts valid side chains without consuming quota on forgery", async () => {
+    const sequence = [
+      { team: "A", type: "ban" },
+      { team: "B", type: "side" },
+      { team: "A", type: "pick" },
+    ] as matchRepo.DraftMatchRow["sequence"];
+    const pool = ["Map A", "Map B", "Map C"];
+    const forged: matchRepo.DraftMatchRow["actions"] = [
+      { stepIndex: 0, team: "A", type: "ban", item: "Map A", at: new Date().toISOString() },
+      { stepIndex: 1, team: "B", type: "side", item: "x".repeat(61), at: new Date().toISOString() },
+      { stepIndex: 2, team: "A", type: "pick", item: "Map B", at: new Date().toISOString() },
+    ];
+    await expectForgedRejected(forged, sequence, pool);
+
+    const valid: matchRepo.DraftMatchRow["actions"] = [
+      { stepIndex: 0, team: "A", type: "ban", item: "Map A", at: new Date().toISOString() },
+      { stepIndex: 1, team: "B", type: "side", item: "CT", at: new Date().toISOString() },
+      { stepIndex: 2, team: "A", type: "pick", item: "Map B", at: new Date().toISOString() },
+    ];
+    const full = row({ actions: valid, sequence, pool });
+    vi.mocked(matchRepo.findDraftMatchById).mockResolvedValue(full);
+    vi.mocked(matchRepo.finalizeDraftMatchViaQuota).mockResolvedValue({ ...full, status: "completed" });
+    expect((await finalize()).status).toBe("completed");
+    expect(matchRepo.finalizeDraftMatchViaQuota).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("history window (Free latest 5 completed, drafts unlimited)", () => {
   const completedRow = (id: string, completedAt: string, name = `Cup ${id}`) =>
     row({ id, status: "completed", completed_at: completedAt, match_name: name }) as matchRepo.DraftMatchRow;

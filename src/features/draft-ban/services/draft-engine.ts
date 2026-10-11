@@ -149,6 +149,48 @@ export function undoLast(state: DraftState): UndoResult {
   return { ok: true, state: { config: state.config, actions: state.actions.slice(0, -1) } };
 }
 
+export type VerifyChainResult = { readonly ok: true; readonly state: DraftState } | { readonly ok: false; readonly error: DraftEngineError };
+
+/**
+ * Replay a stored action chain from the canonical empty state through the
+ * authoritative engine, one stored action at a time.
+ *
+ * Used by finalizeMatch so a structurally valid-looking (but forged)
+ * action array can never become a locked official record: length alone
+ * proves nothing — every step must reproduce deterministically, including
+ * turn ownership, step type, pool membership, duplicate prevention, and
+ * the exact recorded item (canonical pool casing for ban/pick,
+ * normalized free text for side). Stored timestamps are intentionally
+ * ignored: they are metadata, not procedure.
+ */
+export function verifyActionChain(config: DraftConfig, actions: readonly DraftAction[]): VerifyChainResult {
+  const configCheck = validateConfig(config);
+  if (!configCheck.valid) return { ok: false, error: invalidConfigError(configCheck.errors) };
+
+  let state = createState(config);
+  for (let i = 0; i < actions.length; i++) {
+    const stored = actions[i];
+    const step = currentStep(state);
+    if (!stored || !step || stored.stepIndex !== i || stored.team !== step.team || stored.type !== step.type) {
+      return {
+        ok: false,
+        error: { code: "WRONG_TURN", message: `Recorded action ${i + 1} does not follow the draft sequence.` },
+      };
+    }
+    const applied = applyAction(state, { team: stored.team, item: stored.item });
+    if (!applied.ok) return { ok: false, error: applied.error };
+    const recorded = applied.state.actions[applied.state.actions.length - 1];
+    if (!recorded || recorded.item !== stored.item) {
+      return {
+        ok: false,
+        error: { code: "ITEM_UNKNOWN", message: `Recorded action ${i + 1} does not match the draft pool.` },
+      };
+    }
+    state = applied.state;
+  }
+  return { ok: true, state };
+}
+
 export function isComplete(state: DraftState): boolean {
   return state.actions.length >= state.config.sequence.length;
 }

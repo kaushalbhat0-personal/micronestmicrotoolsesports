@@ -7,7 +7,7 @@ import * as matchRepo from "@/server/repositories/draft-matches";
 import * as templateRepo from "@/server/repositories/draft-templates";
 import { FREE_DRAFT_BAN_HISTORY_LIMIT, mapConsumeDraftBanCompletionError } from "@/server/services/draft-ban-policy";
 import { applyActionInputSchema, createMatchInputSchema } from "../schemas/draft-config";
-import { applyAction, isComplete, validateConfig } from "./draft-engine";
+import { applyAction, isComplete, validateConfig, verifyActionChain } from "./draft-engine";
 import type { DraftState } from "../types";
 
 export type MatchStatus = "in_progress" | "completed" | "abandoned";
@@ -206,6 +206,14 @@ export async function finalizeMatch(supabase: SupabaseClient, organizationId: st
   if (row.status === "completed") return row;
   assertTransition(row.status as MatchStatus, "completed");
   const state = toEngineState(row);
+  // Integrity gate (NEXT-01-P1-01): replay the ENTIRE stored chain through
+  // the authoritative engine before anything quota-consuming. Length alone
+  // proves nothing — a forged but well-formed array must fail here and
+  // never reach consume_draft_ban_completion.
+  const replay = verifyActionChain(state.config, state.actions);
+  if (!replay.ok) {
+    throw validationError("The recorded draft actions are invalid and cannot be finalized as an official record.");
+  }
   if (!isComplete(state)) throw validationError(`Draft is not complete (${row.actions.length} of ${row.sequence.length} steps done)`);
   const configCheck = validateConfig(state.config);
   if (!configCheck.valid) throw validationError(configCheck.errors[0] ?? "Invalid draft configuration");

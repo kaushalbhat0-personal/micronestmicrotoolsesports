@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import type { DraftConfig } from "../types";
-import { applyAction, createState, deriveView, isComplete, undoLast, validateConfig } from "./draft-engine";
+import type { DraftAction, DraftConfig } from "../types";
+import { applyAction, createState, deriveView, isComplete, undoLast, validateConfig, verifyActionChain } from "./draft-engine";
+import { GAME_VETO_PRESETS } from "./game-presets";
 
 const baseConfig: DraftConfig = {
   teamA: "TAG",
@@ -132,5 +133,118 @@ describe("draft-engine undo/deriveView", () => {
     expect(v.teamBItems).toHaveLength(3);
     expect(v.available.filter((p) => p.status === "available").map((p) => p.name)).toEqual(["Map G"]);
     expect(v.canUndo).toBe(true);
+  });
+});
+
+describe("draft-engine verifyActionChain (finalize integrity gate)", () => {
+  const stamped = (actions: Array<Omit<DraftAction, "at">>): DraftAction[] =>
+    actions.map((a) => ({ ...a, at: "2026-01-01T00:00:00.000Z" }));
+
+  const validChain: DraftAction[] = stamped([
+    { stepIndex: 0, team: "A", type: "ban", item: "Map A" },
+    { stepIndex: 1, team: "B", type: "ban", item: "Map B" },
+    { stepIndex: 2, team: "A", type: "ban", item: "Map C" },
+    { stepIndex: 3, team: "B", type: "ban", item: "Map D" },
+    { stepIndex: 4, team: "A", type: "pick", item: "Map E" },
+    { stepIndex: 5, team: "B", type: "pick", item: "Map F" },
+  ]);
+
+  it("accepts a fully valid chain", () => {
+    const r = verifyActionChain(baseConfig, validChain);
+    expect(r.ok).toBe(true);
+  });
+
+  it("accepts an empty chain (valid prefix, finalize still requires completeness)", () => {
+    expect(verifyActionChain(baseConfig, []).ok).toBe(true);
+  });
+
+  it("rejects wrong-turn order at the correct count", () => {
+    const forged = validChain.map((a, i) => (i === 0 ? { ...a, team: "B" as const } : a));
+    const r = verifyActionChain(baseConfig, forged);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects duplicate selections at the correct count", () => {
+    const forged = validChain.map((a, i) => (i === 1 ? { ...a, item: "Map A" } : a));
+    const r = verifyActionChain(baseConfig, forged);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects pool-external items at the correct count", () => {
+    const forged = validChain.map((a, i) => (i === 4 ? { ...a, item: "Map Z" } : a));
+    const r = verifyActionChain(baseConfig, forged);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects a flipped step-type label at the correct count", () => {
+    const forged = validChain.map((a, i) => (i === 4 ? { ...a, type: "ban" as const } : a));
+    const r = verifyActionChain(baseConfig, forged);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects non-canonical item casing at the correct count", () => {
+    const forged = validChain.map((a, i) => (i === 0 ? { ...a, item: "map a" } : a));
+    const r = verifyActionChain(baseConfig, forged);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects a stepIndex gap at the correct count", () => {
+    const forged = validChain.map((a, i) => (i === 2 ? { ...a, stepIndex: 5 } : a));
+    const r = verifyActionChain(baseConfig, forged);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects actions beyond the sequence length", () => {
+    const forged: DraftAction[] = [
+      ...validChain,
+      { stepIndex: 6, team: "A", type: "ban", item: "Map G", at: "2026-01-01T00:00:00.000Z" },
+    ];
+    const r = verifyActionChain(baseConfig, forged);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects an invalid side label at the correct count", () => {
+    const config: DraftConfig = {
+      teamA: "TAG",
+      teamB: "Rivals",
+      pool: ["Map A", "Map B", "Map C"],
+      sequence: [
+        { team: "A", type: "ban" },
+        { team: "B", type: "side" },
+        { team: "A", type: "pick" },
+      ],
+    };
+    const forged = stamped([
+      { stepIndex: 0, team: "A", type: "ban", item: "Map A" },
+      { stepIndex: 1, team: "B", type: "side", item: "x".repeat(61) },
+      { stepIndex: 2, team: "A", type: "pick", item: "Map B" },
+    ]);
+    expect(verifyActionChain(config, forged).ok).toBe(false);
+    const valid = stamped([
+      { stepIndex: 0, team: "A", type: "ban", item: "Map A" },
+      { stepIndex: 1, team: "B", type: "side", item: "CT" },
+      { stepIndex: 2, team: "A", type: "pick", item: "Map B" },
+    ]);
+    expect(verifyActionChain(config, valid).ok).toBe(true);
+  });
+
+  it("every official preset replays cleanly with a full valid chain", () => {
+    expect(GAME_VETO_PRESETS).toHaveLength(7);
+    for (const preset of GAME_VETO_PRESETS) {
+      const pool = ["Map 1", "Map 2", "Map 3", "Map 4", "Map 5", "Map 6", "Map 7", "Map 8", "Map 9"];
+      const used = new Set<string>();
+      const actions: DraftAction[] = preset.sequence.map((step, i) => {
+        let item: string;
+        if (step.type === "side") {
+          item = i % 2 === 0 ? "CT" : "T";
+        } else {
+          item = pool.find((p) => !used.has(p)) ?? "";
+          used.add(item);
+        }
+        return { stepIndex: i, team: step.team, type: step.type, item, at: "2026-01-01T00:00:00.000Z" };
+      });
+      const r = verifyActionChain({ teamA: "TAG", teamB: "Rivals", pool, sequence: [...preset.sequence] }, actions);
+      expect(r.ok).toBe(true);
+    }
   });
 });
