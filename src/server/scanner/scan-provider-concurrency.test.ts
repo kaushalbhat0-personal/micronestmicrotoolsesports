@@ -9,7 +9,7 @@ import { executeScan } from "./scan-orchestrator";
 import { createInMemoryBudget } from "@/features/sponsor-sentinel/services/budget";
 import type { CanonicalVideo } from "@/features/sponsor-sentinel/types/observations";
 import type { Platform } from "@/features/sponsor-sentinel/types/platform";
-import type { LiveStateProvider, VideoEvidenceProvider } from "@/features/sponsor-sentinel/types/provider";
+import type { ConnectedChannelRef, LiveStateProvider, VideoEvidenceProvider } from "@/features/sponsor-sentinel/types/provider";
 import { YouTubeClient } from "@/server/integrations/youtube/client";
 import { YouTubeProvider } from "@/server/integrations/youtube/provider";
 
@@ -79,17 +79,19 @@ function makeVideo(title: string, id: string): CanonicalVideo {
     platform: "twitch" as Platform,
     externalVideoId: id,
     externalChannelId: "twitch-123",
+    channelHandle: "@testchannel",
     title,
     description: "",
     tags: [],
     category: null,
-    durationSeconds: null,
+    startedAt: null,
     publishedAt: "2026-03-15T12:00:00Z",
-    channelId: "twitch-123",
-    liveBroadcastContent: "none",
+    endedAt: null,
+    durationSeconds: null,
     canonicalUrl: `https://twitch.tv/videos/${id}`,
     observedAt: new Date().toISOString(),
-  } as CanonicalVideo;
+    viewable: true,
+  };
 }
 
 describe("provider concurrency", () => {
@@ -110,7 +112,7 @@ describe("provider concurrency", () => {
         active--;
         return null;
       },
-      listVideos: async (ch) => {
+      listVideos: async (ch: ConnectedChannelRef) => {
         active++;
         maxActive = Math.max(maxActive, active);
         await new Promise((r) => setTimeout(r, 30));
@@ -143,7 +145,7 @@ describe("provider concurrency", () => {
         active--;
         return null;
       },
-      listVideos: async (ch) => {
+      listVideos: async (ch: ConnectedChannelRef) => {
         active++;
         maxActive = Math.max(maxActive, active);
         await new Promise((r) => setTimeout(r, 20));
@@ -179,11 +181,11 @@ describe("provider concurrency", () => {
     const { evidenceStore } = setupMocksChannels(channels, deliverables);
     const failingProvider: LiveStateProvider & VideoEvidenceProvider = {
       platform: "twitch" as Platform,
-      getLiveState: async (ch) => {
+      getLiveState: async (ch: ConnectedChannelRef) => {
         if (ch.externalChannelId === "twitch-1") throw new Error("provider down");
         return null;
       },
-      listVideos: async (ch) => {
+      listVideos: async (ch: ConnectedChannelRef) => {
         if (ch.externalChannelId === "twitch-1") throw new Error("provider down");
         return [makeVideo("x", `${ch.externalChannelId}-vid`)];
       },
@@ -207,7 +209,7 @@ describe("provider concurrency", () => {
     }) as unknown as typeof fetch;
     let searchHistoricalCalled = false;
     const origFetch = fetchMock;
-    const wrappedFetch = vi.fn(async (url: string, ...args: unknown[]) => {
+    const wrappedFetch = vi.fn(async (url: string, ...args: [RequestInit?]) => {
       if (String(url).includes("/search") && !String(url).includes("eventType=live")) searchHistoricalCalled = true;
       return origFetch(url, ...args) as unknown as Response;
     }) as unknown as typeof fetch;

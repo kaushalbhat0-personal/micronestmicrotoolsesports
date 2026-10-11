@@ -229,7 +229,8 @@ describe("kick oauth service — getKickUser", () => {
   it("9. correct Authorization Bearer header on both requests", async () => {
     const headers: string[] = [];
     const mockFetch = vi.fn(async (url: string, init: RequestInit) => {
-      headers.push((init.headers as Record<string, string>).Authorization);
+      const authorization = (init.headers as Record<string, string>).Authorization;
+      if (typeof authorization === "string") headers.push(authorization);
       if (url.includes("/users")) return { ok: true, status: 200, json: async () => ({ data: [{ user_id: 5, name: "u" }] }), text: async () => "" } as Response;
       return { ok: true, status: 200, json: async () => ({ data: [{ broadcaster_user_id: 5, slug: "s" }] }), text: async () => "" } as Response;
     });

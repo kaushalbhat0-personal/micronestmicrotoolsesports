@@ -20,17 +20,19 @@ function makeVideo(title: string, id: string): CanonicalVideo {
     platform: "twitch" as Platform,
     externalVideoId: id,
     externalChannelId: "twitch-123",
+    channelHandle: "@testchannel",
     title,
     description: "",
     tags: [],
     category: null,
-    durationSeconds: null,
+    startedAt: null,
     publishedAt: "2026-03-15T12:00:00Z",
-    channelId: "twitch-123",
-    liveBroadcastContent: "none",
+    endedAt: null,
+    durationSeconds: null,
     canonicalUrl: `https://twitch.tv/videos/${id}`,
     observedAt: new Date().toISOString(),
-  } as CanonicalVideo;
+    viewable: true,
+  };
 }
 
 function providerWithVideos(videos: CanonicalVideo[]): LiveStateProvider & VideoEvidenceProvider {

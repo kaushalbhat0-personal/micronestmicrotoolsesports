@@ -9,7 +9,7 @@ import * as scanRepo from "@/server/repositories/scans";
 import { executeScan } from "./scan-orchestrator";
 import type { CanonicalVideo } from "@/features/sponsor-sentinel/types/observations";
 import type { Platform } from "@/features/sponsor-sentinel/types/platform";
-import type { LiveStateProvider, VideoEvidenceProvider } from "@/features/sponsor-sentinel/types/provider";
+import type { ConnectedChannelRef, LiveStateProvider, VideoEvidenceProvider } from "@/features/sponsor-sentinel/types/provider";
 
 function makeSupabase(): SupabaseClient {
   return { from: () => ({}) } as unknown as SupabaseClient;
@@ -115,22 +115,24 @@ function setupMocks(opts: { orgId: string; campaignId: string; deliverables: Arr
 }
 
 function makeVideo(overrides: Partial<CanonicalVideo> & { title: string }): CanonicalVideo {
-  return {
+  const base: CanonicalVideo = {
     platform: "twitch" as Platform,
-    externalVideoId: overrides.externalVideoId ?? "vid-1",
-    externalChannelId: overrides.externalChannelId ?? "twitch-123",
-    title: overrides.title,
-    description: overrides.description ?? "",
-    tags: overrides.tags ?? [],
-    category: overrides.category ?? null,
-    durationSeconds: overrides.durationSeconds ?? null,
-    publishedAt: overrides.publishedAt ?? "2026-03-15T12:00:00Z",
-    channelId: overrides.channelId ?? "twitch-123",
-    liveBroadcastContent: "none",
-    canonicalUrl: overrides.canonicalUrl ?? "https://twitch.tv/videos/vid-1",
-    observedAt: overrides.observedAt ?? "2026-03-15T12:00:00Z",
-    ...overrides,
-  } as CanonicalVideo;
+    externalVideoId: "vid-1",
+    externalChannelId: "twitch-123",
+    channelHandle: "@testchannel",
+    title: "Untitled",
+    description: "",
+    tags: [],
+    category: null,
+    startedAt: null,
+    publishedAt: "2026-03-15T12:00:00Z",
+    endedAt: null,
+    durationSeconds: null,
+    canonicalUrl: "https://twitch.tv/videos/vid-1",
+    observedAt: "2026-03-15T12:00:00Z",
+    viewable: true,
+  };
+  return { ...base, ...overrides };
 }
 
 function providerWithVideos(videos: CanonicalVideo[]): LiveStateProvider & VideoEvidenceProvider {
@@ -242,7 +244,7 @@ describe("batch persistence", () => {
       const provider: LiveStateProvider & VideoEvidenceProvider = {
         platform: "twitch" as Platform,
         getLiveState: async () => null,
-        listVideos: async (ch) => {
+        listVideos: async (ch: ConnectedChannelRef) => {
           return Array.from({ length: c.videos }, (_, i) =>
             makeVideo({
               title: "x video",

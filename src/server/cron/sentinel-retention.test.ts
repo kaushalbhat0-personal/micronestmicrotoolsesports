@@ -31,6 +31,10 @@ function createFakeSupabase(initial: { scans: TableRow[]; evidence: TableRow[]; 
     return true;
   }
 
+  function rows(name: string): TableRow[] {
+    return tables[name] ?? [];
+  }
+
   const supabase: Record<string, unknown> = {
     from: (table: string) => {
       const buildSelect = () => {
@@ -59,17 +63,17 @@ function createFakeSupabase(initial: { scans: TableRow[]; evidence: TableRow[]; 
         };
         chain.order = () => chain;
         chain.limit = (n: number) => {
-          const filtered = tables[table].filter((r) => matches(r, filters)).slice(0, n);
+          const filtered = rows(table).filter((r) => matches(r, filters)).slice(0, n);
           return Promise.resolve({ data: filtered, error: null });
         };
         chain.single = async () => {
-          const filtered = tables[table].filter((r) => matches(r, filters));
+          const filtered = rows(table).filter((r) => matches(r, filters));
           return { data: filtered[0] ?? null, error: filtered[0] ? null : { message: "not found" } };
         };
         // allow await on chain without limit/order for some queries (e.g., select id limit 1000)
         // Make chain thenable that resolves to filtered data when awaited directly
         (chain as unknown as { then: unknown }).then = (onFulfilled: unknown) => {
-          const filtered = tables[table].filter((r) => matches(r, filters));
+          const filtered = rows(table).filter((r) => matches(r, filters));
           return Promise.resolve({ data: filtered, error: null }).then(onFulfilled as never);
         };
         return chain;
@@ -102,12 +106,12 @@ function createFakeSupabase(initial: { scans: TableRow[]; evidence: TableRow[]; 
         (chain as unknown as { then: unknown }).then = (onFulfilled: unknown, onRejected: unknown) => {
           // FK check: evaluations evidence_id must exist, evidence scan_id etc. For test, enforce order: if deleting evidence while evaluations still exist for same scan, fail
           // Simple check: if table is evidence and evaluations still exist for those scan_ids, throw
-          const toDelete = tables[table].filter((r) => matches(r, filters));
+          const toDelete = rows(table).filter((r) => matches(r, filters));
           // Simulate FK RESTRICT for evidence/evaluations/scan order
           if (table === "evidence") {
             const scanIds = toDelete.map((r) => r.scan_id).filter(Boolean);
             // if any evaluation still exists for those evidence ids or scan_ids, fail
-            const hasEval = tables["evaluations"].some((ev) => {
+            const hasEval = rows("evaluations").some((ev) => {
               const evScan = ev.scan_id as string | null;
               const evId = ev.evidence_id as string | null;
               return (evScan && scanIds.includes(evScan)) || toDelete.some((e) => e.id === evId);
@@ -118,13 +122,13 @@ function createFakeSupabase(initial: { scans: TableRow[]; evidence: TableRow[]; 
           }
           if (table === "scans") {
             const ids = toDelete.map((r) => r.id);
-            const hasChild = tables["evidence"].some((e) => ids.includes(e.scan_id as string)) || tables["evaluations"].some((e) => ids.includes(e.scan_id as string));
+            const hasChild = rows("evidence").some((e) => ids.includes(e.scan_id as string)) || rows("evaluations").some((e) => ids.includes(e.scan_id as string));
             if (hasChild && toDelete.length > 0) {
               return Promise.resolve({ error: { message: "violates foreign key" }, count: 0 } as never).then(onFulfilled as never, onRejected as never);
             }
           }
-          const remaining = tables[table].filter((r) => !matches(r, filters));
-          const deletedCount = tables[table].length - remaining.length;
+          const remaining = rows(table).filter((r) => !matches(r, filters));
+          const deletedCount = rows(table).length - remaining.length;
           tables[table] = remaining;
           return Promise.resolve({ error: null, count: deletedCount, data: toDelete } as never).then(onFulfilled as never, onRejected as never);
         };
@@ -139,12 +143,12 @@ function createFakeSupabase(initial: { scans: TableRow[]; evidence: TableRow[]; 
     rpc: async () => ({ data: false, error: null } as never),
   };
 
-  return { supabase: supabase as unknown as import("@supabase/supabase-js").SupabaseClient, tables };
+  return { supabase: supabase as unknown as import("@supabase/supabase-js").SupabaseClient, tables, rows };
 }
 
 describe("retention selection", () => {
   it("expired completed scan is selected", async () => {
-    const { supabase, tables } = createFakeSupabase({
+    const { supabase, rows } = createFakeSupabase({
       scans: [{ id: "s1", organization_id: "org-a", status: "success", completed_at: daysAgo(SCANS_RETENTION_DAYS + 1) }],
       evidence: [],
       evaluations: [],
@@ -152,11 +156,11 @@ describe("retention selection", () => {
     });
     const res = await runRetention(supabase);
     expect(res.deletedScans).toBe(1);
-    expect(tables.scans.length).toBe(0);
+    expect(rows("scans").length).toBe(0);
   });
 
   it("89-day scan is preserved", async () => {
-    const { supabase, tables } = createFakeSupabase({
+    const { supabase, rows } = createFakeSupabase({
       scans: [{ id: "s1", organization_id: "org-a", status: "success", completed_at: daysAgo(89) }],
       evidence: [],
       evaluations: [],
@@ -164,7 +168,7 @@ describe("retention selection", () => {
     });
     const res = await runRetention(supabase);
     expect(res.deletedScans).toBe(0);
-    expect(tables.scans.length).toBe(1);
+    expect(rows("scans").length).toBe(1);
   });
 
   it("pending scan preserved", async () => {
@@ -207,7 +211,7 @@ describe("retention selection", () => {
 
 describe("organization isolation", () => {
   it("org A deletes only org A", async () => {
-    const { supabase, tables } = createFakeSupabase({
+    const { supabase, rows } = createFakeSupabase({
       scans: [
         { id: "s-a", organization_id: "org-a", status: "success", completed_at: daysAgo(91) },
         { id: "s-b", organization_id: "org-b", status: "success", completed_at: daysAgo(91) },
@@ -229,9 +233,9 @@ describe("organization isolation", () => {
     await runRetention(supabase);
     // After one run, one org's data may remain because our Org discovery picks first org then second org sequential, but both should be processed
     // Our implementation processes all orgs sequentially, so both should be deleted after one run
-    expect(tables.scans.length).toBe(0);
+    expect(rows("scans").length).toBe(0);
     // Re-create with only org-a expired, org-b not expired
-    const { supabase: sup2, tables: t2 } = createFakeSupabase({
+    const { supabase: sup2, rows: rows2 } = createFakeSupabase({
       scans: [
         { id: "s-a", organization_id: "org-a", status: "success", completed_at: daysAgo(91) },
         { id: "s-b", organization_id: "org-b", status: "success", completed_at: daysAgo(10) },
@@ -241,7 +245,7 @@ describe("organization isolation", () => {
       webhook_events: [],
     });
     await runRetention(sup2);
-    expect(t2.scans.map((r) => r.id)).toEqual(["s-b"]);
+    expect(rows2("scans").map((r) => r.id)).toEqual(["s-b"]);
   });
 
   it("no client/request organization_id trusted - uses DB records", async () => {
@@ -255,7 +259,7 @@ describe("organization isolation", () => {
 
 describe("dependency order", () => {
   it("evaluations -> evidence -> scans", async () => {
-    const { supabase, tables } = createFakeSupabase({
+    const { supabase, rows } = createFakeSupabase({
       scans: [{ id: "s1", organization_id: "org-a", status: "success", completed_at: daysAgo(91) }],
       evidence: [{ id: "ev1", organization_id: "org-a", scan_id: "s1" }],
       evaluations: [{ id: "eval1", organization_id: "org-a", scan_id: "s1", evidence_id: "ev1" }],
@@ -265,9 +269,9 @@ describe("dependency order", () => {
     expect(res.deletedEvaluations).toBe(1);
     expect(res.deletedEvidence).toBe(1);
     expect(res.deletedScans).toBe(1);
-    expect(tables.evaluations.length).toBe(0);
-    expect(tables.evidence.length).toBe(0);
-    expect(tables.scans.length).toBe(0);
+    expect(rows("evaluations").length).toBe(0);
+    expect(rows("evidence").length).toBe(0);
+    expect(rows("scans").length).toBe(0);
   });
 
   it("evidence deletion before evaluations would fail (FK)", async () => {
@@ -286,7 +290,7 @@ describe("dependency order", () => {
 
 describe("per-scan consistency", () => {
   it("scan X deleted, its evidence/evaluations deleted, scan Y preserved", async () => {
-    const { supabase, tables } = createFakeSupabase({
+    const { supabase, rows } = createFakeSupabase({
       scans: [
         { id: "s-x", organization_id: "org-a", status: "success", completed_at: daysAgo(91) },
         { id: "s-y", organization_id: "org-a", status: "success", completed_at: daysAgo(10) },
@@ -302,15 +306,15 @@ describe("per-scan consistency", () => {
       webhook_events: [],
     });
     await runRetention(supabase);
-    expect(tables.scans.map((r) => r.id)).toEqual(["s-y"]);
-    expect(tables.evidence.map((r) => r.id)).toEqual(["ev-y"]);
-    expect(tables.evaluations.map((r) => r.id)).toEqual(["eval-y"]);
+    expect(rows("scans").map((r) => r.id)).toEqual(["s-y"]);
+    expect(rows("evidence").map((r) => r.id)).toEqual(["ev-y"]);
+    expect(rows("evaluations").map((r) => r.id)).toEqual(["eval-y"]);
   });
 });
 
 describe("historical NULL scan_id", () => {
   it("old scan_id IS NULL evidence eligible via observed_at", async () => {
-    const { supabase, tables } = createFakeSupabase({
+    const { supabase, rows } = createFakeSupabase({
       scans: [],
       evidence: [
         { id: "ev-old", organization_id: "org-a", scan_id: null, observed_at: daysAgo(EVIDENCE_RETENTION_DAYS + 1) },
@@ -323,8 +327,8 @@ describe("historical NULL scan_id", () => {
       webhook_events: [],
     });
     await runRetention(supabase);
-    expect(tables.evidence.map((r) => r.id)).toEqual(["ev-recent"]);
-    expect(tables.evaluations.map((r) => r.id)).toEqual(["eval-recent"]);
+    expect(rows("evidence").map((r) => r.id)).toEqual(["ev-recent"]);
+    expect(rows("evaluations").map((r) => r.id)).toEqual(["eval-recent"]);
   });
 
   it("no heuristic scan association created", async () => {
@@ -344,7 +348,7 @@ describe("historical NULL scan_id", () => {
 
 describe("webhooks", () => {
   it("31-day processed event deleted, recent preserved", async () => {
-    const { supabase, tables } = createFakeSupabase({
+    const { supabase, rows } = createFakeSupabase({
       scans: [],
       evidence: [],
       evaluations: [],
@@ -354,7 +358,7 @@ describe("webhooks", () => {
       ],
     });
     await runRetention(supabase);
-    expect(tables.webhook_events.map((r) => r.id)).toEqual(["wh-recent"]);
+    expect(rows("webhook_events").map((r) => r.id)).toEqual(["wh-recent"]);
   });
 });
 
@@ -363,22 +367,22 @@ describe("batching", () => {
     const scans = Array.from({ length: 1200 }, (_, i) => ({ id: `s-${i}`, organization_id: "org-a", status: "success", completed_at: daysAgo(91) }));
     const evidence = scans.map((s) => ({ id: `ev-${s.id}`, organization_id: "org-a", scan_id: s.id }));
     const evaluations = scans.map((s) => ({ id: `eval-${s.id}`, organization_id: "org-a", scan_id: s.id, evidence_id: `ev-${s.id}` }));
-    const { supabase, tables } = createFakeSupabase({ scans, evidence, evaluations, webhook_events: [] });
+    const { supabase, rows } = createFakeSupabase({ scans, evidence, evaluations, webhook_events: [] });
     const r1 = await runRetention(supabase);
     expect(r1.deletedScans).toBe(500);
-    expect(tables.scans.length).toBe(700);
+    expect(rows("scans").length).toBe(700);
     const r2 = await runRetention(supabase);
     expect(r2.deletedScans).toBe(500);
-    expect(tables.scans.length).toBe(200);
+    expect(rows("scans").length).toBe(200);
     const r3 = await runRetention(supabase);
     expect(r3.deletedScans).toBe(200);
-    expect(tables.scans.length).toBe(0);
+    expect(rows("scans").length).toBe(0);
   });
 });
 
 describe("idempotency", () => {
   it("run twice safe", async () => {
-    const { supabase, tables } = createFakeSupabase({
+    const { supabase, rows } = createFakeSupabase({
       scans: [{ id: "s1", organization_id: "org-a", status: "success", completed_at: daysAgo(91) }],
       evidence: [{ id: "ev1", organization_id: "org-a", scan_id: "s1" }],
       evaluations: [{ id: "eval1", organization_id: "org-a", scan_id: "s1", evidence_id: "ev1" }],
@@ -389,7 +393,7 @@ describe("idempotency", () => {
     const r2 = await runRetention(supabase);
     expect(r2.deletedScans).toBe(0);
     expect(r2.deletedEvidence).toBe(0);
-    expect(tables.scans.length).toBe(0);
+    expect(rows("scans").length).toBe(0);
   });
 });
 

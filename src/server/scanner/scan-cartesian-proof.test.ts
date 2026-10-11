@@ -99,22 +99,24 @@ function setupMocks(opts: { orgId: string; campaignId: string; deliverables: Arr
 }
 
 function makeVideo(overrides: Partial<CanonicalVideo> & { title: string }): CanonicalVideo {
-  return {
+  const base: CanonicalVideo = {
     platform: "twitch" as Platform,
-    externalVideoId: overrides.externalVideoId ?? "vid-1",
-    externalChannelId: overrides.externalChannelId ?? "twitch-123",
-    title: overrides.title,
-    description: overrides.description ?? "",
-    tags: overrides.tags ?? [],
-    category: overrides.category ?? null,
-    durationSeconds: overrides.durationSeconds ?? null,
-    publishedAt: overrides.publishedAt ?? "2026-03-15T12:00:00Z",
-    channelId: overrides.channelId ?? "twitch-123",
-    liveBroadcastContent: "none",
-    canonicalUrl: overrides.canonicalUrl ?? "https://twitch.tv/videos/vid-1",
-    observedAt: overrides.observedAt ?? "2026-03-15T12:00:00Z",
-    ...overrides,
-  } as CanonicalVideo;
+    externalVideoId: "vid-1",
+    externalChannelId: "twitch-123",
+    channelHandle: "@testchannel",
+    title: "Untitled",
+    description: "",
+    tags: [],
+    category: null,
+    startedAt: null,
+    publishedAt: "2026-03-15T12:00:00Z",
+    endedAt: null,
+    durationSeconds: null,
+    canonicalUrl: "https://twitch.tv/videos/vid-1",
+    observedAt: "2026-03-15T12:00:00Z",
+    viewable: true,
+  };
+  return { ...base, ...overrides };
 }
 
 function providerWithVideos(videos: CanonicalVideo[]): LiveStateProvider & VideoEvidenceProvider {

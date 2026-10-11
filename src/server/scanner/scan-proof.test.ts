@@ -16,14 +16,15 @@ function makeSupabaseStub() {
     insert: (row: Record<string, unknown>) => ({
       select: () => ({
         single: async () => {
-          const inserted = { id: `${name}-${stores[name].length + 1}`, ...row, created_at: new Date().toISOString() };
+          const store = stores[name] ?? [];
+          const inserted: Record<string, unknown> = { id: `${name}-${store.length + 1}`, ...row, created_at: new Date().toISOString() };
           if (name === "evidence") {
-            const dup = (stores[name] as Record<string, unknown>[]).find(
+            const dup = (store as Record<string, unknown>[]).find(
               (r) => r["deliverable_id"] === inserted["deliverable_id"] && r["source_id"] === inserted["source_id"],
             );
             if (dup) throw new Error('duplicate key value violates unique constraint "evidence_idempotency_unique"');
           }
-          (stores[name] as unknown[]).push(inserted);
+          (store as unknown[]).push(inserted);
           return { data: inserted, error: null };
         },
       }),
@@ -113,24 +114,25 @@ function setupCampaignMocks(opts: { orgId: string; campaignId: string; deliverab
 }
 
 function makeVideo(overrides: Partial<CanonicalVideo> & { externalVideoId: string }): CanonicalVideo {
-  return {
+  const { externalVideoId, ...rest } = overrides;
+  const base: CanonicalVideo = {
     platform: "youtube",
-    externalVideoId: overrides.externalVideoId,
+    externalVideoId,
     externalChannelId: "UCoZxzLMwr06_UEj2JpkAtoQ",
     channelHandle: "@mysticminutes17",
-    title: overrides.title ?? "Title",
-    description: overrides.description ?? null,
+    title: "Title",
+    description: null,
     category: null,
     tags: [],
     startedAt: null,
-    publishedAt: overrides.publishedAt ?? "2025-11-17T00:00:00Z",
+    publishedAt: "2025-11-17T00:00:00Z",
     endedAt: null,
     durationSeconds: 30,
-    canonicalUrl: `https://youtube.com/watch?v=${overrides.externalVideoId}`,
+    canonicalUrl: `https://youtube.com/watch?v=${externalVideoId}`,
     observedAt: new Date().toISOString(),
     viewable: null,
-    ...overrides,
-  } as CanonicalVideo;
+  };
+  return { ...base, ...rest };
 }
 
 describe("proof engine — candidate evaluation + bounded discovery", () => {
@@ -284,7 +286,6 @@ describe("proof engine — candidate evaluation + bounded discovery", () => {
     });
     // Two videos: first has wrong tags, second has correct
     const v0 = makeVideo({ externalVideoId: "vid0", title: "t0", publishedAt: "2025-11-20T00:00:00Z" });
-    // @ts-expect-error tags missing but we set via as
     (v0 as unknown as Record<string, unknown>).tags = [{ value: "wrong", source: "youtube_freeform", platform: "youtube", label: "wrong" }];
     const v1 = makeVideo({ externalVideoId: "uKj01I5o3RI", title: "t1", publishedAt: "2025-11-17T00:00:00Z" });
     (v1 as unknown as Record<string, unknown>).tags = [{ value: "#spirituality", source: "youtube_freeform", platform: "youtube", label: "#spirituality" }];

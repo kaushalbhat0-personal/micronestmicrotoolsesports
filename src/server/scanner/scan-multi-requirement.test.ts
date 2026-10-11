@@ -12,6 +12,7 @@ import { resetMocks } from "@/server/integrations/mock/provider";
 import type { CanonicalVideo, CanonicalLiveStream } from "@/features/sponsor-sentinel/types/observations";
 import type { Platform } from "@/features/sponsor-sentinel/types/platform";
 import type { LiveStateProvider, VideoEvidenceProvider } from "@/features/sponsor-sentinel/types/provider";
+import type { DeliverableRule } from "@/features/sponsor-sentinel/schemas/rules";
 
 function makeSupabase(): SupabaseClient {
   return { from: () => ({}) } as unknown as SupabaseClient;
@@ -91,7 +92,16 @@ function setupMocks(opts: {
   const evaluationStore: EvaluationRow[] = [];
 
   vi.spyOn(evidenceRepo, "createEvidence").mockImplementation(async (_s, input) => {
-    const ev = { id: `ev-${evidenceStore.length + 1}`, ...(input as Record<string, unknown>), created_at: new Date().toISOString() } as EvidenceRow;
+    const ev = {
+      id: `ev-${evidenceStore.length + 1}`,
+      deliverable_id: "",
+      external_content_id: "",
+      observed_value: "",
+      platform: "",
+      scan_id: "",
+      ...(input as Record<string, unknown>),
+      created_at: new Date().toISOString(),
+    } as EvidenceRow;
     // idempotency check similar to orchestrator expectation
     const dup = evidenceStore.find(
       (r) => r.deliverable_id === ev.deliverable_id && r.platform === ev.platform && r.source_id === (ev as Record<string, unknown>)["source_id"] && r.observed_at === (ev as Record<string, unknown>)["observed_at"],
@@ -102,7 +112,16 @@ function setupMocks(opts: {
   });
 
   vi.spyOn(evaluationRepo, "createEvaluation").mockImplementation(async (_s, input) => {
-    const ev = { id: `eval-${evaluationStore.length + 1}`, ...(input as Record<string, unknown>), created_at: new Date().toISOString() } as EvaluationRow;
+    const ev = {
+      id: `eval-${evaluationStore.length + 1}`,
+      deliverable_id: "",
+      evidence_id: "",
+      result: "",
+      reason: "",
+      scan_id: "",
+      ...(input as Record<string, unknown>),
+      created_at: new Date().toISOString(),
+    } as EvaluationRow;
     evaluationStore.push(ev);
     return ev as never;
   });
@@ -111,23 +130,24 @@ function setupMocks(opts: {
 }
 
 function makeVideo(overrides: Partial<CanonicalVideo> & { title: string }): CanonicalVideo {
-  return {
+  const base: CanonicalVideo = {
     platform: "twitch" as Platform,
-    externalVideoId: overrides.externalVideoId ?? "vid-1",
-    externalChannelId: overrides.externalChannelId ?? "twitch-123",
-    title: overrides.title,
-    description: overrides.description ?? "",
-    tags: overrides.tags ?? [],
-    category: overrides.category ?? null,
-    durationSeconds: overrides.durationSeconds ?? null,
-    publishedAt: overrides.publishedAt ?? "2026-03-15T12:00:00Z",
-    channelId: overrides.channelId ?? "twitch-123",
-    liveBroadcastContent: "none",
-    canonicalUrl: overrides.canonicalUrl ?? "https://twitch.tv/videos/vid-1",
-    observedAt: overrides.observedAt ?? "2026-03-15T12:00:00Z",
-    // required fields
-    ...overrides,
-  } as CanonicalVideo;
+    externalVideoId: "vid-1",
+    externalChannelId: "twitch-123",
+    channelHandle: "@testchannel",
+    title: "Untitled",
+    description: "",
+    tags: [],
+    category: null,
+    startedAt: null,
+    publishedAt: "2026-03-15T12:00:00Z",
+    endedAt: null,
+    durationSeconds: null,
+    canonicalUrl: "https://twitch.tv/videos/vid-1",
+    observedAt: "2026-03-15T12:00:00Z",
+    viewable: true,
+  };
+  return { ...base, ...overrides };
 }
 
 function _makeLive(overrides: Partial<CanonicalLiveStream>): CanonicalLiveStream {
@@ -223,17 +243,11 @@ describe("multi-requirement sponsor tracking — regression lock", () => {
     ];
     const video = makeVideo({
       title: "BrandX Gaming Championship #BrandX",
-      description: "Sponsored by BrandX", // no brandx.com
+      description: "Sponsored by BrandX — https://brandx.com",
       durationSeconds: 30, // FAIL (<60)
       category: { id: "gaming-1", name: "Gaming", platform: "twitch" as Platform },
       externalVideoId: "vid-mixed",
     });
-
-    // Adjust del-2 to expect brandx.com which will FAIL because description lacks it, but spec says TC2 expects del-2 PASS? Let's make description contain brandx.com for PASS, and duration FAIL
-    // For this test we want del-2 PASS, so include brandx.com
-    video.description = "Sponsored by BrandX — https://brandx.com";
-    // Actually we want 3 PASS 1 FAIL: duration FAIL, others PASS
-    // So keep as above: del-1 PASS, del-2 PASS, del-4 PASS, del-3 FAIL
 
     const { evaluationStore } = setupMocks({ orgId: "org-a", campaignId: "camp-mixed", deliverables, channels: [{ platform: "twitch", external_channel_id: "twitch-123" }] });
     const provider = providerWithVideos([video]);
@@ -294,7 +308,7 @@ describe("multi-requirement sponsor tracking — regression lock", () => {
   // ── TEST CASE 4 ──
   it("TC4: 10 requirements — no early termination", async () => {
     const supabase = makeSupabase();
-    const deliverables = [
+    const deliverables: Array<{ id: string; rule: DeliverableRule }> = [
       { id: "del-1", rule: { type: "required_title_contains", value: "BrandX" } },
       { id: "del-2", rule: { type: "required_description_contains", value: "brand" } },
       { id: "del-3", rule: { type: "minimum_duration", minutes: 1 } },
@@ -302,14 +316,10 @@ describe("multi-requirement sponsor tracking — regression lock", () => {
       { id: "del-5", rule: { type: "required_hashtag", value: "#BrandX" } },
       { id: "del-6", rule: { type: "required_title_contains", value: "Gaming" } },
       { id: "del-7", rule: { type: "required_description_contains", value: "https" } },
-      { id: "del-8", rule: { type: "required_streaming_window", value: "2026-03-01T00:00:00Z" } } as unknown as { type: string; value: string },
+      { id: "del-8", rule: { type: "required_streaming_window" } },
       { id: "del-9", rule: { type: "required_title_contains", value: "Championship" } },
       { id: "del-10", rule: { type: "required_description_contains", value: "Sponsored" } },
     ];
-
-    // Need to adjust rule shapes to match evaluator expectations for hashtag/streaming_window/category
-    // Fix del-8 to proper type
-    (deliverables[7] as { rule: unknown }).rule = { type: "required_streaming_window" };
 
     const video = makeVideo({
       title: "BrandX Gaming Championship #BrandX",
