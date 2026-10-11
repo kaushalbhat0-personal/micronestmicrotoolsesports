@@ -82,6 +82,8 @@ export function getPresetById(id: string): RankedPreset | undefined {
   return RANKED_PRESETS.find((p) => p.id === id);
 }
 
+export * from "./game-presets";
+
 export function formatPlacementLabel(position: number): string {
   const suffix = ((): string => {
     if (position % 100 >= 11 && position % 100 <= 13) return "th";

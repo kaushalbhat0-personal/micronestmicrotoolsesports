@@ -11,6 +11,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@
 import {
   CURRENCIES,
   RANKED_PRESETS,
+  GAME_PRESETS,
   formatPlacementLabel,
   DEFAULT_PLACEMENTS,
   DEFAULT_METHOD,
@@ -18,9 +19,11 @@ import {
   DEFAULT_CURRENCY,
   type Currency,
   type DistributionMethod,
+  type GamePrizePreset,
   type PlacementInput,
   type PrizePublishContext,
 } from "../types";
+import { getGameBySlug } from "@/config/games/catalog";
 import { calculateSplit, validateInput, formatMoney, canonicalPct } from "../services/calculation";
 import { formatPayoutAnnouncement, type AnnouncementStyle } from "../services/formatters";
 import { buildCsv, downloadCsv } from "../services/export";
@@ -50,6 +53,7 @@ export function PrizeSplitterCalculator() {
   const [placements, setPlacements] = React.useState<PlacementInput[]>(DEFAULT_PLACEMENTS);
   const [equalCount, setEqualCount] = React.useState<number>(5);
   const [rankedPreset, setRankedPreset] = React.useState<string>("top3");
+  const [gamePresetId, setGamePresetId] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState<string | null>(null);
   const [copyMenuOpen, setCopyMenuOpen] = React.useState(false);
   const [linkCopied, setLinkCopied] = React.useState(false);
@@ -120,6 +124,16 @@ export function PrizeSplitterCalculator() {
     },
     []
   );
+
+  const applyGamePreset = React.useCallback((preset: GamePrizePreset) => {
+    setGamePresetId(preset.id);
+    setMethod(preset.method);
+    setPlacements(preset.placements.map((p) => ({ ...p })));
+  }, []);
+
+  const activeGamePreset = gamePresetId
+    ? (GAME_PRESETS.find((p) => p.id === gamePresetId) ?? null)
+    : null;
 
   const handleMethodChange = (next: DistributionMethod) => {
     setMethod(next);
@@ -246,6 +260,7 @@ export function PrizeSplitterCalculator() {
     setPlacements(DEFAULT_PLACEMENTS);
     setEqualCount(5);
     setRankedPreset("top3");
+    setGamePresetId(null);
     setCopied(null);
     setLinkCopied(false);
     setCopyMenuOpen(false);
@@ -375,6 +390,43 @@ export function PrizeSplitterCalculator() {
                   <Input id="sponsor-name" value={sponsorName} onChange={(e) => setSponsorName(e.target.value)} placeholder="Acme Esports" maxLength={80} />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Game presets — starting points only, everything stays editable */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Medal className="h-4 w-4 text-primary" /> Game presets
+              </CardTitle>
+              <CardDescription>Start with a sensible distribution for this game — edit everything below.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Game presets">
+                {GAME_PRESETS.map((preset) => {
+                  const pill = getGameBySlug(preset.gameSlug)?.shortName ?? preset.gameSlug;
+                  const active = gamePresetId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      aria-pressed={active}
+                      title={preset.label}
+                      onClick={() => applyGamePreset(preset)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-medium min-h-[32px] transition-colors ${
+                        active ? "bg-primary text-primary-foreground border-transparent" : "bg-card border-border hover:bg-muted"
+                      }`}
+                    >
+                      {pill}
+                    </button>
+                  );
+                })}
+              </div>
+              {activeGamePreset?.sourceNote ? (
+                <p className="text-xs text-muted-foreground">{activeGamePreset.sourceNote}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Presets are starting points — edit percentages below.</p>
+              )}
             </CardContent>
           </Card>
 
