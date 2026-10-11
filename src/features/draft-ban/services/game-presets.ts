@@ -78,19 +78,19 @@ export const GAME_VETO_PRESETS: readonly GameVetoPreset[] = [
     id: "r6-bo1",
     gameSlug: "rainbow-six-siege",
     label: "R6 BO1 — starting sequence",
-    description: "Seven bans, one map pick, then side selection.",
+    description: "2026 EU/BLAST form: seven bans, B picks the final map, then side selection.",
     sequence: [B("A"), B("B"), B("A"), B("B"), B("A"), B("B"), B("A"), P("B"), S("A")],
     sourceNote:
-      "Standard-bracket sequence per the Ubisoft competition rulebook (BO1 map ban order, 9-map pool). Side selection goes to the non-picking team per the rulebook. Operator bans are out of scope. Verify against event rules.",
+      "2026 EU/BLAST form per the Ubisoft competition rulebook (BO1 map ban order, 9-map pool): 7 bans + B picks the final map. Side selection goes to the non-picking team per the rulebook. Some events use an 8-ban remainder format instead — edit the sequence for your event. Operator bans are out of scope. Verify against event rules.",
   },
   {
     id: "r6-bo3",
     gameSlug: "rainbow-six-siege",
     label: "R6 BO3 — starting sequence",
-    description: "Bans, alternating map picks with side choices, then decider.",
+    description: "Bans, alternating map picks with side choices, then decider. Decider side — confirm team slot at match setup; assignment varies by event rules.",
     sequence: [B("A"), B("B"), B("A"), B("B"), P("A"), S("B"), P("B"), S("A"), B("A"), B("B"), S("A")],
     sourceNote:
-      "Standard-bracket sequence per the Ubisoft competition rulebook (BO3 map ban order). Decider side follows series round-differential/seeding per the rulebook — confirm the team slot when creating the match. Operator bans are out of scope. Verify against event rules.",
+      "Standard-bracket sequence per the Ubisoft competition rulebook (BO3 map ban order). Decider side — confirm the team slot when creating the match; assignment varies by event rules (round-differential, seeding, or coin-flip) and is not universally Team A. Operator bans are out of scope. Verify against event rules.",
   },
 ];
 
