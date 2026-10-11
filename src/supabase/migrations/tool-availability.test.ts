@@ -12,6 +12,13 @@ const historicalSql = readFileSync(
   join(process.cwd(), "supabase/migrations/20250930000003_seed_tools.sql"),
   "utf8"
 );
+const cleanupSql = readFileSync(
+  join(process.cwd(), "supabase/migrations/20251102000001_cleanup_unreleased_tools.sql"),
+  "utf8"
+);
+
+const RELEASED = ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"];
+const REMOVED = ["scrim-matchmaker", "vod-clipper", "roster-sentinel"];
 
 function activeFlag(sql: string, slug: string): boolean | null {
   const row = new RegExp(`\\('${slug}',[^;]*?(true|false)\\)`, "s").exec(sql);
@@ -19,15 +26,10 @@ function activeFlag(sql: string, slug: string): boolean | null {
   return row[1] === "true";
 }
 
-describe("tool availability — RCCF-SPONSOR-FINAL-02", () => {
-  it("fresh seeds mark only available tools active", () => {
-    expect(activeFlag(seedSql, "sponsor-sentinel")).toBe(true);
-    expect(activeFlag(seedSql, "prize-splitter")).toBe(true);
-    expect(activeFlag(seedSql, "draft-ban")).toBe(true);
-    expect(activeFlag(seedSql, "tie-breaker")).toBe(true);
-    expect(activeFlag(seedSql, "scrim-matchmaker")).toBe(false);
-    expect(activeFlag(seedSql, "vod-clipper")).toBe(false);
-    expect(activeFlag(seedSql, "roster-sentinel")).toBe(false);
+describe("tool availability — RCCF-CLEANUP-02 (released-only catalog)", () => {
+  it("seed represents the released catalog only", () => {
+    for (const slug of RELEASED) expect(activeFlag(seedSql, slug)).toBe(true);
+    for (const slug of REMOVED) expect(activeFlag(seedSql, slug)).toBe(null);
   });
 
   it("historical seed migration is immutable (still seeds all rows)", () => {
@@ -52,24 +54,37 @@ describe("tool availability — RCCF-SPONSOR-FINAL-02", () => {
     expect(correctiveSql).toMatch(/is_active\s*=\s*true/);
   });
 
-  it("registry keeps all seven tools with honest coming-soon flags", () => {
-    // Future tools are NOT deleted — they remain as labelled teasers.
-    expect(TOOLS.map((t) => t.slug).sort()).toEqual(
-      ["prize-splitter", "draft-ban", "tie-breaker", "roster-sentinel", "scrim-matchmaker", "sponsor-sentinel", "vod-clipper"].sort()
-    );
-    const flag = new Map(TOOLS.map((t) => [t.slug, Boolean(t.comingSoon)]));
-    expect(flag.get("sponsor-sentinel")).toBe(false);
-    expect(flag.get("prize-splitter")).toBe(false);
-    expect(flag.get("draft-ban")).toBe(false);
-    expect(flag.get("tie-breaker")).toBe(false);
-    expect(flag.get("scrim-matchmaker")).toBe(true);
-    expect(flag.get("vod-clipper")).toBe(true);
-    expect(flag.get("roster-sentinel")).toBe(true);
+  it("registry contains exactly the four released tools with no coming-soon flags", () => {
+    expect(TOOLS.map((t) => t.slug).sort()).toEqual([...RELEASED].sort());
+    for (const tool of TOOLS) expect(Boolean(tool.comingSoon)).toBe(false);
   });
 
   it("seed active set agrees with registry commercial availability", () => {
     for (const tool of TOOLS) {
       expect(activeFlag(seedSql, tool.slug)).toBe(!tool.comingSoon);
     }
+  });
+
+  it("cleanup migration deletes exactly the three unreleased slugs", () => {
+    for (const slug of REMOVED) expect(cleanupSql).toContain(`'${slug}'`);
+    expect(cleanupSql).toMatch(/delete from public\.tools/);
+  });
+
+  it("cleanup migration never touches released tools, plans, or orders", () => {
+    expect(cleanupSql).not.toMatch(/delete from public\.plans/);
+    expect(cleanupSql).not.toMatch(/delete from public\.orders/);
+    expect(cleanupSql).not.toMatch(/delete from public\.payments/);
+    expect(cleanupSql).not.toMatch(/delete from public\.organizations/);
+    // The only destructive catalog statement targets exactly the removed slugs.
+    const deletes = [...cleanupSql.matchAll(/delete from public\.tools[\s\S]*?;/gi)].map((m) => m[0]);
+    expect(deletes).toHaveLength(1);
+    for (const slug of REMOVED) expect(deletes[0]).toContain(`'${slug}'`);
+    for (const slug of RELEASED) expect(deletes[0]).not.toContain(`'${slug}'`);
+  });
+
+  it("cleanup migration asserts the released catalog and plan count", () => {
+    expect(cleanupSql).toMatch(/v_released_active != 4/);
+    expect(cleanupSql).toMatch(/v_active_plans != 10/);
+    expect(cleanupSql).toMatch(/v_dangling_plans/);
   });
 });

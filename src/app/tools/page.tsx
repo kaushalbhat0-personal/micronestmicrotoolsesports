@@ -12,7 +12,7 @@ import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale,
 export const metadata: Metadata = {
   title: "Esports Tools — MicroNest Collection",
   description:
-    "Explore MicroNest's subscription software for esports: Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, and Tie-Breaker Resolver, available now — every tool can be started free. Scrim Matchmaker, VOD Clipper, and Roster Sentinel are coming soon.",
+    "Explore MicroNest's subscription software for esports: Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, and Tie-Breaker Resolver, available now — every tool can be started free.",
   alternates: { canonical: "/tools" },
   openGraph: {
     title: "Esports Tools — MicroNest",

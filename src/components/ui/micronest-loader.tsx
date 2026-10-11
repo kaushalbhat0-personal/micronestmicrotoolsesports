@@ -6,9 +6,8 @@ export type MicronestLoaderSize = "sm" | "md" | "lg";
 export type MicronestToolLabel =
   | "Sponsorship Tracking"
   | "Prize Pool Splitter"
-  | "Scrim Matchmaker"
-  | "VOD Clipper"
-  | "Roster Sentinel"
+  | "Draft & Ban"
+  | "Tie-Breaker Resolver"
   | string;
 
 interface MicronestLoaderProps {

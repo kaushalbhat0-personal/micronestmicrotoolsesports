@@ -48,7 +48,8 @@ describe("purchase guidance — customer-safe plan context", () => {
     expect(coveredToolSlugs("tie-breaker-yearly")).toEqual(["tie-breaker"]);
     expect(coveredToolSlugs("sponsorship-tracking-yearly")).toEqual(["sponsor-sentinel"]);
     expect(coveredToolSlugs("prize-pool-splitter-monthly")).toEqual(["prize-splitter"]);
-    expect(coveredToolSlugs("all-access-monthly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban"]);
+    expect(coveredToolSlugs("all-access-monthly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"]);
+    expect(coveredToolSlugs("all-access-yearly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"]);
     expect(coveredToolSlugs("nope")).toEqual([]);
     expect(coveredToolSlugs(null)).toEqual([]);
   });

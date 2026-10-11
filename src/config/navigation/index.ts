@@ -1,4 +1,3 @@
-import { TOOLS } from "@/config/app/tools";
 import type { Route } from "next";
 
 export interface NavItem {
@@ -31,17 +30,6 @@ export const dashboardNav: NavItem[] = [
  * Channels vs Connections are distinct: channels = creator identities, connections = platform auth.
  */
 export function getDashboardNav(orgSlug: string): NavItem[] {
-  const comingSoonTools = TOOLS.filter((t) => t.comingSoon).map(
-    (t): NavItem => ({
-      label: t.name,
-      // Coming-Soon items must never expose a live route href (RCCF-SPONSOR-FINAL-02).
-      // "#" is the repository's safe non-navigation target (see dashboard-shell).
-      href: "#" as Route,
-      icon: t.icon,
-      comingSoon: true,
-    })
-  );
-
   return [
     { label: "Overview", href: `/dashboard/${orgSlug}` as Route, icon: "LayoutDashboard" },
     { label: "Campaigns", href: `/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route, icon: "ShieldCheck" },
@@ -49,7 +37,6 @@ export function getDashboardNav(orgSlug: string): NavItem[] {
     { label: "Channels", href: `/dashboard/${orgSlug}/channels` as Route, icon: "Tv" },
     { label: "Connections", href: `/dashboard/${orgSlug}/connections` as Route, icon: "Plug" },
     { label: "Settings", href: `/dashboard/${orgSlug}/settings` as Route, icon: "Settings2" },
-    ...comingSoonTools,
     { label: "Workspaces", href: "/dashboard/organizations" as Route, icon: "Building2" },
   ];
 }
@@ -57,7 +44,6 @@ export function getDashboardNav(orgSlug: string): NavItem[] {
 export function getDashboardNavGroups(orgSlug: string): NavGroup[] {
   const nav = getDashboardNav(orgSlug);
   const byLabel = new Map<string, NavItem | undefined>(nav.map((n) => [n.label, n] as const));
-  const coming = nav.filter((n) => n.comingSoon);
   return [
     {
       label: "Workspace",
@@ -71,7 +57,6 @@ export function getDashboardNavGroups(orgSlug: string): NavGroup[] {
       label: "Settings",
       items: [byLabel.get("Settings")].filter(Boolean) as NavItem[],
     },
-    ...(coming.length > 0 ? [{ label: "Coming soon", items: coming }] : []),
     {
       label: "",
       items: [byLabel.get("Workspaces")].filter(Boolean) as NavItem[],

@@ -10,7 +10,7 @@
 
 ## 1. Overall Architecture
 
-MicroNest is a **multi-tenant micro-SaaS platform**. One deployment hosts many independent microtools (Sponsor Sentinel, Scrim Matchmaker, etc.). Each microtool is an isolated feature domain — adding a new tool should not require restructuring the app.
+MicroNest is a **multi-tenant micro-SaaS platform**. One deployment hosts many independent microtools (Sponsorship Tracking, Prize Pool Splitter, etc.). Each microtool is an isolated feature domain — adding a new tool should not require restructuring the app.
 
 Principles:
 - **SOLID, DRY, KISS, Separation of Concerns**

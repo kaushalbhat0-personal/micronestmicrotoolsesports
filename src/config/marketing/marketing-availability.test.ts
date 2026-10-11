@@ -5,62 +5,49 @@ import { TOOLS } from "@/config/app/tools";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import { toWorkspaceTools } from "@/server/services/workspace-tools";
 
-const UNRELEASED = ["scrim-matchmaker", "vod-clipper", "roster-sentinel"] as const;
-const AVAILABLE = ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"] as const;
+const RELEASED = ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"] as const;
+const REMOVED = ["scrim-matchmaker", "vod-clipper", "roster-sentinel"] as const;
 
 function src(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-describe("frontend availability truth — RCCF-AVAILABILITY-UI-02", () => {
-  it("Sponsorship Tracking and Prize Pool Splitter are commercially available", () => {
-    const available = new Set(TOOLS.filter((t) => !t.comingSoon).map((t) => t.slug));
-    for (const slug of AVAILABLE) expect(available.has(slug)).toBe(true);
+describe("frontend availability truth — RCCF-CLEANUP-02 (released-only catalog)", () => {
+  it("registry contains exactly the four released tools", () => {
+    expect(TOOLS.map((t) => t.slug).sort()).toEqual([...RELEASED].sort());
   });
 
-  it("Scrim Matchmaker, VOD Clipper, Roster Sentinel are not available", () => {
-    const available = new Set(TOOLS.filter((t) => !t.comingSoon).map((t) => t.slug));
-    for (const slug of UNRELEASED) expect(available.has(slug)).toBe(false);
+  it("registry contains zero coming-soon entries", () => {
+    expect(TOOLS.filter((t) => t.comingSoon)).toEqual([]);
   });
 
-  it("registry comingSoon set is exactly the three unreleased tools", () => {
-    expect(TOOLS.filter((t) => t.comingSoon).map((t) => t.slug).sort()).toEqual([...UNRELEASED].sort());
+  it("registry contains none of the removed unbuilt slugs", () => {
+    const slugs = new Set(TOOLS.map((t) => t.slug));
+    for (const slug of REMOVED) expect(slugs.has(slug)).toBe(false);
   });
 
-  it("marketing catalog marks the same tools available vs coming-soon", () => {
-    const byInternal = new Map(MARKETING_TOOLS.map((t) => [t.internalSlug, t.status]));
-    expect(byInternal.get("sponsor-sentinel")).toBe("available");
-    expect(byInternal.get("prize-splitter")).toBe("available");
-    expect(byInternal.get("draft-ban")).toBe("available");
-    expect(byInternal.get("tie-breaker")).toBe("available");
-    for (const slug of UNRELEASED) expect(byInternal.get(slug)).toBe("coming-soon");
+  it("marketing catalog contains exactly the four released tools, all available", () => {
+    expect(MARKETING_TOOLS.map((t) => t.internalSlug).sort()).toEqual([...RELEASED].sort());
+    for (const tool of MARKETING_TOOLS) expect(tool.status).toBe("available");
+    const slugs = new Set(MARKETING_TOOLS.map((t) => t.slug));
+    for (const slug of REMOVED) expect(slugs.has(slug)).toBe(false);
   });
 
-  it("every coming-soon teaser is honestly labelled in SEO copy", () => {
-    for (const tool of MARKETING_TOOLS.filter((t) => t.status === "coming-soon")) {
-      expect(tool.seoDescription.toLowerCase()).toContain("coming soon");
-    }
-  });
-
-  it("workspace view-model propagates comingSoon so nav renders disabled", () => {
+  it("workspace view-model covers the released tools with no comingSoon flags", () => {
     const { entitled, available } = toWorkspaceTools(TOOLS, ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"], "acme");
     const all = [...entitled, ...available];
-    for (const slug of UNRELEASED) {
-      const tool = all.find((t) => t.slug === slug);
-      expect(tool).toBeDefined();
-      expect(tool!.comingSoon).toBe(true);
-    }
-    for (const slug of AVAILABLE) {
-      const tool = all.find((t) => t.slug === slug);
-      expect(tool).toBeDefined();
-      expect(tool!.comingSoon).toBe(false);
-    }
+    expect(all.map((t) => t.slug).sort()).toEqual([...RELEASED].sort());
+    for (const tool of all) expect(tool.comingSoon).toBe(false);
   });
 
-  it("footer links the newly available tool without touching coming-soon teasers", () => {
+  it("footer links the released tools and none of the removed tools", () => {
     const footer = src("src/components/layout/footer.tsx");
     expect(footer).toContain('href="/tools/tie-breaker"');
     expect(footer).toContain("Tie-Breaker Resolver");
+    for (const slug of REMOVED) expect(footer).not.toContain(slug);
+    for (const name of ["Scrim Matchmaker", "VOD Clipper", "Roster Sentinel"]) {
+      expect(footer).not.toContain(name);
+    }
   });
 
   it("billing surfaces state the at-purchase-time policy without promising future tools", () => {
@@ -73,20 +60,21 @@ describe("frontend availability truth — RCCF-AVAILABILITY-UI-02", () => {
     expect(src("src/app/pricing/pricing-client.tsx")).toContain("not automatically included");
   });
 
-  it("pricing offers no unreleased tool", () => {
+  it("pricing offers no removed or invalid tool slug", () => {
     for (const path of ["src/app/pricing/pricing-client.tsx", "src/app/pricing/page.tsx"]) {
       const content = src(path);
-      for (const slug of [...UNRELEASED, "draft_ban"]) {
+      for (const slug of [...REMOVED, "draft_ban"]) {
         expect(content).not.toContain(slug);
       }
       expect(content).toContain("draft-ban");
     }
   });
 
-  it("dashboard tool catalog labels upcoming tools honestly", () => {
+  it("dashboard tool catalog shows released tools only", () => {
     const content = src("src/app/(dashboard)/dashboard/page.tsx");
-    expect(content).toContain("Coming soon");
-    expect(content).toContain("Soon");
-    expect(content).toMatch(/disabled/);
+    for (const slug of REMOVED) expect(content).not.toContain(slug);
+    for (const name of ["Scrim Matchmaker", "VOD Clipper", "Roster Sentinel"]) {
+      expect(content).not.toContain(name);
+    }
   });
 });

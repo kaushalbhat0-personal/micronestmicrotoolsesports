@@ -22,14 +22,6 @@ export const TOOLS: ToolConfig[] = [
     icon: "ShieldCheck",
   },
   {
-    slug: "scrim-matchmaker",
-    name: "Scrim Matchmaker",
-    description: "Cross-timezone scrim finding & pinger",
-    href: "/dashboard/scrim-matchmaker",
-    icon: "CalendarSearch",
-    comingSoon: true,
-  },
-  {
     slug: "prize-splitter",
     name: "Prize Pool Splitter",
     description: "Split a prize pool in seconds — deterministic payouts",
@@ -49,22 +41,6 @@ export const TOOLS: ToolConfig[] = [
     description: "Official standings for tied competitions — explained, locked, shareable",
     href: "/dashboard/tie-breaker",
     icon: "Scale",
-  },
-  {
-    slug: "vod-clipper",
-    name: "VOD Clipper",
-    description: "Timestamp & voice-note clipping",
-    href: "/dashboard/vod-clipper",
-    icon: "Scissors",
-    comingSoon: true,
-  },
-  {
-    slug: "roster-sentinel",
-    name: "Roster Sentinel",
-    description: "Visa & contract tracking",
-    href: "/dashboard/roster-sentinel",
-    icon: "FileCheck",
-    comingSoon: true,
   },
 ];
 

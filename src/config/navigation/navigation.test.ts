@@ -38,11 +38,9 @@ describe("Navigation", () => {
     expect(channels?.href).not.toBe(connections?.href);
   });
 
-  it("future tools remain subordinate with Soon", () => {
+  it("nav contains no coming-soon entries — released catalog only", () => {
     const nav = getDashboardNav("org1");
-    const future = nav.filter((n) => n.comingSoon);
-    expect(future.length).toBeGreaterThan(0);
-    expect(future.every((n) => n.label !== "Campaigns")).toBe(true);
+    expect(nav.filter((n) => n.comingSoon)).toEqual([]);
     const campaigns = nav.find((n) => n.label === "Campaigns");
     expect(campaigns?.comingSoon).toBeFalsy();
   });
@@ -65,16 +63,12 @@ describe("Navigation", () => {
     expect(checkIdx).toBeLessThan(channelsIdx);
   });
 
-  // RCCF-SPONSOR-FINAL-02: legacy Coming-Soon controls must not navigate.
-  it("coming-soon nav items expose no live route href", () => {
+  // RCCF-CLEANUP-02: no coming-soon entries remain; every nav item is a live route.
+  it("nav items expose live route hrefs only", () => {
     const nav = getDashboardNav("org1");
-    const future = nav.filter((n) => n.comingSoon);
-    expect(future.length).toBeGreaterThan(0);
-    for (const item of future) {
-      expect(item.href).toBe("#");
-      expect(item.href).not.toContain("scrim-matchmaker");
-      expect(item.href).not.toContain("vod-clipper");
-      expect(item.href).not.toContain("roster-sentinel");
+    expect(nav.length).toBeGreaterThan(0);
+    for (const item of nav) {
+      expect(item.href).not.toBe("#");
     }
   });
 
@@ -87,14 +81,13 @@ describe("Navigation", () => {
     }
   });
 
-  it("legacy coming-soon link props disable navigation", () => {
+  it("legacy link props preserve navigation for released items", () => {
     const nav = getDashboardNav("org1");
-    const future = nav.filter((n) => n.comingSoon);
-    for (const item of future) {
+    for (const item of nav) {
       const props = getLegacyNavLinkProps(item);
-      expect(props.href).toBe("#");
-      expect(props.ariaDisabled).toBe(true);
-      expect(props.shouldPreventDefault).toBe(true);
+      expect(props.href).not.toBe("#");
+      expect(props.ariaDisabled).toBeUndefined();
+      expect(props.shouldPreventDefault).toBe(false);
     }
   });
 
@@ -108,11 +101,8 @@ describe("Navigation", () => {
     expect(props.shouldPreventDefault).toBe(false);
   });
 
-  it("coming-soon group survives as disabled indication", () => {
+  it("no coming-soon group exists in released nav", () => {
     const groups = getDashboardNavGroups("org1");
-    const coming = groups.find((g) => g.label === "Coming soon");
-    expect(coming).toBeDefined();
-    expect(coming!.items.length).toBeGreaterThan(0);
-    expect(coming!.items.every((i) => i.comingSoon)).toBe(true);
+    expect(groups.find((g) => g.label === "Coming soon")).toBeUndefined();
   });
 });

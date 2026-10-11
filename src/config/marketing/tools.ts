@@ -111,60 +111,6 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     accent: "teal",
     motif: "Pts · H2H · Lock",
   },
-  {
-    slug: "scrim-matchmaker",
-    name: "Scrim Matchmaker",
-    shortDescription: "Coordinate scrims across teams, schedules, and time zones.",
-    longDescription:
-      "Scrim Matchmaker helps teams find practice opponents without the usual back-and-forth — with time zone aware scheduling at its core.",
-    audience: ["Esports teams", "Coaches and managers"],
-    features: ["Team availability", "Time zone aware scheduling", "Opponent discovery"],
-    status: "coming-soon",
-    internalSlug: "scrim-matchmaker",
-    icon: "CalendarSearch",
-    seoTitle: "Esports Scrim Matchmaker | MicroNest",
-    seoDescription:
-      "Coordinate scrims across teams, schedules and time zones. A focused MicroNest tool for competitive practice — coming soon.",
-    number: "T03",
-    accent: "teal",
-    motif: "19:00 IST · BO3",
-  },
-  {
-    slug: "vod-clipper",
-    name: "VOD Clipper",
-    shortDescription: "Organize important moments from competitive content.",
-    longDescription:
-      "VOD Clipper makes it simple to capture and organize key moments from match recordings for review and sharing.",
-    audience: ["Esports creators", "Coaches", "Content teams"],
-    features: ["Timestamp capture", "Clip organization", "Quick review workflow"],
-    status: "coming-soon",
-    internalSlug: "vod-clipper",
-    icon: "Scissors",
-    seoTitle: "Esports VOD Clipper | MicroNest",
-    seoDescription:
-      "Save important moments from match recordings for quick review. A focused MicroNest tool for VODs — coming soon.",
-    number: "T04",
-    accent: "beige",
-    motif: "12:34 → 13:07",
-  },
-  {
-    slug: "roster-sentinel",
-    name: "Roster Sentinel",
-    shortDescription: "Keep roster-related operational information easier to manage.",
-    longDescription:
-      "Roster Sentinel helps esports organizations keep roster-related information organized and easy to find when it matters.",
-    audience: ["Esports organizations", "Team managers"],
-    features: ["Roster tracking", "Operational information at a glance", "Team organization"],
-    status: "coming-soon",
-    internalSlug: "roster-sentinel",
-    icon: "FileCheck",
-    seoTitle: "Esports Roster Sentinel | MicroNest",
-    seoDescription:
-      "Keep roster-related operational information easier to manage. A focused MicroNest tool for rosters — coming soon.",
-    number: "T05",
-    accent: "amber",
-    motif: "Contract · 2026",
-  },
 ];
 
 export function getMarketingTool(slug: string) {

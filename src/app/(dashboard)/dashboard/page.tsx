@@ -1,7 +1,6 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { TOOLS } from "@/config/app/tools";
 import { getUserOrganizations } from "@/lib/auth/require-membership";
@@ -97,31 +96,25 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
 
       <div>
         <h2 className="font-display text-xl font-normal tracking-tight">Tools</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Available now, plus what&apos;s coming soon — upcoming tools stay disabled until release.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Available now — select an organization to open a tool.</p>
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {TOOLS.map((t, idx) => (
+          {TOOLS.filter((t) => !t.comingSoon).map((t, idx) => (
             <Card
               key={t.slug}
-              className={`nest-reveal nest-reveal-delay-${Math.min(idx, 4)} ${!t.comingSoon ? "transition-transform duration-[180ms] hover:scale-[1.01] hover:border-border-strong hover:shadow-sm" : ""}`}
+              className={`nest-reveal nest-reveal-delay-${Math.min(idx, 4)} transition-transform duration-[180ms] hover:scale-[1.01] hover:border-border-strong hover:shadow-sm`}
               style={{ animationDelay: `${idx * 60}ms` } as React.CSSProperties}
             >
               <CardHeader>
                 <CardTitle className="text-base flex items-center justify-between">
                   {t.name}
-                  {t.comingSoon ? <Badge variant="secondary">Soon</Badge> : <Badge variant="success">Available</Badge>}
+                  <Badge variant="success">Available</Badge>
                 </CardTitle>
                 <CardDescription>{t.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                {t.comingSoon ? (
-                  <Button size="sm" variant="secondary" disabled>
-                    Coming soon
-                  </Button>
-                ) : (
-                  <Link href="/dashboard/organizations" className="inline-flex h-8 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]">
-                    Select organization
-                  </Link>
-                )}
+                <Link href="/dashboard/organizations" className="inline-flex h-8 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]">
+                  Select organization
+                </Link>
               </CardContent>
             </Card>
           ))}

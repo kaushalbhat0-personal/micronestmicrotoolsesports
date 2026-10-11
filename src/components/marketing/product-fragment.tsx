@@ -3,8 +3,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 
 /**
  * ProductFragment — editorial product visualization fragments.
- * Real fragments (T01/T02) reuse existing UI patterns.
- * Conceptual fragments (T03-T05) are clearly illustrative, not fake functionality.
+ * Real fragments reuse existing UI patterns.
  */
 
 export function T01SponsorshipFragment() {
@@ -77,48 +76,6 @@ export function T02PrizeFragment() {
   );
 }
 
-export function T03ScrimFragment() {
-  return (
-    <div className="space-y-3">
-      <p className="text-xs font-semibold">Scrim availability · Conceptual</p>
-      <div className="rounded-[12px] border border-border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <span className="font-mono text-xs">19:00 IST</span>
-          <Badge variant="secondary">BO3</Badge>
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-          <span className="rounded-[8px] bg-surface-muted px-2 py-2 font-mono text-[11px]">Team A · CET</span>
-          <span className="rounded-[8px] bg-surface-muted px-2 py-2 font-mono text-[11px]">Team B · IST</span>
-          <span className="rounded-[8px] bg-success-soft border border-success/20 px-2 py-2 font-mono text-[11px] text-success">
-            Overlap ✓
-          </span>
-        </div>
-        <p className="mt-2 text-center font-mono text-[11px] text-muted-foreground">Illustrative — scheduling concept</p>
-      </div>
-    </div>
-  );
-}
-
-export function T04VodFragment() {
-  return (
-    <div className="space-y-3">
-      <p className="text-xs font-semibold">VOD highlight · Conceptual</p>
-      <div className="rounded-[12px] border border-border bg-card p-4">
-        <div className="flex items-center gap-2 font-mono text-xs">
-          <span>12:34</span>
-          <span className="text-muted-foreground">→</span>
-          <span>13:07</span>
-          <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[11px]">VOD</span>
-        </div>
-        <div className="mt-3 h-2 rounded-full bg-surface-muted">
-          <div className="h-2 w-[28%] rounded-full bg-primary" />
-        </div>
-        <p className="mt-2 font-mono text-[11px] text-muted-foreground">33s highlight · not yet implemented</p>
-      </div>
-    </div>
-  );
-}
-
 export function T06DraftBanFragment() {
   // Static sample only — illustrative example, not a real customer record.
   const steps = [
@@ -147,30 +104,6 @@ export function T06DraftBanFragment() {
       </ol>
       <p className="font-mono text-[11px] text-muted-foreground">Remaining pool: Split · Decider: Split</p>
       <p className="text-[11px] text-muted-foreground">Finished records are locked and can&apos;t be changed. Sample record — illustrative example.</p>
-    </div>
-  );
-}
-
-export function T05RosterFragment() {  return (
-    <div className="space-y-3">
-      <p className="text-xs font-semibold">Roster · Conceptual</p>
-      <div className="rounded-[12px] border border-border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">Starting 5</span>
-          <Badge variant="outline">2026</Badge>
-        </div>
-        <div className="mt-3 space-y-2">
-          <div className="flex justify-between rounded-[8px] bg-surface-muted px-3 py-2">
-            <span className="text-xs">Player 1 · EU</span>
-            <span className="font-mono text-[11px] text-success">Contract ✓</span>
-          </div>
-          <div className="flex justify-between rounded-[8px] bg-surface-muted px-3 py-2">
-            <span className="text-xs">Player 2 · KR</span>
-            <span className="font-mono text-[11px] text-warning">Visa pending</span>
-          </div>
-        </div>
-        <p className="mt-2 font-mono text-[11px] text-muted-foreground">Illustrative roster snapshot</p>
-      </div>
     </div>
   );
 }
@@ -211,12 +144,6 @@ export function ProductFragment({ slug }: { slug: string }) {
       return <T01SponsorshipFragment />;
     case "prize-pool-splitter":
       return <T02PrizeFragment />;
-    case "scrim-matchmaker":
-      return <T03ScrimFragment />;
-    case "vod-clipper":
-      return <T04VodFragment />;
-    case "roster-sentinel":
-      return <T05RosterFragment />;
     case "draft-ban":
       return <T06DraftBanFragment />;
     case "tie-breaker":
