@@ -19,6 +19,10 @@ import {
   PRIZE_SPLITTER_TOOL_SLUG,
   ensureFreePrizeSplitterGrant,
 } from "@/server/services/prize-splitter-policy";
+import {
+  PAYOUT_TRACKER_TOOL_SLUG,
+  ensureFreePayoutTrackerGrant,
+} from "@/server/services/payout-tracker-policy";
 import { AppError } from "@/lib/errors";
 
 /**
@@ -79,6 +83,10 @@ export async function claimFreeTool(
     }
     if (policy.toolSlug === PRIZE_SPLITTER_TOOL_SLUG) {
       await ensureFreePrizeSplitterGrant(admin as never, ctx.organization.id);
+      return { ok: true };
+    }
+    if (policy.toolSlug === PAYOUT_TRACKER_TOOL_SLUG) {
+      await ensureFreePayoutTrackerGrant(admin as never, ctx.organization.id);
       return { ok: true };
     }
     return { error: UNAVAILABLE_MESSAGE };

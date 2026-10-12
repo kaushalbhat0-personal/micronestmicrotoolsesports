@@ -24,6 +24,7 @@ import {
   FileCheck,
   Swords,
   Scale,
+  ReceiptText,
   ChevronRight,
   Compass,
   CreditCard,
@@ -50,6 +51,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   FileCheck,
   Swords,
   Scale,
+  ReceiptText,
   CreditCard,
 };
 

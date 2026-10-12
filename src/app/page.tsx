@@ -10,7 +10,7 @@ import { FREE_TIERS, freeTierBySlug } from "@/config/marketing/free-tiers";
 import { ProofStrip } from "@/components/marketing/proof-strip";
 import { createClient } from "@/lib/supabase/server";
 import { listActivePlans } from "@/server/repositories/plans";
-import { ShieldCheck, Split, Swords, Scale, Users, Trophy, Clock, FileCheck, BadgeCheck, ArrowRight, Youtube, Twitch, Radio } from "lucide-react";
+import { ShieldCheck, Split, Swords, Scale, ReceiptText, Users, Trophy, Clock, FileCheck, BadgeCheck, ArrowRight, Youtube, Twitch, Radio } from "lucide-react";
 
 export const revalidate = 60;
 
@@ -41,9 +41,10 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Split,
   Swords,
   Scale,
+  ReceiptText,
 };
 
-const ORGANIZER_TOOL_SLUGS = ["prize-pool-splitter", "draft-ban", "tie-breaker"] as const;
+const ORGANIZER_TOOL_SLUGS = ["prize-pool-splitter", "draft-ban", "tie-breaker", "prize-payout-tracker"] as const;
 
 function formatINR(amountMinor: number): string {
   const amount = amountMinor / 100;

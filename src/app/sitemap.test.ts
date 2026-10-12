@@ -6,11 +6,12 @@ const RELEASED_TOOL_URLS = [
   "/tools/prize-pool-splitter",
   "/tools/draft-ban",
   "/tools/tie-breaker",
+  "/tools/prize-payout-tracker",
 ];
 const REMOVED_TOOL_URLS = ["/tools/scrim-matchmaker", "/tools/vod-clipper", "/tools/roster-sentinel"];
 
 describe("sitemap — RCCF-CLEANUP-02 (released tools only)", () => {
-  it("contains exactly the four released tool URLs", () => {
+  it("contains exactly the five released tool URLs", () => {
     const urls = sitemap().map((e) => new URL(e.url, "http://localhost:3000").pathname);
     for (const path of RELEASED_TOOL_URLS) expect(urls).toContain(path);
   });

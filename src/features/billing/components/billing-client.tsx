@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Split, Calendar, CreditCard, RefreshCw, Check, AlertCircle, Infinity as InfinityIcon, ArrowRight, Swords, Scale } from "lucide-react";
+import { ShieldCheck, Split, Calendar, CreditCard, RefreshCw, Check, AlertCircle, Infinity as InfinityIcon, ArrowRight, Swords, Scale, ReceiptText } from "lucide-react";
 import { getPurchaseGuide } from "@/lib/purchase/plan-guidance";
 
 type ToolCard = {
@@ -34,6 +34,7 @@ function toolIcon(icon: string) {
   if (icon === "Swords") return Swords;
   if (icon === "Scale") return Scale;
   if (icon === "Split") return Split;
+  if (icon === "ReceiptText") return ReceiptText;
   return ShieldCheck;
 }
 

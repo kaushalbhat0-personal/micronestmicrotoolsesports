@@ -51,6 +51,14 @@ const GUIDES: ReadonlyArray<{ prefix: string; guide: PurchaseGuide }> = [
     },
   },
   {
+    prefix: "prize-payout-tracker",
+    guide: {
+      toolName: "Prize Payout Tracker",
+      toolRoute: (orgSlug: string) => `/dashboard/${orgSlug}/payout-tracker`,
+      firstStep: "Next: create a payout tracker, add recipients and amounts, then publish your public page.",
+    },
+  },
+  {
     prefix: "all-access",
     guide: {
       toolName: "All Access",
@@ -74,13 +82,14 @@ export function getPurchaseGuide(planSlug: string | null | undefined): PurchaseG
 export function coveredToolSlugs(planSlug: string | null | undefined): string[] {
   if (!planSlug) return [];
   if (planSlug === "all-access" || planSlug.startsWith("all-access-")) {
-    return ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"];
+    return ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker"];
   }
   const found = GUIDES.find(({ prefix }) => prefix !== "all-access" && (planSlug === prefix || planSlug.startsWith(`${prefix}-`)));
   if (!found) return [];
   if (found.prefix === "sponsorship-tracking") return ["sponsor-sentinel"];
   if (found.prefix === "prize-pool-splitter") return ["prize-splitter"];
   if (found.prefix === "tie-breaker") return ["tie-breaker"];
+  if (found.prefix === "prize-payout-tracker") return ["payout-tracker"];
   return ["draft-ban"];
 }
 

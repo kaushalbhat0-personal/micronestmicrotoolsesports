@@ -81,6 +81,17 @@ const DRAFT_BAN_LIMITS: Readonly<Record<string, number | null>> = {
   customTemplatesMax: 3,
 };
 
+/**
+ * Prize Payout Tracker Free limits. Values mirror `FREE_PAYOUT_TRACKER_*` in
+ * `src/server/services/payout-tracker-policy.ts` (canonical, enforced there
+ * and in the `consume_payout_tracker_publish` RPC).
+ */
+const PAYOUT_TRACKER_LIMITS: Readonly<Record<string, number | null>> = {
+  publishedTrackersPerMonth: 1,
+  freeHistoryLimit: 3,
+  recipientsMax: 20,
+};
+
 const POLICIES: ReadonlyMap<string, ToolFreePolicy> = new Map([
   [
     "sponsor-sentinel",
@@ -128,6 +139,17 @@ const POLICIES: ReadonlyMap<string, ToolFreePolicy> = new Map([
       // limits exist for this tool; input-validation bounds elsewhere are
       // integrity guards, not usage limits.
       limits: {},
+    },
+  ],
+  [
+    "payout-tracker",
+    {
+      toolSlug: "payout-tracker",
+      scope: "org",
+      userGrantable: false,
+      freeEnabled: true,
+      claimable: true,
+      limits: PAYOUT_TRACKER_LIMITS,
     },
   ],
 ]);

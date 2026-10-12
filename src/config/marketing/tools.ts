@@ -111,6 +111,30 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     accent: "teal",
     motif: "Pts · H2H · Lock",
   },
+  {
+    slug: "prize-payout-tracker",
+    name: "Prize Payout Tracker",
+    shortDescription: "Publish a public payout list — who's paid, what's pending",
+    longDescription:
+      "Prize Payout Tracker is subscription software that helps tournament organizers publish a public, organizer-reported record of prize payouts — who has been paid, what remains pending, and the payout deadline. Available now. MicroNest does not hold, escrow, transfer, or verify prize money.",
+    audience: ["Tournament organizers", "League administrators", "Esports teams"],
+    features: [
+      "Create a payout tracker with recipients and amounts",
+      "Publish one public shareable payout page",
+      "Mark recipients paid as payouts happen",
+      "Deadline and progress the public can see",
+      "Revocable share links",
+    ],
+    status: "available",
+    internalSlug: "payout-tracker",
+    icon: "ReceiptText",
+    seoTitle: "Prize Payout Tracker for Esports Tournaments | MicroNest",
+    seoDescription:
+      "Subscription software to publish a public, organizer-reported prize payout list — who's paid, what's pending, and the deadline. A focused MicroNest tool for tournament organizers.",
+    number: "T08",
+    accent: "charcoal",
+    motif: "Paid · Pending · Public",
+  },
 ];
 
 export function getMarketingTool(slug: string) {

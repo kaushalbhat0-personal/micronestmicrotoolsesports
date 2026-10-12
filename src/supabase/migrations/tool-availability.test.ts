@@ -17,7 +17,7 @@ const cleanupSql = readFileSync(
   "utf8"
 );
 
-const RELEASED = ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"];
+const RELEASED = ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker"];
 const REMOVED = ["scrim-matchmaker", "vod-clipper", "roster-sentinel"];
 
 function activeFlag(sql: string, slug: string): boolean | null {
@@ -54,7 +54,7 @@ describe("tool availability — RCCF-CLEANUP-02 (released-only catalog)", () => 
     expect(correctiveSql).toMatch(/is_active\s*=\s*true/);
   });
 
-  it("registry contains exactly the four released tools with no coming-soon flags", () => {
+  it("registry contains exactly the five released tools with no coming-soon flags", () => {
     expect(TOOLS.map((t) => t.slug).sort()).toEqual([...RELEASED].sort());
     for (const tool of TOOLS) expect(Boolean(tool.comingSoon)).toBe(false);
   });

@@ -24,4 +24,5 @@ export const TOOL_PLAN_PREFIX: Record<string, string> = {
   "prize-pool-splitter": "prize-pool-splitter",
   "draft-ban": "draft-ban",
   "tie-breaker": "tie-breaker",
+  "prize-payout-tracker": "prize-payout-tracker",
 };

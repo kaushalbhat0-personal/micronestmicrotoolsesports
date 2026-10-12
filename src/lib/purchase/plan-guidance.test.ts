@@ -9,6 +9,8 @@ describe("purchase guidance — customer-safe plan context", () => {
     expect(getPurchaseGuide("tie-breaker-yearly")?.toolName).toBe("Tie-Breaker Resolver");
     expect(getPurchaseGuide("sponsorship-tracking-monthly")?.toolName).toBe("Sponsorship Tracking");
     expect(getPurchaseGuide("prize-pool-splitter-yearly")?.toolName).toBe("Prize Pool Splitter");
+    expect(getPurchaseGuide("prize-payout-tracker-monthly")?.toolName).toBe("Prize Payout Tracker");
+    expect(getPurchaseGuide("prize-payout-tracker-yearly")?.toolName).toBe("Prize Payout Tracker");
     expect(getPurchaseGuide("all-access-monthly")?.toolName).toBe("All Access");
   });
 
@@ -33,11 +35,12 @@ describe("purchase guidance — customer-safe plan context", () => {
     expect(getPurchaseGuide("tie-breaker-monthly")?.toolRoute("acme")).toBe("/dashboard/acme/tie-breaker");
     expect(getPurchaseGuide("sponsorship-tracking-monthly")?.toolRoute("acme")).toBe("/dashboard/acme/sponsor-sentinel/campaigns");
     expect(getPurchaseGuide("prize-pool-splitter-monthly")?.toolRoute("acme")).toBe("/dashboard/acme/prize-splitter");
+    expect(getPurchaseGuide("prize-payout-tracker-monthly")?.toolRoute("acme")).toBe("/dashboard/acme/payout-tracker");
     expect(getPurchaseGuide("all-access-monthly")?.toolRoute("acme")).toBe("/dashboard/acme");
   });
 
   it("provides a first step for every guide", () => {
-    for (const slug of ["draft-ban-monthly", "sponsorship-tracking-monthly", "prize-pool-splitter-monthly", "tie-breaker-monthly", "all-access-monthly"]) {
+    for (const slug of ["draft-ban-monthly", "sponsorship-tracking-monthly", "prize-pool-splitter-monthly", "tie-breaker-monthly", "prize-payout-tracker-monthly", "all-access-monthly"]) {
       expect(getPurchaseGuide(slug)?.firstStep.length).toBeGreaterThan(0);
     }
   });
@@ -48,8 +51,10 @@ describe("purchase guidance — customer-safe plan context", () => {
     expect(coveredToolSlugs("tie-breaker-yearly")).toEqual(["tie-breaker"]);
     expect(coveredToolSlugs("sponsorship-tracking-yearly")).toEqual(["sponsor-sentinel"]);
     expect(coveredToolSlugs("prize-pool-splitter-monthly")).toEqual(["prize-splitter"]);
-    expect(coveredToolSlugs("all-access-monthly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"]);
-    expect(coveredToolSlugs("all-access-yearly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker"]);
+    expect(coveredToolSlugs("prize-payout-tracker-monthly")).toEqual(["payout-tracker"]);
+    expect(coveredToolSlugs("prize-payout-tracker-yearly")).toEqual(["payout-tracker"]);
+    expect(coveredToolSlugs("all-access-monthly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker"]);
+    expect(coveredToolSlugs("all-access-yearly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker"]);
     expect(coveredToolSlugs("nope")).toEqual([]);
     expect(coveredToolSlugs(null)).toEqual([]);
   });

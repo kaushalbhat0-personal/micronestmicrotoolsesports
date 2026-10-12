@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Split, Layers, Check, Swords, Scale } from "lucide-react";
+import { ShieldCheck, Split, Layers, Check, Swords, Scale, ReceiptText } from "lucide-react";
 import type { Route } from "next";
 import type { Plan } from "@/types/database";
 import { FREE_TIERS } from "@/config/marketing/free-tiers";
@@ -60,6 +60,13 @@ const CARD_META: Record<string, { name: string; positioning: string; icon: React
     href: "/tools/tie-breaker" as Route,
     cta: "Get Tie-Breaker Resolver",
   },
+  "prize-payout-tracker": {
+    name: "Prize Payout Tracker",
+    positioning: "Publish a public payout list — who's paid, what's pending, and the deadline.",
+    icon: ReceiptText,
+    href: "/tools/prize-payout-tracker" as Route,
+    cta: "Get Prize Payout Tracker",
+  },
   "all-access": {
     name: "All Access",
     positioning: "Get every currently available paid MicroNest esports tool in one plan.",
@@ -79,6 +86,7 @@ export function PricingClient({ plans }: PricingClientProps) {
     { key: "prize-pool-splitter", monthly: bySlug.get("prize-pool-splitter-monthly"), yearly: bySlug.get("prize-pool-splitter-yearly") },
     { key: "draft-ban", monthly: bySlug.get("draft-ban-monthly"), yearly: bySlug.get("draft-ban-yearly") },
     { key: "tie-breaker", monthly: bySlug.get("tie-breaker-monthly"), yearly: bySlug.get("tie-breaker-yearly") },
+    { key: "prize-payout-tracker", monthly: bySlug.get("prize-payout-tracker-monthly"), yearly: bySlug.get("prize-payout-tracker-yearly") },
     { key: "all-access", monthly: bySlug.get("all-access-monthly"), yearly: bySlug.get("all-access-yearly") },
   ];
 

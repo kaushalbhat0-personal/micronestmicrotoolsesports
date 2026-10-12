@@ -42,6 +42,13 @@ export const TOOLS: ToolConfig[] = [
     href: "/dashboard/tie-breaker",
     icon: "Scale",
   },
+  {
+    slug: "payout-tracker",
+    name: "Prize Payout Tracker",
+    description: "Publish a public, organizer-reported record of tournament prize payouts",
+    href: "/dashboard/payout-tracker",
+    icon: "ReceiptText",
+  },
 ];
 
 export const ALL_ACCESS_SLUG = "all-access";

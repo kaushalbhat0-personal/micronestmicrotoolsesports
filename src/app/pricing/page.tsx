@@ -12,18 +12,18 @@ export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Pricing — MicroNest MicroTools",
-  description: "Simple INR pricing for focused esports tools, each with a Free forever tier. Choose Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, or All Access. Monthly and yearly plans, manual renewal only.",
+  description: "Simple INR pricing for focused esports tools, each with a Free forever tier. Choose Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, Prize Payout Tracker, or All Access. Monthly and yearly plans, manual renewal only.",
   alternates: { canonical: "/pricing" },
   openGraph: {
     title: "Pricing — MicroNest MicroTools",
-      description: "Simple INR pricing for focused esports tools. Choose Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, or All Access.",
+      description: "Simple INR pricing for focused esports tools. Choose Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, Prize Payout Tracker, or All Access.",
     url: "/pricing",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Pricing — MicroNest MicroTools",
-      description: "Simple INR pricing for focused esports tools — Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, All Access.",
+      description: "Simple INR pricing for focused esports tools — Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, Prize Payout Tracker, All Access.",
   },
   robots: { index: true, follow: true },
 };
@@ -40,7 +40,7 @@ export default async function PricingPage() {
     loadError = err instanceof Error ? err.message : "Unable to load pricing";
   }
 
-  const hasPlans = plans.length >= 10;
+  const hasPlans = plans.length >= 12;
   // Verify expected slugs present (fail safely, don't silently show stale)
   const expectedSlugs = [
     "sponsorship-tracking-monthly",
@@ -51,6 +51,8 @@ export default async function PricingPage() {
     "draft-ban-yearly",
     "tie-breaker-monthly",
     "tie-breaker-yearly",
+    "prize-payout-tracker-monthly",
+    "prize-payout-tracker-yearly",
     "all-access-monthly",
     "all-access-yearly",
   ] as const;
@@ -67,7 +69,7 @@ export default async function PricingPage() {
           <div className="mx-auto max-w-3xl text-center">
             <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-primary">Simple pricing. Focused tools.</p>
             <h1 className="font-display mt-2 text-3xl font-normal tracking-tight sm:text-4xl">Choose the tools your esports operation needs.</h1>
-            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground leading-relaxed">Use currently available tools for sponsorships, prize pools, match drafts, and tied standings — without paying for software you don’t need.</p>
+            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground leading-relaxed">Use currently available tools for sponsorships, prize pools, match drafts, tied standings, and payout tracking — without paying for software you don’t need.</p>
           </div>
 
           {loadError && (
@@ -114,6 +116,7 @@ export default async function PricingPage() {
                     <th className="px-4 py-3 font-semibold">Prize Pool Splitter</th>
                     <th className="px-4 py-3 font-semibold">Draft & Ban</th>
                     <th className="px-4 py-3 font-semibold">Tie-Breaker Resolver</th>
+                    <th className="px-4 py-3 font-semibold">Prize Payout Tracker</th>
                     <th className="px-4 py-3 font-semibold">All Access</th>
                   </tr>
                 </thead>
@@ -121,6 +124,7 @@ export default async function PricingPage() {
                   <tr>
                     <td className="px-4 py-3 font-medium">Sponsorship proof & requirements</td>
                     <td className="px-4 py-3">✓</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-muted-foreground">—</td>
@@ -132,6 +136,7 @@ export default async function PricingPage() {
                     <td className="px-4 py-3">✓</td>
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-muted-foreground">—</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3">✓</td>
                   </tr>
                   <tr>
@@ -139,6 +144,7 @@ export default async function PricingPage() {
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3">✓</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3">✓</td>
                   </tr>
@@ -148,10 +154,21 @@ export default async function PricingPage() {
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3">✓</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
+                    <td className="px-4 py-3">✓</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-3 font-medium">Public payout tracking</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
+                    <td className="px-4 py-3">✓</td>
                     <td className="px-4 py-3">✓</td>
                   </tr>
                   <tr>
                     <td className="px-4 py-3 font-medium">Currently available esports tools</td>
+                    <td className="px-4 py-3">1</td>
                     <td className="px-4 py-3">1</td>
                     <td className="px-4 py-3">1</td>
                     <td className="px-4 py-3">1</td>
@@ -165,9 +182,11 @@ export default async function PricingPage() {
                     <td className="px-4 py-3">✓</td>
                     <td className="px-4 py-3">✓</td>
                     <td className="px-4 py-3">✓</td>
+                    <td className="px-4 py-3">✓</td>
                   </tr>
                   <tr>
                     <td className="px-4 py-3 font-medium">Access scope</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">One workspace</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">One workspace</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">One workspace</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">One workspace</td>
@@ -237,7 +256,7 @@ export default async function PricingPage() {
             "@context": "https://schema.org",
             "@type": "Product",
             name: "MicroNest MicroTools — Pricing",
-              description: "Simple INR pricing for focused esports tools — Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, All Access. Monthly and yearly, manual renewal only.",
+              description: "Simple INR pricing for focused esports tools — Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, Prize Payout Tracker, All Access. Monthly and yearly, manual renewal only.",
             brand: { "@type": "Brand", name: "MicroNest" },
             offers: plans
               .filter((p) => p.currency === "INR")

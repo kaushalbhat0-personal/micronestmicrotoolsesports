@@ -65,11 +65,22 @@ function draftBanAllowance(): Pick<FreeTierInfo, "allowance" | "details"> {
   };
 }
 
+function payoutTrackerAllowance(): Pick<FreeTierInfo, "allowance" | "details"> {
+  const limits = getToolFreePolicy("payout-tracker")?.limits;
+  const publishes = limits?.publishedTrackersPerMonth ?? 1;
+  const recipients = limits?.recipientsMax ?? 20;
+  return {
+    allowance: `${publishes} published tracker/month`,
+    details: `${publishes} published tracker per workspace month · latest 3 visible · up to ${recipients} recipients per tracker · unlimited drafts`,
+  };
+}
+
 export const FREE_TIERS: ReadonlyArray<FreeTierInfo> = [
   { slug: "sponsor-sentinel", marketingSlug: "sponsorship-tracking", name: "Sponsorship Tracking", badge: "Free forever", ...sponsorshipAllowance() },
   { slug: "prize-splitter", marketingSlug: "prize-pool-splitter", name: "Prize Pool Splitter", badge: "Free forever", ...prizeAllowance() },
   { slug: "tie-breaker", marketingSlug: "tie-breaker", name: "Tie-Breaker Resolver", badge: "Free forever", ...tieBreakerAllowance() },
   { slug: "draft-ban", marketingSlug: "draft-ban", name: "Draft & Ban", badge: "Free forever", ...draftBanAllowance() },
+  { slug: "payout-tracker", marketingSlug: "prize-payout-tracker", name: "Prize Payout Tracker", badge: "Free forever", ...payoutTrackerAllowance() },
 ];
 
 export function freeTierBySlug(slug: string): FreeTierInfo | null {
