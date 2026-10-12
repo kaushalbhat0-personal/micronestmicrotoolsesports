@@ -18,6 +18,7 @@ import {
 import type { TrackerDetail as TrackerDetailData } from "../services/tracker-service";
 import { DeadlineBadge, TrackerStatusBadge } from "./status-badges";
 import { PayoutShareLinkButton } from "./share-link-button";
+import { PayoutWhatsAppShare } from "./whatsapp-share";
 import { RecipientManager } from "./recipient-manager";
 
 /**
@@ -165,6 +166,9 @@ export function TrackerDetail({
               </Button>
               <span className="text-xs text-muted-foreground">Revoking invalidates the old URL immediately.</span>
             </div>
+          ) : null}
+          {isLive ? (
+            <PayoutWhatsAppShare eventName={tracker.event_name} status={tracker.status === "completed" ? "completed" : "published"} shareToken={tracker.share_token} />
           ) : null}
           {isDraft ? (
             <div className="flex flex-wrap items-center gap-2">

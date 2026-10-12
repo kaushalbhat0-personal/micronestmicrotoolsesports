@@ -31,6 +31,7 @@ function render(text: string, unresolvedCount = 0) {
         copyText={buildCopyText(teams, { unresolvedCount })}
         csvText={buildCsv(teams)}
         printModel={buildPrintModel(teams)}
+        teams={teams}
         unresolvedCount={unresolvedCount}
         onReset={() => undefined}
       />,
@@ -85,5 +86,15 @@ describe("RosterOutput", () => {
     const source = readFileSync(join(process.cwd(), "src/features/roster-builder/components/roster-output.tsx"), "utf8");
     expect(source).not.toMatch(/"use server"|supabase|analytics|telemetry|fetch\(/);
     expect(source).not.toMatch(/console\.(log|info|debug)/);
+  });
+
+  it("offers WhatsApp sharing with a review notice and no contacts", () => {
+    const { html } = render("Alpha\tRahul\tSECRET-991");
+    // Collapsed affordance renders server-side; the review notice lives in
+    // the expanded editor (client interaction) — assert both levels.
+    expect(html).toContain("Share on WhatsApp");
+    expect(html).not.toContain("SECRET-991");
+    const source = readFileSync(join(process.cwd(), "src/features/roster-builder/components/roster-output.tsx"), "utf8");
+    expect(source).toContain("Review before sharing");
   });
 });

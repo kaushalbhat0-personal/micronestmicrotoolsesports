@@ -17,6 +17,7 @@ import { CompetitionSetupForm } from "@/features/tie-breaker/components/competit
 import { CompetitionStatusBadge } from "@/features/tie-breaker/components/competition-status-badge";
 import { CopyCompetitionButton } from "@/features/tie-breaker/components/copy-competition-button";
 import { ShareLinkButton } from "@/features/tie-breaker/components/share-link-button";
+import { TieBreakerWhatsAppShare } from "@/features/tie-breaker/components/whatsapp-share";
 import { DeleteCompetitionButton } from "@/features/tie-breaker/components/delete-competition-button";
 import { OfficialRecord } from "@/features/tie-breaker/components/official-record";
 import { ResultEntryForm } from "@/features/tie-breaker/components/result-entry-form";
@@ -80,6 +81,17 @@ export default async function TieBreakerWorkspacePage({
           <ShareLinkButton shareToken={competition.share_token} />
           <CopyCompetitionButton orgSlug={orgSlug} competitionId={competition.id} />
         </div>
+        <TieBreakerWhatsAppShare
+          record={{
+            record_number: competition.record_number ?? "",
+            competition_name: competition.name ?? "",
+            description: competition.description ?? null,
+            locked_at: competition.locked_at ?? "",
+            snapshot,
+            organization_name: ctx.organization.name,
+          }}
+          shareToken={competition.share_token}
+        />
       </div>
     );
   }

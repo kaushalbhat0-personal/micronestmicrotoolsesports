@@ -97,7 +97,9 @@ describe("public share link — RCCF-PRIZE-SPLITTER-03", () => {
   it("Copy Link in calculator uses public route", () => {
     const calcPath = path.join(process.cwd(), "src/features/prize-splitter/components/prize-splitter-calculator.tsx");
     const content = fs.readFileSync(calcPath, "utf-8");
-    expect(content).toContain("/share/prize-splitter?s=");
+    // Share URL is built through the canonical buildShareUrl helper against
+    // the public route (same output as the previous inline construction).
+    expect(content).toContain("buildShareUrl(`${window.location.origin}/share/prize-splitter`");
     expect(content).not.toContain("${window.location.pathname}?s=");
   });
 });

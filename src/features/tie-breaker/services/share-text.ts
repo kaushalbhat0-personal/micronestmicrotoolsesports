@@ -1,11 +1,33 @@
-import type { TieBreakerShareRecord } from "./share";
-
 /**
  * Tie-Breaker Resolver — Official result text builder (copy/share/print).
  * Pure function. Public projection only: no notes, no internal identifiers.
  */
 
-export function buildTieBreakerCopyText(record: TieBreakerShareRecord, publicUrl: string): string {
+/**
+ * Minimal structural input for the official copy builder. Accepts the
+ * locked share DTO and equivalent domain snapshots (readonly-friendly)
+ * without conversion.
+ */
+export interface TieBreakerCopyRecord {
+  readonly competition_name: string;
+  readonly description: string | null;
+  readonly record_number: string;
+  readonly organization_name: string;
+  readonly locked_at: string;
+  readonly snapshot: {
+    readonly standings: ReadonlyArray<{
+      readonly position: number;
+      readonly teamId: string;
+      readonly points: number;
+      readonly wins: number;
+      readonly tied: boolean;
+    }>;
+    readonly teamNames: Readonly<Record<string, string>>;
+    readonly explanations: ReadonlyArray<{ readonly summary: string }>;
+  };
+}
+
+export function buildTieBreakerCopyText(record: TieBreakerCopyRecord, publicUrl: string): string {
   const lines: string[] = [];
   lines.push("MICRONEST — OFFICIAL RESULT");
   lines.push(record.competition_name);

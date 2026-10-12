@@ -106,6 +106,7 @@ export function RosterSession({
         copyText={copyText}
         csvText={csvText}
         printModel={printModel}
+        teams={teams}
         unresolvedCount={blockingCount}
         onReset={onReset}
       />

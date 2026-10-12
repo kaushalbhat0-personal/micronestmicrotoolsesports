@@ -4,7 +4,9 @@ import * as React from "react";
 import { Check, Copy, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { type PrintModel } from "../types";
+import { WhatsAppShare } from "@/components/shared/whatsapp-share";
+import { type PrintModel, type WorkingTeam } from "../types";
+import { buildRosterWhatsAppMessage } from "../services/whatsapp";
 import { copyTextToClipboard, downloadTextFile } from "./browser-actions";
 
 /**
@@ -16,18 +18,24 @@ export function RosterOutput({
   copyText,
   csvText,
   printModel,
+  teams,
   unresolvedCount,
   onReset,
 }: {
   copyText: string;
   csvText: string;
   printModel: PrintModel;
+  teams: ReadonlyArray<WorkingTeam>;
   unresolvedCount: number;
   onReset: () => void;
 }) {
   const [copied, setCopied] = React.useState(false);
   const [copyFailed, setCopyFailed] = React.useState(false);
   const [downloaded, setDownloaded] = React.useState(false);
+  const waMessage = React.useMemo(
+    () => buildRosterWhatsAppMessage(teams, { unresolvedCount }),
+    [teams, unresolvedCount],
+  );
 
   async function onCopy() {
     const ok = await copyTextToClipboard(copyText);
@@ -87,6 +95,10 @@ export function RosterOutput({
               Start over
             </Button>
           </div>
+          <WhatsAppShare
+            message={waMessage}
+            reviewNote="Review before sharing — player contacts are never included. Long rosters note where the full list lives."
+          />
           <p aria-live="polite" className="text-xs text-muted-foreground">
             {copyFailed ? "Copy failed in this browser — select the preview text and copy manually." : " "}
           </p>

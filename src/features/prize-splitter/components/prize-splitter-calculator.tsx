@@ -27,7 +27,9 @@ import { getGameBySlug } from "@/config/games/catalog";
 import { calculateSplit, validateInput, formatMoney, canonicalPct } from "../services/calculation";
 import { formatPayoutAnnouncement, type AnnouncementStyle } from "../services/formatters";
 import { buildCsv, downloadCsv } from "../services/export";
-import { decodeShareState, encodeShareState } from "../services/share";
+import { decodeShareState, buildShareUrl } from "../services/share";
+import { buildSplitterWhatsAppMessage } from "../services/whatsapp";
+import { WhatsAppShare } from "@/components/shared/whatsapp-share";
 import { Trophy, Percent, Users, Medal, Copy, RotateCcw, Check, AlertCircle, Plus, Trash2, Calculator, Link2, Download, Printer, ChevronDown } from "lucide-react";
 
 function ordinalLabel(n: number): string {
@@ -204,8 +206,9 @@ export function PrizeSplitterCalculator() {
     void doCopy(text, style);
   };
 
-  const handleCopyLink = async () => {
-    // Build share state from current inputs
+  // Share-state assembly shared by Copy Link and WhatsApp sharing.
+  // Returns null unless the current inputs validate.
+  const currentShareUrl = React.useCallback(() => {
     const shareState = {
       v: 1 as const,
       pool: prizePool,
@@ -215,7 +218,7 @@ export function PrizeSplitterCalculator() {
       ...(method === "equal" ? { equalCount } : {}),
       ...(publishCtx ? { ctx: publishCtx } : {}),
     };
-    // Validate before encoding — if invalid, don't copy
+    // Validate before encoding — if invalid, don't share
     const testInput = {
       prizePool: shareState.pool,
       currency: shareState.cur,
@@ -224,9 +227,22 @@ export function PrizeSplitterCalculator() {
       equalCount: shareState.method === "equal" ? shareState.equalCount : undefined,
     };
     const v = validateInput(testInput as never);
-    if (!v.valid) return;
-    const encoded = encodeShareState(shareState as never);
-    const url = `${window.location.origin}/share/prize-splitter?s=${encoded}`;
+    if (!v.valid) return null;
+    if (typeof window === "undefined") return null;
+    return buildShareUrl(`${window.location.origin}/share/prize-splitter`, shareState as never);
+  }, [prizePool, currency, method, placements, equalCount, publishCtx]);
+
+  // Ready-made WhatsApp message (client-side only; SSR renders nothing).
+  const waMessage = React.useMemo(() => {
+    if (!result || typeof window === "undefined") return null;
+    const url = currentShareUrl();
+    if (!url) return null;
+    return buildSplitterWhatsAppMessage(result, publishCtx, url);
+  }, [result, publishCtx, currentShareUrl]);
+
+  const handleCopyLink = async () => {
+    const url = currentShareUrl();
+    if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -696,6 +712,13 @@ export function PrizeSplitterCalculator() {
                   <Printer className="h-4 w-4" /> Print
                 </Button>
               </div>
+
+              {waMessage ? (
+                <WhatsAppShare
+                  message={waMessage}
+                  reviewNote="Review the split before sharing — the message carries the result and the share link."
+                />
+              ) : null}
 
               <Link href="/pricing" className="flex items-center justify-center gap-1 rounded-[10px] border border-border bg-surface-muted/50 px-3 py-2.5 text-xs text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-colors text-center leading-relaxed">
                 Need Sponsorship Tracking too? <span className="font-medium text-primary">Explore All Access → ₹2,499/month</span>

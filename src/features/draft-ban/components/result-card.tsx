@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrgLogo } from "./org-logo";
+import { DraftWhatsAppShare } from "./whatsapp-share";
 import type { DraftMatch } from "@/types/database";
 
 export function ResultCard({
@@ -129,6 +130,7 @@ export function ResultCard({
             <Printer className="h-4 w-4" aria-hidden /> Print
           </Button>
         </div>
+        <DraftWhatsAppShare match={match} organizationName={organizationName} shareUrl={shareUrl} />
       </CardContent>
     </Card>
   );
