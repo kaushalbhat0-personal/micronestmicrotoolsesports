@@ -53,8 +53,8 @@ describe("purchase guidance — customer-safe plan context", () => {
     expect(coveredToolSlugs("prize-pool-splitter-monthly")).toEqual(["prize-splitter"]);
     expect(coveredToolSlugs("prize-payout-tracker-monthly")).toEqual(["payout-tracker"]);
     expect(coveredToolSlugs("prize-payout-tracker-yearly")).toEqual(["payout-tracker"]);
-    expect(coveredToolSlugs("all-access-monthly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker"]);
-    expect(coveredToolSlugs("all-access-yearly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker"]);
+    expect(coveredToolSlugs("all-access-monthly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker", "roster-builder"]);
+    expect(coveredToolSlugs("all-access-yearly")).toEqual(["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker", "roster-builder"]);
     expect(coveredToolSlugs("nope")).toEqual([]);
     expect(coveredToolSlugs(null)).toEqual([]);
   });

@@ -7,5 +7,6 @@ insert into public.tools (slug, name, description, is_active) values
   ('prize-splitter', 'Prize Pool Splitter & Escrow', 'Split prize pools and manage escrow transparently', true),
   ('draft-ban', 'Draft & Ban', 'Professional match draft room — run vetoes and lock official records', true),
   ('tie-breaker', 'Tie-Breaker Resolver', 'Official standings for tied competitions — explained, locked, shareable', true),
-  ('payout-tracker', 'Prize Payout Tracker', 'Publish a public, organizer-reported record of tournament prize payouts', true)
+  ('payout-tracker', 'Prize Payout Tracker', 'Publish a public, organizer-reported record of tournament prize payouts', true),
+  ('roster-builder', 'Tournament Roster & Slot Builder', 'Paste messy registrations — clean duplicates, flag shared players, assign slots', true)
 on conflict (slug) do nothing;

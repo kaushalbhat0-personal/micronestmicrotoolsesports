@@ -135,6 +135,30 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     accent: "charcoal",
     motif: "Paid · Pending · Public",
   },
+  {
+    slug: "tournament-roster-builder",
+    name: "Tournament Roster & Slot Builder",
+    shortDescription: "Turn messy registrations into a clean, copy-ready slot list",
+    longDescription:
+      "Tournament Roster & Slot Builder is subscription software that helps tournament organizers paste messy registrations, catch duplicate players and multi-team conflicts, assign team slots, and copy a clean roster in seconds. Results aren't saved in your workspace — copy, print, or export the result when you're done. Available now.",
+    audience: ["Tournament organizers", "League administrators", "Community organizers"],
+    features: [
+      "Paste tab, comma, semicolon, or pipe-separated registrations",
+      "Exact and normalized duplicate detection with first-seen display names",
+      "Multi-team player conflicts flagged for human confirmation",
+      "Team capacity checks with a single global roster size",
+      "Slot assignment by team order with copy-ready text, CSV, and print output",
+    ],
+    status: "available",
+    internalSlug: "roster-builder",
+    icon: "ClipboardList",
+    seoTitle: "Tournament Roster & Slot Builder for Esports | MicroNest",
+    seoDescription:
+      "Subscription software to clean messy tournament registrations — catch duplicate players, flag multi-team conflicts, assign slots, and copy a clean roster. A focused MicroNest tool for tournament organizers.",
+    number: "T09",
+    accent: "teal",
+    motif: "Paste · Clean · Slot",
+  },
 ];
 
 export function getMarketingTool(slug: string) {

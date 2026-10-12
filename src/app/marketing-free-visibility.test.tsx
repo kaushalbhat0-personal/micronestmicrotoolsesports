@@ -30,8 +30,8 @@ const TOOL_PAGE = "src/app/tools/[slug]/page.tsx";
 const PRICING_CLIENT = "src/app/pricing/pricing-client.tsx";
 
 describe("free-tier content is registry-derived (single source)", () => {
-  it("covers all five available tools with Free forever badges", () => {
-    expect(FREE_TIERS).toHaveLength(5);
+  it("covers all six available tools with Free forever badges", () => {
+    expect(FREE_TIERS).toHaveLength(6);
     for (const tier of FREE_TIERS) {
       expect(tier.badge).toBe("Free forever");
       expect(tier.allowance.length).toBeGreaterThan(0);
@@ -76,13 +76,21 @@ describe("free-tier content is registry-derived (single source)", () => {
   it("resolves by both internal and marketing slugs (prize differs)", () => {
     expect(freeTierByMarketingSlug("prize-pool-splitter")?.slug).toBe("prize-splitter");
     expect(freeTierByMarketingSlug("draft-ban")?.slug).toBe("draft-ban");
+    expect(freeTierByMarketingSlug("tournament-roster-builder")?.slug).toBe("roster-builder");
     expect(freeTierBySlug("nope")).toBeNull();
     expect(freeTierByMarketingSlug("scrim-matchmaker")).toBeNull();
+  });
+
+  it("roster-builder states unlimited (registry exposes no limits by design)", () => {
+    expect(getToolFreePolicy("roster-builder")?.limits).toEqual({});
+    const tier = freeTierBySlug("roster-builder");
+    expect(tier?.allowance).toMatch(/Unlimited/i);
+    expect(tier?.details).toMatch(/Unlimited/i);
   });
 });
 
 describe("homepage exposes Free discovery", () => {
-  it("renders a Free section with all five tiers and an Explore free tools CTA", () => {
+  it("renders a Free section with all six tiers and an Explore free tools CTA", () => {
     const code = sourceOf(HOMEPAGE);
     expect(code).toContain("Every MicroNest tool has a Free tier");
     expect(code).toContain("Start free. Upgrade when you need more.");
@@ -161,7 +169,7 @@ describe("individual tool pages expose Free with correct hierarchy", () => {
 });
 
 describe("pricing exposes Free as a deliberate tier", () => {
-  it("renders the Free forever section with all five allowances", () => {
+  it("renders the Free forever section with all six allowances", () => {
     const code = sourceOf(PRICING_CLIENT);
     expect(code).toContain("Free forever plans");
     expect(code).toContain("₹0 forever");

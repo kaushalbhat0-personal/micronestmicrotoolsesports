@@ -65,6 +65,13 @@ function draftBanAllowance(): Pick<FreeTierInfo, "allowance" | "details"> {
   };
 }
 
+function rosterBuilderAllowance(): Pick<FreeTierInfo, "allowance" | "details"> {
+  return {
+    allowance: "Unlimited rosters · slots · copy · CSV",
+    details: "Unlimited roster cleans · unlimited slot lists · unlimited copy · unlimited CSV export",
+  };
+}
+
 function payoutTrackerAllowance(): Pick<FreeTierInfo, "allowance" | "details"> {
   const limits = getToolFreePolicy("payout-tracker")?.limits;
   const publishes = limits?.publishedTrackersPerMonth ?? 1;
@@ -81,6 +88,7 @@ export const FREE_TIERS: ReadonlyArray<FreeTierInfo> = [
   { slug: "tie-breaker", marketingSlug: "tie-breaker", name: "Tie-Breaker Resolver", badge: "Free forever", ...tieBreakerAllowance() },
   { slug: "draft-ban", marketingSlug: "draft-ban", name: "Draft & Ban", badge: "Free forever", ...draftBanAllowance() },
   { slug: "payout-tracker", marketingSlug: "prize-payout-tracker", name: "Prize Payout Tracker", badge: "Free forever", ...payoutTrackerAllowance() },
+  { slug: "roster-builder", marketingSlug: "tournament-roster-builder", name: "Tournament Roster & Slot Builder", badge: "Free forever", ...rosterBuilderAllowance() },
 ];
 
 export function freeTierBySlug(slug: string): FreeTierInfo | null {

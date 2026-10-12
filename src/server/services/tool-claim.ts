@@ -23,6 +23,10 @@ import {
   PAYOUT_TRACKER_TOOL_SLUG,
   ensureFreePayoutTrackerGrant,
 } from "@/server/services/payout-tracker-policy";
+import {
+  ROSTER_BUILDER_TOOL_SLUG,
+  ensureFreeRosterBuilderGrant,
+} from "@/server/services/roster-builder-policy";
 import { AppError } from "@/lib/errors";
 
 /**
@@ -31,7 +35,7 @@ import { AppError } from "@/lib/errors";
  * Claims Free access for a policy-enabled tool without payment, orders,
  * or billing changes. Gates are generic; issuance delegates to the
  * tool's policy module (Sponsorship user grants; Tie-Breaker, Draft & Ban,
- * and Prize Splitter org grants).
+ * Prize Splitter, Payout Tracker, and Roster Builder org grants).
  *
  * Requirements enforced here, in order:
  * - membership first (via organization context — same precedence as before)
@@ -87,6 +91,10 @@ export async function claimFreeTool(
     }
     if (policy.toolSlug === PAYOUT_TRACKER_TOOL_SLUG) {
       await ensureFreePayoutTrackerGrant(admin as never, ctx.organization.id);
+      return { ok: true };
+    }
+    if (policy.toolSlug === ROSTER_BUILDER_TOOL_SLUG) {
+      await ensureFreeRosterBuilderGrant(admin as never, ctx.organization.id);
       return { ok: true };
     }
     return { error: UNAVAILABLE_MESSAGE };

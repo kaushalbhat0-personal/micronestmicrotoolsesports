@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { MARKETING_TOOLS, getMarketingTool } from "@/config/marketing/tools";
 import { freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
 import type { ToolAccent } from "@/config/marketing/tools";
-import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, Check, ArrowRight, ReceiptText } from "lucide-react";
+import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, Check, ArrowRight, ReceiptText, ClipboardList } from "lucide-react";
 import { BrowserFrame } from "@/components/marketing/browser-frame";
 import { ShapeCrop } from "@/components/marketing/shape-crop";
 import { ProductFragment } from "@/components/marketing/product-fragment";
@@ -40,6 +40,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Swords,
   Scale,
   ReceiptText,
+  ClipboardList,
 };
 
 function accentClass(accent: ToolAccent): string {

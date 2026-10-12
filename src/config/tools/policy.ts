@@ -92,6 +92,16 @@ const PAYOUT_TRACKER_LIMITS: Readonly<Record<string, number | null>> = {
   recipientsMax: 20,
 };
 
+/**
+ * Roster Builder has no registry limits by design (unlimited, unmetered),
+ * mirroring Prize Pool Splitter: the tool is stateless (client-side parse,
+ * client-side copy/CSV/print), so Free is unlimited by construction. No
+ * quota, ledger, history, template, or branding limits exist; enforcement
+ * of paid-vs-Free lives in the existing entitlement gate
+ * (`requireEntitlement`); the policy module only mints the org-scoped Free
+ * grant that satisfies it.
+ */
+
 const POLICIES: ReadonlyMap<string, ToolFreePolicy> = new Map([
   [
     "sponsor-sentinel",
@@ -150,6 +160,21 @@ const POLICIES: ReadonlyMap<string, ToolFreePolicy> = new Map([
       freeEnabled: true,
       claimable: true,
       limits: PAYOUT_TRACKER_LIMITS,
+    },
+  ],
+  [
+    "roster-builder",
+    {
+      toolSlug: "roster-builder",
+      scope: "org",
+      userGrantable: false,
+      freeEnabled: true,
+      claimable: true,
+      // Intentionally empty: Free is unlimited (parse, conflicts, slots,
+      // copy, CSV, print) and unmetered. No quota, ledger, history,
+      // template, or branding limits exist for this tool; input-validation
+      // bounds elsewhere are integrity guards, not usage limits.
+      limits: {},
     },
   ],
 ]);

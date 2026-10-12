@@ -20,6 +20,7 @@ export function Footer() {
               <li><Link href="/tools/draft-ban" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Draft &amp; Ban</Link></li>
                 <li><Link href="/tools/tie-breaker" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Tie-Breaker Resolver</Link></li>
                 <li><Link href="/tools/prize-payout-tracker" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Prize Payout Tracker</Link></li>
+                <li><Link href="/tools/tournament-roster-builder" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Tournament Roster &amp; Slot Builder</Link></li>
               </ul>
           </div>
           <div>

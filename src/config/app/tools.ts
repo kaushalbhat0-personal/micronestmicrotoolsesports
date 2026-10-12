@@ -49,6 +49,13 @@ export const TOOLS: ToolConfig[] = [
     href: "/dashboard/payout-tracker",
     icon: "ReceiptText",
   },
+  {
+    slug: "roster-builder",
+    name: "Tournament Roster & Slot Builder",
+    description: "Paste messy registrations — clean duplicates, flag shared players, assign slots",
+    href: "/dashboard/roster-builder",
+    icon: "ClipboardList",
+  },
 ];
 
 export const ALL_ACCESS_SLUG = "all-access";

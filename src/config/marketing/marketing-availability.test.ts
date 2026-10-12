@@ -5,7 +5,7 @@ import { TOOLS } from "@/config/app/tools";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import { toWorkspaceTools } from "@/server/services/workspace-tools";
 
-const RELEASED = ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker"] as const;
+const RELEASED = ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker", "roster-builder"] as const;
 const REMOVED = ["scrim-matchmaker", "vod-clipper", "roster-sentinel"] as const;
 
 function src(path: string): string {
@@ -13,7 +13,7 @@ function src(path: string): string {
 }
 
 describe("frontend availability truth — RCCF-CLEANUP-02 (released-only catalog)", () => {
-  it("registry contains exactly the five released tools", () => {
+  it("registry contains exactly the six released tools", () => {
     expect(TOOLS.map((t) => t.slug).sort()).toEqual([...RELEASED].sort());
   });
 
@@ -26,7 +26,7 @@ describe("frontend availability truth — RCCF-CLEANUP-02 (released-only catalog
     for (const slug of REMOVED) expect(slugs.has(slug)).toBe(false);
   });
 
-  it("marketing catalog contains exactly the five released tools, all available", () => {
+  it("marketing catalog contains exactly the six released tools, all available", () => {
     expect(MARKETING_TOOLS.map((t) => t.internalSlug).sort()).toEqual([...RELEASED].sort());
     for (const tool of MARKETING_TOOLS) expect(tool.status).toBe("available");
     const slugs = new Set(MARKETING_TOOLS.map((t) => t.slug));
@@ -34,7 +34,7 @@ describe("frontend availability truth — RCCF-CLEANUP-02 (released-only catalog
   });
 
   it("workspace view-model covers the released tools with no comingSoon flags", () => {
-    const { entitled, available } = toWorkspaceTools(TOOLS, ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker"], "acme");
+    const { entitled, available } = toWorkspaceTools(TOOLS, ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker", "roster-builder"], "acme");
     const all = [...entitled, ...available];
     expect(all.map((t) => t.slug).sort()).toEqual([...RELEASED].sort());
     for (const tool of all) expect(tool.comingSoon).toBe(false);
@@ -46,6 +46,7 @@ describe("frontend availability truth — RCCF-CLEANUP-02 (released-only catalog
     expect(footer).toContain("Tie-Breaker Resolver");
     expect(footer).toContain('href="/tools/prize-payout-tracker"');
     expect(footer).toContain("Prize Payout Tracker");
+    expect(footer).toContain('href="/tools/tournament-roster-builder"');
     for (const slug of REMOVED) expect(footer).not.toContain(slug);
     for (const name of ["Scrim Matchmaker", "VOD Clipper", "Roster Sentinel"]) {
       expect(footer).not.toContain(name);

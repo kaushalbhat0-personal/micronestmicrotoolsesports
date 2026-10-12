@@ -82,7 +82,7 @@ export function getPurchaseGuide(planSlug: string | null | undefined): PurchaseG
 export function coveredToolSlugs(planSlug: string | null | undefined): string[] {
   if (!planSlug) return [];
   if (planSlug === "all-access" || planSlug.startsWith("all-access-")) {
-    return ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker"];
+    return ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker", "roster-builder"];
   }
   const found = GUIDES.find(({ prefix }) => prefix !== "all-access" && (planSlug === prefix || planSlug.startsWith(`${prefix}-`)));
   if (!found) return [];
