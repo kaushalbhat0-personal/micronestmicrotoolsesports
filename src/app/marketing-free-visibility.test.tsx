@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToString } from "react-dom/server";
 import { getToolFreePolicy } from "@/config/tools/policy";
-import { FREE_TIERS, freeTierByMarketingSlug, freeTierBySlug } from "@/config/marketing/free-tiers";
+import { FREE_TIERS, freeBadgeByMarketingSlug, freeBadgeBySlug, freeTierByMarketingSlug, freeTierBySlug } from "@/config/marketing/free-tiers";
 import { PricingClient } from "@/app/pricing/pricing-client";
 import type { Plan } from "@/types/database";
 
@@ -89,6 +89,46 @@ describe("free-tier content is registry-derived (single source)", () => {
   });
 });
 
+describe("catalog badges follow the canonical Free policy (data-driven)", () => {
+  const EXPECTED: ReadonlyArray<{ slug: string; marketingSlug: string; badge: "Free forever" | "Free plan" }> = [
+    { slug: "sponsor-sentinel", marketingSlug: "sponsorship-tracking", badge: "Free plan" },
+    { slug: "prize-splitter", marketingSlug: "prize-pool-splitter", badge: "Free forever" },
+    { slug: "tie-breaker", marketingSlug: "tie-breaker", badge: "Free plan" },
+    { slug: "draft-ban", marketingSlug: "draft-ban", badge: "Free plan" },
+    { slug: "payout-tracker", marketingSlug: "prize-payout-tracker", badge: "Free plan" },
+    { slug: "roster-builder", marketingSlug: "tournament-roster-builder", badge: "Free forever" },
+  ];
+
+  it("maps every catalog-visible tool to its canonical badge", () => {
+    expect(EXPECTED).toHaveLength(FREE_TIERS.length);
+    for (const { slug, marketingSlug, badge } of EXPECTED) {
+      expect(freeBadgeBySlug(slug)).toBe(badge);
+      expect(freeBadgeByMarketingSlug(marketingSlug)).toBe(badge);
+    }
+  });
+
+  it("quota-limited tools can never regress to Free forever", () => {
+    for (const slug of ["sponsor-sentinel", "tie-breaker", "draft-ban", "payout-tracker"]) {
+      expect(Object.keys(getToolFreePolicy(slug)?.limits ?? {})).not.toHaveLength(0);
+      expect(freeBadgeBySlug(slug)).toBe("Free plan");
+    }
+  });
+
+  it("unlimited tools keep Free forever", () => {
+    for (const slug of ["prize-splitter", "roster-builder"]) {
+      expect(getToolFreePolicy(slug)?.limits).toEqual({});
+      expect(freeBadgeBySlug(slug)).toBe("Free forever");
+    }
+  });
+
+  it("unknown and removed slugs resolve to null (fail closed, never invented)", () => {
+    for (const slug of ["nope", "scrim-matchmaker", "vod-clipper", "roster-sentinel", "all-access"]) {
+      expect(freeBadgeBySlug(slug)).toBeNull();
+      expect(freeBadgeByMarketingSlug(slug)).toBeNull();
+    }
+  });
+});
+
 describe("homepage exposes Free discovery", () => {
   it("renders a Free section with all six tiers and an Explore free tools CTA", () => {
     const code = sourceOf(HOMEPAGE);
@@ -100,10 +140,12 @@ describe("homepage exposes Free discovery", () => {
     expect(code).toContain("No credit card required");
   });
 
-  it("marks featured and organizer cards with compact Free lines", () => {
+  it("marks featured and organizer cards with canonical Free badges", () => {
     const code = sourceOf(HOMEPAGE);
-    expect(code).toContain("Free forever");
+    // Badges derive from the canonical policy chain — no hardcoded wording.
+    expect(code).toContain("freeBadgeBySlug");
     expect(code).toContain("freeTierBySlug");
+    expect(code).not.toMatch(/>Free forever</);
   });
 
   it("keeps SEO metadata (titles intact, descriptions mention free naturally)", () => {
@@ -115,9 +157,11 @@ describe("homepage exposes Free discovery", () => {
 });
 
 describe("tool catalog exposes Free per available tool", () => {
-  it("badges available tools Free forever with the allowance line", () => {
+  it("badges available tools with the canonical Free badge plus allowance line", () => {
     const code = sourceOf(TOOLS_PAGE);
-    expect(code).toContain("Free forever");
+    // No hardcoded badge: quota-limited tools must never read "Free forever".
+    expect(code).not.toContain("Free forever");
+    expect(code).toContain("freeBadgeByMarketingSlug");
     expect(code).toContain("freeTierByMarketingSlug");
     expect(code).toContain("Free: {free.allowance}");
     expect(code).toContain("Every available tool can be started free");
@@ -134,9 +178,10 @@ describe("tool catalog exposes Free per available tool", () => {
 });
 
 describe("individual tool pages expose Free with correct hierarchy", () => {
-  it("shows Free status, allowance details, and a Start free CTA", () => {
+  it("shows canonical Free status, allowance details, and a Start free CTA", () => {
     const code = sourceOf(TOOL_PAGE);
-    expect(code).toContain("Free forever");
+    expect(code).not.toContain(">Free forever<");
+    expect(code).toContain("freeBadgeByMarketingSlug");
     expect(code).toContain("freeTierByMarketingSlug");
     expect(code).toContain("No credit card required");
     expect(code).toContain("Free never expires");

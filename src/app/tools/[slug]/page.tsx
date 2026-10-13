@@ -7,7 +7,7 @@ import { Footer } from "@/components/layout/footer";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { MARKETING_TOOLS, getMarketingTool } from "@/config/marketing/tools";
-import { freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
+import { freeBadgeByMarketingSlug, freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
 import type { ToolAccent } from "@/config/marketing/tools";
 import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, Check, ArrowRight, ReceiptText, ClipboardList } from "lucide-react";
 import { BrowserFrame } from "@/components/marketing/browser-frame";
@@ -126,6 +126,8 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
       : null;
   const monthlyPlanSlug = tool.status === "available" && TOOL_PLAN_PREFIX[tool.slug] ? `${TOOL_PLAN_PREFIX[tool.slug]}-monthly` : null;
   const free = tool.status === "available" ? freeTierByMarketingSlug(tool.slug) : null;
+  // Canonical badge: quota-limited tiers read "Free plan".
+  const freeBadge = tool.status === "available" ? freeBadgeByMarketingSlug(tool.slug) : null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -164,7 +166,7 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-2 text-sm">
-                    <Badge variant="success">Free forever</Badge>
+                    {freeBadge ? <Badge variant="success">{freeBadge}</Badge> : null}
                     <span className="font-medium">{free.allowance}</span>
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">{free.details}. No credit card required — Free never expires. Need more? Paid plans unlock the full allowance.</p>

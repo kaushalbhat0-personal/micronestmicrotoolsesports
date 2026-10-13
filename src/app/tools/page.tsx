@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import type { ToolAccent } from "@/config/marketing/tools";
-import { freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
+import { freeBadgeByMarketingSlug, freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
 import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, ArrowRight, ReceiptText } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -75,6 +75,8 @@ export default function ToolsPage() {
               const Icon = iconMap[tool.icon] ?? ShieldCheck;
               const isAvailable = tool.status === "available";
               const free = isAvailable ? freeTierByMarketingSlug(tool.slug) : null;
+              // Canonical badge: quota-limited tiers read "Free plan".
+              const badge = isAvailable ? freeBadgeByMarketingSlug(tool.slug) : null;
               return (
                 <Card
                   key={tool.slug}
@@ -93,7 +95,7 @@ export default function ToolsPage() {
                       <span className="flex items-center gap-2">
                         <span className={`font-mono text-[11px] tracking-widest ${accentClass(tool.accent)}`}>{tool.number}</span>
                         {isAvailable ? <Badge variant="success">Available</Badge> : <Badge variant="secondary">Coming soon</Badge>}
-                        {free ? <Badge variant="outline">Free forever</Badge> : null}
+                        {badge ? <Badge variant="outline">{badge}</Badge> : null}
                       </span>
                     </div>
                     <CardTitle className="text-base mt-3">{tool.name}</CardTitle>

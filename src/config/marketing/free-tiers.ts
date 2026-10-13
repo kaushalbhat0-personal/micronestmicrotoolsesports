@@ -95,6 +95,35 @@ export function freeTierBySlug(slug: string): FreeTierInfo | null {
   return FREE_TIERS.find((t) => t.slug === slug) ?? null;
 }
 
+/**
+ * Canonical Free badge wording for public surfaces.
+ *
+ * Same rule as the Billing adapter: genuinely unlimited/unmetered Free tiers
+ * (`policy.limits` empty) read "Free forever"; quota-limited tiers read
+ * "Free plan". Derived from `src/config/tools/policy.ts` — never a second
+ * rules table, never hardcoded per tool. Null when the tool has no canonical
+ * Free entry (fail closed).
+ */
+export type FreeBadge = "Free forever" | "Free plan";
+
+function badgeForPolicy(toolSlug: string): FreeBadge {
+  const policy = getToolFreePolicy(toolSlug);
+  const unlimited = !policy || Object.keys(policy.limits).length === 0;
+  return unlimited ? "Free forever" : "Free plan";
+}
+
+export function freeBadgeBySlug(slug: string): FreeBadge | null {
+  const tier = freeTierBySlug(slug);
+  if (!tier) return null;
+  return badgeForPolicy(tier.slug);
+}
+
+export function freeBadgeByMarketingSlug(marketingSlug: string): FreeBadge | null {
+  const tier = freeTierByMarketingSlug(marketingSlug);
+  if (!tier) return null;
+  return badgeForPolicy(tier.slug);
+}
+
 export function freeTierByMarketingSlug(slug: string): FreeTierInfo | null {
   return FREE_TIERS.find((t) => t.marketingSlug === slug) ?? null;
 }

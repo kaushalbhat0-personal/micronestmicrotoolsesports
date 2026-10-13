@@ -6,7 +6,7 @@ import { LogoMark } from "@/components/shared/logo";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
-import { FREE_TIERS, freeTierBySlug } from "@/config/marketing/free-tiers";
+import { FREE_TIERS, freeBadgeBySlug, freeTierBySlug } from "@/config/marketing/free-tiers";
 import { ProofStrip } from "@/components/marketing/proof-strip";
 import { createClient } from "@/lib/supabase/server";
 import { listActivePlans } from "@/server/repositories/plans";
@@ -117,7 +117,7 @@ export default async function MarketingPage() {
                 <Badge variant="success" className="mb-3">Featured • Available now</Badge>
                 <h2 className="font-display text-2xl font-normal tracking-tight">Sponsorship Tracking</h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Know if every creator posted what the sponsor paid for.</p>
-                <p className="mt-2 text-sm"><span className="font-medium text-foreground">Free forever</span> <span className="text-muted-foreground">· {freeTierBySlug("sponsor-sentinel")?.allowance}</span></p>
+                <p className="mt-2 text-sm"><span className="font-medium text-foreground">{freeBadgeBySlug("sponsor-sentinel") ?? "Free plan"}</span> <span className="text-muted-foreground">· {freeTierBySlug("sponsor-sentinel")?.allowance}</span></p>
                 <ul className="mt-4 space-y-2 text-sm">
                   {featured.features.slice(0, 4).map((f) => (
                     <li key={f} className="flex items-start gap-2">
@@ -219,7 +219,7 @@ export default async function MarketingPage() {
                     <CardTitle className="text-base mt-3">{tool.name}</CardTitle>
                     <CardDescription>{tool.shortDescription}</CardDescription>
                     {free ? (
-                      <p className="mt-2 text-sm"><span className="font-medium text-foreground">Free forever</span> <span className="text-muted-foreground">· {free.allowance}</span></p>
+                      <p className="mt-2 text-sm"><span className="font-medium text-foreground">{freeBadgeBySlug(free.slug) ?? "Free plan"}</span> <span className="text-muted-foreground">· {free.allowance}</span></p>
                     ) : null}
                   </CardHeader>
                   <CardContent>
@@ -246,7 +246,7 @@ export default async function MarketingPage() {
               {FREE_TIERS.map((tier) => (
                 <li key={tier.slug} className="rounded-[12px] border border-border bg-surface-muted/40 p-4">
                   <p className="text-sm font-semibold">{tier.name}</p>
-                  <p className="mt-1 text-sm"><span className="font-medium text-primary">Free forever</span> <span className="text-muted-foreground">· {tier.allowance}</span></p>
+                  <p className="mt-1 text-sm"><span className="font-medium text-primary">{freeBadgeBySlug(tier.slug) ?? "Free plan"}</span> <span className="text-muted-foreground">· {tier.allowance}</span></p>
                 </li>
               ))}
             </ul>
