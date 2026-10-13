@@ -2,6 +2,7 @@ import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { isEntitlementDenied } from "@/lib/errors";
 import { AccessDenied } from "@/components/shared/access-denied";
+import { ClaimFreeSponsorshipCard } from "@/features/sponsor-sentinel/components/claim-free-card";
 import { createClient } from "@/lib/supabase/server";
 import { listCampaigns } from "@/features/sponsor-sentinel/services/campaign-service";
 import { getRequirementCounts } from "@/features/sponsor-sentinel/services/deliverable-service";
@@ -16,6 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
 import type { Route } from "next";
 import { ShieldCheck } from "lucide-react";
+import { formatDayKolkata } from "@/lib/utils/format";
 
 export default async function CampaignsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
@@ -23,7 +25,14 @@ export default async function CampaignsPage({ params }: { params: Promise<{ orgS
   try {
     await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
   } catch (e) {
-    if (isEntitlementDenied(e)) return <AccessDenied orgSlug={orgSlug} />;
+    if (isEntitlementDenied(e)) {
+      return (
+        <div className="space-y-6">
+          <AccessDenied orgSlug={orgSlug} />
+          <ClaimFreeSponsorshipCard orgSlug={orgSlug} />
+        </div>
+      );
+    }
     throw e;
   }
   const supabase = await createClient();
@@ -93,10 +102,10 @@ export default async function CampaignsPage({ params }: { params: Promise<{ orgS
                       {last ? (
                         <Badge variant={last.scan.platform === "youtube" ? "platform-youtube" : last.scan.platform === "twitch" ? "platform-twitch" : "platform-kick"} className="capitalize text-[10px]">{last.scan.platform}</Badge>
                       ) : null}
-                      <span className="text-xs text-muted-foreground">{new Date(c.ends_at).toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      <span className="text-xs text-muted-foreground">{formatDayKolkata(c.ends_at)}</span>
                     </div>
                     {last ? (
-                      <p className="text-xs text-muted-foreground">Last check {new Date(last.scan.started_at).toLocaleDateString()} • {last.evidenceCount} proof</p>
+                      <p className="text-xs text-muted-foreground">Last check {formatDayKolkata(last.scan.started_at)} • {last.evidenceCount} proof</p>
                     ) : (
                       <p className="text-xs text-muted-foreground">No checks yet</p>
                     )}

@@ -62,6 +62,9 @@ function getBreadcrumbs(pathname: string, orgSlug?: string): BreadcrumbItem[] {
   }
   const base = `/dashboard/${orgSlug}` as Route;
   if (pathname === `/dashboard/${orgSlug}`) return [{ label: "Workspace", href: base }, { label: "Overview" }];
+  if (pathname === `/dashboard/${orgSlug}/tools`) {
+    return [{ label: "Workspace", href: base }, { label: "All Tools" }];
+  }
   if (pathname.startsWith(`/dashboard/${orgSlug}/sponsor-sentinel/campaigns/new`)) {
     return [{ label: "Workspace", href: base }, { label: "Campaigns", href: `/dashboard/${orgSlug}/sponsor-sentinel/campaigns` as Route }, { label: "New" }];
   }
@@ -147,21 +150,32 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
             ) : (
               entitled.map((tool) => {
                 const ToolIcon = iconMap[tool.icon] ?? ShieldCheck;
+                // Sponsorship-style tools group sub-pages under a single
+                // header. Single-page tools render one link only — never a
+                // header plus an identically-labelled link (RCCF F10).
+                if (!tool.subItems || tool.subItems.length === 0) {
+                  return (
+                    <NavLink
+                      key={tool.slug}
+                      href={tool.href}
+                      icon={tool.icon}
+                      label={tool.name}
+                      pathname={pathname}
+                      onNavigate={() => setMobileOpen(false)}
+                    />
+                  );
+                }
                 return (
                   <div key={tool.slug} className="space-y-1">
                     <div className="flex items-center gap-2 px-3 py-1 text-xs font-semibold text-foreground">
                       <ToolIcon className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="truncate">{tool.name}</span>
                     </div>
-                    {tool.subItems && tool.subItems.length > 0 ? (
-                      <div className="ml-2 space-y-1 border-l border-border/60 pl-2">
-                        {tool.subItems.map((sub) => (
-                          <NavLink key={sub.href} href={sub.href} icon={sub.icon} label={sub.label} pathname={pathname} onNavigate={() => setMobileOpen(false)} indent />
-                        ))}
-                      </div>
-                    ) : (
-                      <NavLink href={tool.href} icon={tool.icon} label={tool.name} pathname={pathname} onNavigate={() => setMobileOpen(false)} indent />
-                    )}
+                    <div className="ml-2 space-y-1 border-l border-border/60 pl-2">
+                      {(tool.subItems ?? []).map((sub) => (
+                        <NavLink key={sub.href} href={sub.href} icon={sub.icon} label={sub.label} pathname={pathname} onNavigate={() => setMobileOpen(false)} indent />
+                      ))}
+                    </div>
                   </div>
                 );
               })
@@ -169,14 +183,13 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
           </div>
         </div>
 
-        {/* EXPLORE TOOLS — discovery only, never operational navigation.
-            Unsubscribed and coming-soon tools live on billing/marketing
-            surfaces; the sidebar links to the workspace billing page. */}
+        {/* EXPLORE TOOLS — workspace catalog for discovery. Billing stays
+            the only purchase surface; this link never sells. */}
         <div>
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Explore Tools</p>
           <div className="space-y-1">
             <Link
-              href={`/dashboard/${orgSlug}/settings/billing` as Route}
+              href={`/dashboard/${orgSlug}/tools` as Route}
               aria-label="Browse all tools"
               onClick={() => setMobileOpen(false)}
               className={cn(

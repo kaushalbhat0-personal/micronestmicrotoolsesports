@@ -83,11 +83,11 @@ function payoutTrackerAllowance(): Pick<FreeTierInfo, "allowance" | "details"> {
 }
 
 export const FREE_TIERS: ReadonlyArray<FreeTierInfo> = [
-  { slug: "sponsor-sentinel", marketingSlug: "sponsorship-tracking", name: "Sponsorship Tracking", badge: "Free forever", ...sponsorshipAllowance() },
+  { slug: "sponsor-sentinel", marketingSlug: "sponsorship-tracking", name: "Sponsorship Tracking", badge: "Free plan", ...sponsorshipAllowance() },
   { slug: "prize-splitter", marketingSlug: "prize-pool-splitter", name: "Prize Pool Splitter", badge: "Free forever", ...prizeAllowance() },
-  { slug: "tie-breaker", marketingSlug: "tie-breaker", name: "Tie-Breaker Resolver", badge: "Free forever", ...tieBreakerAllowance() },
-  { slug: "draft-ban", marketingSlug: "draft-ban", name: "Draft & Ban", badge: "Free forever", ...draftBanAllowance() },
-  { slug: "payout-tracker", marketingSlug: "prize-payout-tracker", name: "Prize Payout Tracker", badge: "Free forever", ...payoutTrackerAllowance() },
+  { slug: "tie-breaker", marketingSlug: "tie-breaker", name: "Tie-Breaker Resolver", badge: "Free plan", ...tieBreakerAllowance() },
+  { slug: "draft-ban", marketingSlug: "draft-ban", name: "Draft & Ban", badge: "Free plan", ...draftBanAllowance() },
+  { slug: "payout-tracker", marketingSlug: "prize-payout-tracker", name: "Prize Payout Tracker", badge: "Free plan", ...payoutTrackerAllowance() },
   { slug: "roster-builder", marketingSlug: "tournament-roster-builder", name: "Tournament Roster & Slot Builder", badge: "Free forever", ...rosterBuilderAllowance() },
 ];
 

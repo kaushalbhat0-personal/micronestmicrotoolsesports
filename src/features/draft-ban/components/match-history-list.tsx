@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { History } from "lucide-react";
 import type { DraftMatch } from "@/types/database";
 import { MatchRowActions } from "./match-row-actions";
+import { formatDateTimeKolkata, formatDayKolkata } from "@/lib/utils/format";
 
 function statusLabel(status: string): string {
   if (status === "completed") return "Completed";
@@ -82,7 +83,7 @@ export function MatchHistoryList({
                     {statusLabel(m.status)}
                   </Badge>
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-xs text-muted-foreground" title={new Date(m.created_at).toLocaleString("en-GB")}>{new Date(m.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</TableCell>
+                <TableCell className="whitespace-nowrap text-xs text-muted-foreground" title={formatDateTimeKolkata(m.created_at)}>{formatDateTimeKolkata(m.created_at)}</TableCell>
                 <TableCell>
                   <MatchRowActions orgSlug={orgSlug} matchId={m.id} status={m.status} />
                 </TableCell>
@@ -102,7 +103,7 @@ export function MatchHistoryList({
               {m.match_name ?? `${m.team_a} vs ${m.team_b}`}
             </Link>
             <p className="text-xs text-muted-foreground">
-              {m.team_a} vs {m.team_b} · {new Date(m.created_at).toLocaleDateString("en-GB")}
+              {m.team_a} vs {m.team_b} · {formatDayKolkata(m.created_at)}
             </p>
             <div className="mt-3">
               <MatchRowActions orgSlug={orgSlug} matchId={m.id} status={m.status} />

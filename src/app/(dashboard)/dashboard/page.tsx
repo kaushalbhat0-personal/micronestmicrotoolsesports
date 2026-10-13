@@ -2,16 +2,27 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import type { Route } from "next";
 import { TOOLS } from "@/config/app/tools";
 import { getUserOrganizations } from "@/lib/auth/require-membership";
 import { getCurrentUser } from "@/lib/auth/get-user";
 import { createClient } from "@/lib/supabase/server";
 import { getPlanContext } from "@/server/billing/plan-context";
 import { formatPlanPrice, getPurchaseGuide, periodLabel } from "@/lib/purchase/plan-guidance";
+import { toolWorkspaceRoute } from "@/lib/workspace/tool-intent";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Building2, ArrowRight } from "lucide-react";
 
 // Route page orchestrates — obtains context via lib/auth, delegates to services, renders UI.
+
+/** Extract the workspace slug from a membership row (join may return object or array). */
+function orgSlugOf(membership: { organization: unknown } | undefined): string | null {
+  if (!membership) return null;
+  const raw = membership.organization as { slug: string } | { slug: string }[] | null | undefined;
+  const org = Array.isArray(raw) ? raw[0] : raw;
+  return org?.slug ?? null;
+}
+
 export default async function DashboardPage({ searchParams }: { searchParams?: Promise<{ plan?: string }> }) {
   const user = await getCurrentUser();
   const supabase = await createClient();
@@ -98,26 +109,37 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
         <h2 className="font-display text-xl font-normal tracking-tight">Tools</h2>
         <p className="mt-1 text-sm text-muted-foreground">Available now — select an organization to open a tool.</p>
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {TOOLS.filter((t) => !t.comingSoon).map((t, idx) => (
-            <Card
-              key={t.slug}
-              className={`nest-reveal nest-reveal-delay-${Math.min(idx, 4)} transition-transform duration-[180ms] hover:scale-[1.01] hover:border-border-strong hover:shadow-sm`}
-              style={{ animationDelay: `${idx * 60}ms` } as React.CSSProperties}
-            >
-              <CardHeader>
-                <CardTitle className="text-base flex items-center justify-between">
-                  {t.name}
-                  <Badge variant="success">Available</Badge>
-                </CardTitle>
-                <CardDescription>{t.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link href="/dashboard/organizations" className="inline-flex h-8 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]">
-                  Select organization
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
+          {TOOLS.filter((t) => !t.comingSoon).map((t, idx) => {
+            // Tool-intent preservation (RCCF F6): single-workspace users go
+            // straight to the tool; everyone else carries ?tool= through
+            // organization selection. Slugs come from the registry, never
+            // from user input.
+            const singleOrg = orgs.length === 1 ? orgSlugOf(orgs[0]) : null;
+            const href =
+              singleOrg !== null
+                ? toolWorkspaceRoute(singleOrg, t.slug)
+                : `/dashboard/organizations?tool=${t.slug}`;
+            return (
+              <Card
+                key={t.slug}
+                className={`nest-reveal nest-reveal-delay-${Math.min(idx, 4)} transition-transform duration-[180ms] hover:scale-[1.01] hover:border-border-strong hover:shadow-sm`}
+                style={{ animationDelay: `${idx * 60}ms` } as React.CSSProperties}
+              >
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center justify-between">
+                    {t.name}
+                    <Badge variant="success">Available</Badge>
+                  </CardTitle>
+                  <CardDescription>{t.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href={href as Route} className="inline-flex h-8 items-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]">
+                    {singleOrg !== null ? `Open ${t.name}` : "Select organization"}
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>

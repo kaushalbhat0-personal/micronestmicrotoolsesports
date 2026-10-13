@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FreePlanBadge } from "./free-plan-badge";
 import { cn } from "@/lib/utils/cn";
 
 /**
@@ -20,6 +21,7 @@ export function ClaimCard({
   toolName,
   description,
   limits,
+  badge,
   claimLabel = "Start free",
   status = "idle",
   error,
@@ -33,6 +35,8 @@ export function ClaimCard({
   description?: string | undefined;
   /** Bespoke limits copy supplied by the caller. */
   limits?: string | undefined;
+  /** Canonical Free badge ("Free forever" for unlimited, "Free plan" for quota-limited). */
+  badge?: "Free forever" | "Free plan" | undefined;
   /** Claim button text. Defaults to "Start free". */
   claimLabel?: string | undefined;
   /** Controlled interaction state, owned by the caller. */
@@ -50,7 +54,9 @@ export function ClaimCard({
     <section aria-label={`Try ${toolName} free`} className={cn(className)}>
       <Card className="border-primary/20 bg-primary/5">
         <CardHeader>
-          <CardTitle className="text-sm">Try {toolName} free</CardTitle>
+          <CardTitle className="text-sm">
+            Try {toolName} free {badge ? <FreePlanBadge label={badge} className="ml-1" /> : null}
+          </CardTitle>
           {description ? <CardDescription>{description}</CardDescription> : null}
         </CardHeader>
         <CardContent>

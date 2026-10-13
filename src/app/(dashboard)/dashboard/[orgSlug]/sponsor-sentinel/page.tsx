@@ -2,6 +2,7 @@ import { requireOrganizationContext } from "@/lib/auth/organization-context";
 import { requireEntitlement } from "@/lib/auth/require-entitlement";
 import { isEntitlementDenied } from "@/lib/errors";
 import { AccessDenied } from "@/components/shared/access-denied";
+import { ClaimFreeSponsorshipCard } from "@/features/sponsor-sentinel/components/claim-free-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,14 @@ export default async function SponsorSentinelPage({ params }: { params: Promise<
   try {
     await requireEntitlement(ctx.organization.id, "sponsor-sentinel");
   } catch (e) {
-    if (isEntitlementDenied(e)) return <AccessDenied orgSlug={orgSlug} />;
+    if (isEntitlementDenied(e)) {
+      return (
+        <div className="space-y-6">
+          <AccessDenied orgSlug={orgSlug} />
+          <ClaimFreeSponsorshipCard orgSlug={orgSlug} />
+        </div>
+      );
+    }
     throw e;
   }
 

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrgLogo } from "./org-logo";
 import { DraftWhatsAppShare } from "./whatsapp-share";
+import { formatDateTimeKolkata } from "@/lib/utils/format";
 import type { DraftMatch } from "@/types/database";
 
 export function ResultCard({
@@ -98,7 +99,7 @@ export function ResultCard({
           )}
           <div>
             <dt className="text-muted-foreground">Completed</dt>
-            <dd className="font-medium">{match.completed_at ? new Date(match.completed_at).toLocaleString("en-GB") : "—"}</dd>
+            <dd className="font-medium">{match.completed_at ? formatDateTimeKolkata(match.completed_at) : "—"}</dd>
           </div>
         </dl>
         <ol className="space-y-1.5 text-sm">

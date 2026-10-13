@@ -31,12 +31,18 @@ const TOOL_PAGE = "src/app/tools/[slug]/page.tsx";
 const PRICING_CLIENT = "src/app/pricing/pricing-client.tsx";
 
 describe("free-tier content is registry-derived (single source)", () => {
-  it("covers all six available tools with Free forever badges", () => {
+  it("covers all six available tools with canonical Free badges", () => {
     expect(FREE_TIERS).toHaveLength(6);
     for (const tier of FREE_TIERS) {
-      expect(tier.badge).toBe("Free forever");
+      expect(tier.badge).toBe(freeBadgeBySlug(tier.slug));
       expect(tier.allowance.length).toBeGreaterThan(0);
       expect(tier.details.length).toBeGreaterThan(0);
+    }
+    // Canonical semantics: unlimited → Free forever, quota-limited → Free plan.
+    expect(freeTierBySlug("prize-splitter")?.badge).toBe("Free forever");
+    expect(freeTierBySlug("roster-builder")?.badge).toBe("Free forever");
+    for (const slug of ["sponsor-sentinel", "tie-breaker", "draft-ban", "payout-tracker"]) {
+      expect(freeTierBySlug(slug)?.badge).toBe("Free plan");
     }
   });
 

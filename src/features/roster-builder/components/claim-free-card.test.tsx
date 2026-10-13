@@ -6,13 +6,15 @@ import { ClaimFreeRosterBuilderCard } from "./claim-free-card";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 describe("ClaimFreeRosterBuilderCard", () => {
-  it("presents unlimited Free in customer language (no quota/metering jargon)", () => {
+  it("presents unlimited Free in customer language (canonical badge, no contradiction)", () => {
     // React 19 SSR emits `<!-- -->` between adjacent text/expressions.
     const html = renderToString(<ClaimFreeRosterBuilderCard orgSlug="acme" />).replace(/<!-- -->/g, "");
     expect(html).toContain("Tournament Roster &amp; Slot Builder");
     expect(html).toContain("Free forever");
-    expect(html).toContain("unlimited rosters");
+    expect(html).toContain("Unlimited roster cleans");
     expect(html).toContain("Start free");
+    // F9: an unlimited tool must never be labelled "Free plan".
+    expect(html).not.toContain("Free plan");
     expect(html).not.toMatch(/quota|metered|per month|RPC|entitlement|UTC|user_tool_entitlements/i);
   });
 });

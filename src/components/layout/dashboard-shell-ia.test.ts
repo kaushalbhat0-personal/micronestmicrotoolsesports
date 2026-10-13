@@ -22,11 +22,12 @@ describe("dashboard sidebar IA — RCCF-UX-SIDEBAR-IMPLEMENT-01 (static)", () =>
     expect(entitledBlock).not.toContain("comingSoon");
   });
 
-  it("Explore Tools links to the current workspace billing page", () => {
+  it("Explore Tools links to the workspace catalog, not Billing", () => {
     expect(shell).toContain(">Explore Tools<");
     expect(shell).toContain("Browse all tools");
-    expect(shell).toContain("/settings/billing");
-    expect(shell).not.toMatch(/\/dashboard\/[a-z0-9-]+\/settings\/billing/);
+    const exploreBlock = shell.slice(shell.indexOf("{/* EXPLORE TOOLS"), shell.indexOf("{/* SETTINGS"));
+    expect(exploreBlock).toContain("`/dashboard/${orgSlug}/tools`");
+    expect(exploreBlock).not.toContain("settings/billing");
   });
 
   it("Channels and Connections render beneath Sponsorship via subItems (no separate section)", () => {

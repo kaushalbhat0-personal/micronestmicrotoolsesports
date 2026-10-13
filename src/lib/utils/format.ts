@@ -37,6 +37,26 @@ export function formatDateTimeKolkata(value: string | null | undefined): string 
   }
 }
 
+/**
+ * Authoritative day-precision formatter — always Asia/Kolkata.
+ * Same convention as formatDateTimeKolkata: deterministic on server and
+ * client, so SSR output and hydration can never disagree across timezones
+ * (RCCF F11 — bare toLocaleDateString caused hydration #418 near midnight).
+ */
+export function formatDayKolkata(value: string | null | undefined): string {
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      timeZone: APP_TIMEZONE,
+    }).format(new Date(value));
+  } catch {
+    return String(value);
+  }
+}
+
 export function formatDate(date: string | Date, opts?: Intl.DateTimeFormatOptions) {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-US", {

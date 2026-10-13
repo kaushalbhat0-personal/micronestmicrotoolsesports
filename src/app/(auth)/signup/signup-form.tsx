@@ -18,6 +18,57 @@ export interface SignupPlan {
   billingPeriod: string;
 }
 
+/** Resend cooldown in seconds — cosmetic abuse friction; Supabase rate-limits server-side. */
+const RESEND_COOLDOWN_SECONDS = 60;
+
+/**
+ * Resend-confirmation action for the post-signup success state.
+ * Messaging is deliberately neutral on failure so the UI never reveals
+ * whether an address is registered or confirmed (no account oracle).
+ */
+function ResendConfirmation({ email }: { email: string }) {
+  const [sending, setSending] = React.useState(false);
+  const [sent, setSent] = React.useState(false);
+  const [cooldown, setCooldown] = React.useState(0);
+
+  React.useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  async function onResend() {
+    if (sending || cooldown > 0) return;
+    setSending(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.resend({ type: "signup", email });
+    } catch {
+      // Neutral on purpose — see component docstring.
+    } finally {
+      setSending(false);
+      setSent(true);
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    }
+  }
+
+  const disabled = sending || cooldown > 0;
+  const label = sending ? "Sending…" : cooldown > 0 ? `Resend email (${cooldown}s)` : "Resend confirmation email";
+
+  return (
+    <div className="mt-4 space-y-2">
+      <Button variant="outline" className="w-full min-h-[44px]" disabled={disabled} loading={sending} aria-busy={sending} onClick={onResend}>
+        {label}
+      </Button>
+      {sent ? (
+        <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+          If your account is waiting for confirmation, a new email is on its way.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function SignupForm({ plan }: { plan?: SignupPlan | null }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -52,9 +103,15 @@ export function SignupForm({ plan }: { plan?: SignupPlan | null }) {
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-sm">Check your email to confirm your account, then sign in.</p>
+          <div className="space-y-2">
+            <p className="text-sm">Check your email to confirm your account, then sign in.</p>
+            <p className="text-sm text-muted-foreground">
+              Confirmation emails usually arrive within a few minutes. If you don&apos;t see it, check your spam or junk folder.
+            </p>
+          </div>
+          <ResendConfirmation email={email} />
           {plan && toolName ? (
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-4 text-sm text-muted-foreground">
               Then continue with {toolName} — you&apos;ll choose a workspace and continue to payment.
             </p>
           ) : null}

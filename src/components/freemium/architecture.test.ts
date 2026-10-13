@@ -18,6 +18,10 @@ const SOURCES = [
   "src/components/freemium/claim-card.tsx",
 ];
 
+// Deliberately excluded: tool-claim-card.tsx is a stateful binder over the
+// canonical Free registry (not a primitive) and is covered by per-tool
+// claim-card tests instead of this guard.
+
 function sourceOf(relativePath: string): string {
   return readFileSync(join(process.cwd(), relativePath), "utf8");
 }
@@ -60,6 +64,7 @@ describe("freemium primitives are presentational-only", () => {
           spec === "react" ||
           spec === "next/link" ||
           spec === "next" ||
+          spec.startsWith("./") ||
           spec.startsWith("@/components/ui/") ||
           spec.startsWith("@/lib/utils/");
         expect(allowed, `${file} imports unexpected layer ${JSON.stringify(spec)}`).toBe(true);

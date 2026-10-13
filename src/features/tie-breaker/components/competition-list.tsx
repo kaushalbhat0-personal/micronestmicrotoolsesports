@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { TieBreakerCompetitionRow } from "@/server/repositories/tie-breaker-competitions";
+import { formatDayKolkata } from "@/lib/utils/format";
 import { CompetitionStatusBadge } from "./competition-status-badge";
 
 type StatusFilter = "all" | "draft" | "active" | "locked";
@@ -125,7 +126,7 @@ export function CompetitionList({
                     </TableCell>
                     <TableCell className="font-mono text-xs">{c.record_number ?? "—"}</TableCell>
                     <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {new Date(c.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                      {formatDayKolkata(c.updated_at)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -150,7 +151,7 @@ export function CompetitionList({
                   {c.name}
                 </Link>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Updated {new Date(c.updated_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                  Updated {formatDayKolkata(c.updated_at)}
                 </p>
               </li>
             ))}

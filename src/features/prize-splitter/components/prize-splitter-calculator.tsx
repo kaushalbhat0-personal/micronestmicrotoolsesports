@@ -47,7 +47,7 @@ function sanitizePoolInput(v: string): string {
   return s;
 }
 
-export function PrizeSplitterCalculator() {
+export function PrizeSplitterCalculator({ defaultTournamentName }: { defaultTournamentName?: string | undefined } = {}) {
   const [prizePool, setPrizePool] = React.useState<number>(DEFAULT_PRIZE_POOL);
   const [prizePoolRaw, setPrizePoolRaw] = React.useState<string>(String(DEFAULT_PRIZE_POOL));
   const [currency, setCurrency] = React.useState<Currency>(DEFAULT_CURRENCY);
@@ -60,8 +60,11 @@ export function PrizeSplitterCalculator() {
   const [copyMenuOpen, setCopyMenuOpen] = React.useState(false);
   const [linkCopied, setLinkCopied] = React.useState(false);
 
-  // Publish context
-  const [tournamentName, setTournamentName] = React.useState("");
+  // Publish context. In the authenticated workspace the tournament name
+  // starts as the workspace name (share links, copy, CSV, and print carry
+  // workspace identity); the anonymous demo starts empty. A shared ?s=
+  // link always wins over the default on mount.
+  const [tournamentName, setTournamentName] = React.useState(defaultTournamentName ?? "");
   const [date, setDate] = React.useState("");
   const [sponsorName, setSponsorName] = React.useState("");
 
@@ -232,13 +235,20 @@ export function PrizeSplitterCalculator() {
     return buildShareUrl(`${window.location.origin}/share/prize-splitter`, shareState as never);
   }, [prizePool, currency, method, placements, equalCount, publishCtx]);
 
-  // Ready-made WhatsApp message (client-side only; SSR renders nothing).
+  // Ready-made WhatsApp message (client-side only, after mount).
+  // The mounted gate keeps the first client render identical to SSR output
+  // (no WhatsAppShare in either) so hydration never mismatches; the button
+  // appears on the immediate post-mount re-render (RCCF F11).
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
   const waMessage = React.useMemo(() => {
-    if (!result || typeof window === "undefined") return null;
+    if (!result || !mounted) return null;
     const url = currentShareUrl();
     if (!url) return null;
     return buildSplitterWhatsAppMessage(result, publishCtx, url);
-  }, [result, publishCtx, currentShareUrl]);
+  }, [result, mounted, publishCtx, currentShareUrl]);
 
   const handleCopyLink = async () => {
     const url = currentShareUrl();
