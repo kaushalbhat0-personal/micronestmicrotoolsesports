@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { renderToString } from "react-dom/server";
 import { getToolFreePolicy } from "@/config/tools/policy";
 import { FREE_TIERS, freeBadgeByMarketingSlug, freeBadgeBySlug, freeTierByMarketingSlug, freeTierBySlug } from "@/config/marketing/free-tiers";
+import { MARKETING_TOOLS, getAvailableTools, getMarketingTool } from "@/config/marketing/tools";
 import { PricingClient } from "@/app/pricing/pricing-client";
 import type { Plan } from "@/types/database";
 
@@ -140,7 +141,7 @@ describe("homepage exposes Free discovery", () => {
     expect(code).toContain("No credit card required");
   });
 
-  it("marks featured and organizer cards with canonical Free badges", () => {
+  it("marks featured and toolbox cards with canonical Free badges", () => {
     const code = sourceOf(HOMEPAGE);
     // Badges derive from the canonical policy chain — no hardcoded wording.
     expect(code).toContain("freeBadgeBySlug");
@@ -153,6 +154,76 @@ describe("homepage exposes Free discovery", () => {
     expect(code).toContain("Sponsorship Tracking for Esports Creators & Teams | MicroNest");
     expect(code).toContain("can be started free");
     expect(code).toContain('canonical: "/"');
+  });
+});
+
+describe("homepage toolbox discovery (canonical, no hardcoded subset)", () => {
+  it("derives every released tool from the canonical registry", () => {
+    const available = getAvailableTools();
+    expect(available).toHaveLength(6);
+    expect(available.map((t) => t.slug).sort()).toEqual(MARKETING_TOOLS.map((t) => t.slug).sort());
+    for (const tool of available) {
+      // Every card links to a real public route backed by the same registry.
+      expect(getMarketingTool(tool.slug)?.slug).toBe(tool.slug);
+      expect(tool.internalSlug).toBeTruthy();
+      // Every card carries a canonical Free badge — never invented per card.
+      const tier = freeTierBySlug(tool.internalSlug!);
+      expect(tier).not.toBeNull();
+      expect(freeBadgeBySlug(tool.internalSlug!)).not.toBeNull();
+      expect(freeBadgeByMarketingSlug(tool.slug)).toBe(freeBadgeBySlug(tool.internalSlug!));
+    }
+  });
+
+  it("never surfaces removed tools", () => {
+    const slugs = new Set([...MARKETING_TOOLS.map((t) => t.slug), ...MARKETING_TOOLS.map((t) => t.internalSlug)]);
+    for (const slug of ["scrim-matchmaker", "vod-clipper", "roster-sentinel"]) {
+      expect(slugs.has(slug)).toBe(false);
+      expect(getMarketingTool(slug)).toBeUndefined();
+    }
+    for (const name of ["Scrim Matchmaker", "VOD Clipper", "Roster Sentinel"]) {
+      expect(sourceOf(HOMEPAGE)).not.toContain(name);
+    }
+  });
+
+  it("marks exactly the anonymous-demo tools for Try-it-now treatment", () => {
+    const demo = getAvailableTools().filter((t) => t.hasPublicDemo).map((t) => t.slug).sort();
+    expect(demo).toEqual(["prize-pool-splitter", "tournament-roster-builder"]);
+  });
+
+  it("renders the toolbox section from canonical data (no hardcoded tool subset)", () => {
+    const code = sourceOf(HOMEPAGE);
+    expect(code).toContain("getAvailableTools");
+    expect(code).not.toContain("ORGANIZER_TOOL_SLUGS");
+    expect(code).toContain("One toolbox for every esports job");
+    expect(code).toContain("Try it now");
+    expect(code).toContain("View all tools");
+    expect(code).toContain("hasPublicDemo");
+  });
+
+  it("links Free-tier names to their public tool pages", () => {
+    const code = sourceOf(HOMEPAGE);
+    expect(code).toContain("tier.marketingSlug");
+    for (const tier of FREE_TIERS) {
+      expect(getMarketingTool(tier.marketingSlug)?.slug).toBeTruthy();
+    }
+  });
+
+  it("keeps every existing homepage section intact", () => {
+    const code = sourceOf(HOMEPAGE);
+    for (const marker of [
+      "Featured • Available now",
+      "Reporting sponsors shouldn&apos;t take all week",
+      "Who it is for",
+      "Start free. Upgrade when you need more.",
+      "Every MicroNest tool has a Free tier",
+      "Explore free tools",
+      "Supported platforms",
+      "Start with Sponsorship Tracking",
+      "Prove it. Send it. Get renewed.",
+      "Built in Pune",
+    ]) {
+      expect(code).toContain(marker);
+    }
   });
 });
 

@@ -11,6 +11,12 @@ export interface MarketingTool {
   features: string[];
   status: MarketingToolStatus;
   internalSlug?: string; // maps to TOOLS slug for entitlement
+  /**
+   * True when the public tool page hosts an anonymous interactive demo
+   * (fully client-side, no account). Homepage discovery may offer
+   * "Try it now" for these tools; all others link to Learn more.
+   */
+  hasPublicDemo?: boolean;
   icon: string;
   seoTitle: string;
   seoDescription: string;
@@ -61,6 +67,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     ],
     status: "available",
     internalSlug: "prize-splitter",
+    hasPublicDemo: true,
     icon: "Split",
     seoTitle: "Esports Prize Pool Splitter | MicroNest",
     seoDescription:
@@ -151,6 +158,7 @@ export const MARKETING_TOOLS: MarketingTool[] = [
     ],
     status: "available",
     internalSlug: "roster-builder",
+    hasPublicDemo: true,
     icon: "ClipboardList",
     seoTitle: "Tournament Roster & Slot Builder for Esports | MicroNest",
     seoDescription:

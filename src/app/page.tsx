@@ -5,12 +5,12 @@ import { Footer } from "@/components/layout/footer";
 import { LogoMark } from "@/components/shared/logo";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MARKETING_TOOLS } from "@/config/marketing/tools";
+import { MARKETING_TOOLS, getAvailableTools } from "@/config/marketing/tools";
 import { FREE_TIERS, freeBadgeBySlug, freeTierBySlug } from "@/config/marketing/free-tiers";
 import { ProofStrip } from "@/components/marketing/proof-strip";
 import { createClient } from "@/lib/supabase/server";
 import { listActivePlans } from "@/server/repositories/plans";
-import { ShieldCheck, Split, Swords, Scale, ReceiptText, Users, Trophy, Clock, FileCheck, BadgeCheck, ArrowRight, Youtube, Twitch, Radio } from "lucide-react";
+import { ShieldCheck, Split, Swords, Scale, ReceiptText, ClipboardList, Users, Trophy, Clock, FileCheck, BadgeCheck, ArrowRight, Youtube, Twitch, Radio } from "lucide-react";
 
 export const revalidate = 60;
 
@@ -42,9 +42,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Swords,
   Scale,
   ReceiptText,
+  ClipboardList,
 };
-
-const ORGANIZER_TOOL_SLUGS = ["prize-pool-splitter", "draft-ban", "tie-breaker", "prize-payout-tracker"] as const;
 
 function formatINR(amountMinor: number): string {
   const amount = amountMinor / 100;
@@ -53,7 +52,9 @@ function formatINR(amountMinor: number): string {
 
 export default async function MarketingPage() {
   const featured = MARKETING_TOOLS.find((t) => t.slug === "sponsorship-tracking")!;
-  const organizerTools = MARKETING_TOOLS.filter((t) => t.status === "available" && (ORGANIZER_TOOL_SLUGS as readonly string[]).includes(t.slug));
+  // Toolbox discovery — every released tool, derived from the canonical
+  // marketing registry (never a hardcoded subset, never removed tools).
+  const toolboxTools = getAvailableTools();
 
   // Pricing teaser from the authoritative catalog — never hardcoded.
   // Graceful fallback: teaser renders without a price if catalog is unreachable.
@@ -200,14 +201,15 @@ export default async function MarketingPage() {
           </div>
         </section>
 
-        {/* Also for tournament organizers */}
-        <section className="container-nest py-12" aria-label="Also for tournament organizers">
+        {/* Toolbox — every released tool, discoverable without the catalog */}
+        <section className="container-nest py-12" aria-label="MicroNest toolbox">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-display text-2xl font-normal tracking-tight">Also for tournament organizers</h2>
-            <p className="mt-2 text-muted-foreground">Focused tools for match operations, each sold separately.</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary">The toolbox</p>
+            <h2 className="font-display mt-2 text-2xl font-normal tracking-tight">One toolbox for every esports job</h2>
+            <p className="mt-2 text-muted-foreground">Sponsorships, prize pools, drafts, standings, payouts, and rosters — start each tool free.</p>
           </div>
-          <div className="mx-auto mt-8 grid max-w-4xl gap-5 sm:grid-cols-3">
-            {organizerTools.map((tool) => {
+          <div className="mx-auto mt-8 grid max-w-4xl gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {toolboxTools.map((tool) => {
               const Icon = iconMap[tool.icon] ?? ShieldCheck;
               const free = tool.internalSlug ? freeTierBySlug(tool.internalSlug) : null;
               return (
@@ -225,14 +227,20 @@ export default async function MarketingPage() {
                   <CardContent>
                     <Link
                       href={`/tools/${tool.slug}`}
+                      aria-label={tool.hasPublicDemo ? `Try ${tool.name} now — no signup needed` : `Learn more about ${tool.name}`}
                       className="inline-flex h-8 items-center rounded-full border border-border bg-card px-4 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]"
                     >
-                      Learn more
+                      {tool.hasPublicDemo ? "Try it now" : "Learn more"}
                     </Link>
                   </CardContent>
                 </Card>
               );
             })}
+          </div>
+          <div className="mx-auto mt-6 text-center">
+            <Link href="/tools" className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+              View all tools <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
           </div>
         </section>
 
@@ -245,7 +253,11 @@ export default async function MarketingPage() {
             <ul className="mt-6 grid gap-4 sm:grid-cols-2">
               {FREE_TIERS.map((tier) => (
                 <li key={tier.slug} className="rounded-[12px] border border-border bg-surface-muted/40 p-4">
-                  <p className="text-sm font-semibold">{tier.name}</p>
+                  <p className="text-sm font-semibold">
+                    <Link href={`/tools/${tier.marketingSlug}`} className="hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+                      {tier.name}
+                    </Link>
+                  </p>
                   <p className="mt-1 text-sm"><span className="font-medium text-primary">{freeBadgeBySlug(tier.slug) ?? "Free plan"}</span> <span className="text-muted-foreground">· {tier.allowance}</span></p>
                 </li>
               ))}
