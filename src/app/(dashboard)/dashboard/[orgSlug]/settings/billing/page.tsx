@@ -5,6 +5,8 @@ import { getBillingOverview, getBillingToolSections } from "@/server/services/bi
 import { PageHeader } from "@/components/ui/page-header";
 import { BillingClient } from "@/features/billing/components/billing-client";
 import { TOOLS } from "@/config/app/tools";
+import { freeTierBySlug } from "@/config/marketing/free-tiers";
+import { getToolFreePolicy } from "@/config/tools/policy";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,19 @@ export default async function BillingPage({
     return { ...e, displayName: cfg?.name ?? e.toolName, description: cfg?.description ?? "" };
   });
 
+  // Canonical Sponsorship Free copy for the standalone claim card. The
+  // per-tool Billing cards carry their own server-built Free presentation;
+  // this prop only feeds the one legacy claim section. Badge follows the
+  // same canonical rule as the Billing adapter (quota-limited → "Free plan",
+  // unlimited/unmetered → "Free forever") via the Free-policy registry —
+  // never hardcoded per tool.
+  const sponsorTier = showFreeClaim ? freeTierBySlug("sponsor-sentinel") : null;
+  const sponsorPolicy = showFreeClaim ? getToolFreePolicy("sponsor-sentinel") : null;
+  const sponsorUnlimited = !sponsorPolicy || Object.keys(sponsorPolicy.limits).length === 0;
+  const freeClaimCopy: { badge: "Free forever" | "Free plan"; allowance: string; details: string } | null = sponsorTier
+    ? { badge: sponsorUnlimited ? "Free forever" : "Free plan", allowance: sponsorTier.allowance, details: sponsorTier.details }
+    : null;
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -72,6 +87,7 @@ export default async function BillingPage({
         currentPlan={overview.currentPlan}
         hintedPlanSlug={hintedPlanSlug}
         showFreeClaim={showFreeClaim}
+        freeClaimCopy={freeClaimCopy}
       />
     </div>
   );

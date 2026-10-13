@@ -6,6 +6,8 @@ import { listEntitlementsForOrg } from "@/server/repositories/entitlements";
 import { getUserSponsorshipGrantIncludingExpired, SPONSORSHIP_TOOL_SLUG } from "@/server/services/user-sponsorship-service";
 import { PAID_SOURCES } from "@/server/services/sponsorship-limits";
 import { TOOLS } from "@/config/app/tools";
+import { freeTierBySlug } from "@/config/marketing/free-tiers";
+import { getToolFreePolicy } from "@/config/tools/policy";
 import type { Plan, Order, Payment, ToolEntitlement, EntitlementSource } from "@/types/database";
 
 export type BillingEntitlementView = {
@@ -139,7 +141,47 @@ export type BillingToolCard = {
   viaUserGrant: boolean;
   /** True when the user-grant coverage is the free tier (quotas apply). */
   isFree?: boolean;
+  /**
+   * Free-tier presentation for this tool, built server-side from the
+   * canonical FREE_TIERS registry (`freeTierBySlug`). Null only when the
+   * tool has no canonical Free entry (fail closed — never invented here).
+   */
+  free: BillingFreeInfo | null;
+  /** Whether the current access is Free, paid, or via All Access. */
+  accessKind: "free" | "paid" | "all-access";
+  /** True when ≥1 active paid plan exists for this tool (upgrade can be offered). */
+  hasPaidPlans: boolean;
 };
+
+/**
+ * Free-tier presentation slice for Billing cards. Thin adapter over the
+ * canonical `FreeTierInfo`: `allowance`/`details` pass through verbatim;
+ * `badge` maps to Billing-appropriate wording ("Free forever" for
+ * unlimited/no-paid-boundary tools, "Free plan" for quota-limited tiers).
+ * FREE_TIERS semantics are never altered to fit Billing.
+ */
+export type BillingFreeInfo = {
+  badge: "Free forever" | "Free plan";
+  allowance: string;
+  details: string;
+};
+
+function freeInfoFor(toolSlug: string): BillingFreeInfo | null {
+  const tier = freeTierBySlug(toolSlug);
+  if (!tier) return null;
+  const policy = getToolFreePolicy(toolSlug);
+  const unlimited = !policy || Object.keys(policy.limits).length === 0;
+  return {
+    badge: unlimited ? "Free forever" : "Free plan",
+    allowance: tier.allowance,
+    details: tier.details,
+  };
+}
+
+function isFreeClaimable(toolSlug: string): boolean {
+  const policy = getToolFreePolicy(toolSlug);
+  return !!policy && policy.freeEnabled && policy.claimable;
+}
 
 /** One card in "Available to Add" — derived from registry × active plans. */
 export type BillingAvailableCard = {
@@ -149,6 +191,10 @@ export type BillingAvailableCard = {
   icon: string;
   monthly: { planId: string; amountMinor: number; currency: string } | null;
   yearly: { planId: string; amountMinor: number; currency: string } | null;
+  /** Canonical Free presentation (same adapter as Your Tools). */
+  free: BillingFreeInfo | null;
+  /** True when the workspace may self-claim Free via the generic claim flow. */
+  claimable: boolean;
 };
 
 type DiscoveryInput = {
@@ -171,10 +217,14 @@ type DiscoveryInput = {
  * - Your Tools: commercially available registry tools with an ACTIVE
  *   (permanent/active/expiring_soon) entitlement. Expired rows are excluded.
  *   An active All Access row expands to every commercial tool not otherwise
- *   covered, marked viaAllAccess with the All Access expiry.
- * - Available to Add: commercial registry tools with ≥1 active plan that are
- *   NOT in Your Tools. Coming-soon tools never qualify (registry flag), and
- *   tools without plans cannot be purchased so they are excluded.
+ *   covered, marked viaAllAccess with the All Access expiry. Every card
+ *   carries its canonical Free presentation (`free`) plus `accessKind` so
+ *   the UI can render Free-first without inventing limits.
+ * - Available to Add: commercial registry tools NOT in Your Tools that have
+ *   ≥1 active plan OR a claimable Free tier. Coming-soon tools never
+ *   qualify (registry flag). Tools with neither plans nor a claimable Free
+ *   tier are excluded. Claimable plan-less tools (e.g. roster-builder)
+ *   appear with null prices and `claimable: true` — never a fake CTA.
 + * - Sponsorship user-grant leg: when the caller holds a valid (unexpired)
 + *   sponsorship grant but the workspace has no org/All Access coverage, the
 + *   sponsor card is covered via the grant (viaUserGrant). Sponsor-only.
@@ -203,6 +253,9 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
     PAID_SOURCES.has(userGrant.source as EntitlementSource);
 
   const yourTools: BillingToolCard[] = [];
+  const paidPlanToolIds = new Set(
+    input.plans.filter((p) => p.tool_id !== null && p.is_active !== false).map((p) => p.tool_id as string),
+  );
   for (const cfg of commercial) {
     const direct = perTool.get(cfg.slug);
     const base = {
@@ -210,7 +263,10 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
       displayName: cfg.name,
       description: cfg.description,
       icon: cfg.icon,
+      free: freeInfoFor(cfg.slug),
     };
+    const dbToolId = toolIdBySlug.get(cfg.slug);
+    const hasPaidPlans = !!dbToolId && paidPlanToolIds.has(dbToolId);
     if (direct) {
       yourTools.push({
         ...base,
@@ -218,6 +274,8 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
         expiresAt: direct.expiresAt,
         viaAllAccess: false,
         viaUserGrant: false,
+        accessKind: direct.source === "free" ? "free" : "paid",
+        hasPaidPlans,
       });
     } else if (allAccessEnt) {
       yourTools.push({
@@ -226,6 +284,8 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
         expiresAt: allAccessEnt.expiresAt,
         viaAllAccess: true,
         viaUserGrant: false,
+        accessKind: "all-access",
+        hasPaidPlans,
       });
     } else if (cfg.slug === SPONSORSHIP_TOOL_SLUG && (hasValidUserGrant || isExpiredPaidGrant)) {
       if (isExpiredPaidGrant) {
@@ -239,6 +299,8 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
           viaAllAccess: false,
           viaUserGrant: true,
           isFree: true,
+          accessKind: "free",
+          hasPaidPlans,
         });
       } else {
         yourTools.push({
@@ -248,6 +310,8 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
           viaAllAccess: false,
           viaUserGrant: true,
           isFree: userGrant!.source === "free",
+          accessKind: userGrant!.source === "free" ? "free" : "paid",
+          hasPaidPlans,
         });
       }
     }
@@ -258,9 +322,11 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
   for (const cfg of commercial) {
     if (covered.has(cfg.slug)) continue;
     const toolId = toolIdBySlug.get(cfg.slug);
-    if (!toolId) continue;
-    const toolPlans = input.plans.filter((p) => p.tool_id === toolId && p.is_active !== false);
-    if (toolPlans.length === 0) continue;
+    const toolPlans = toolId ? input.plans.filter((p) => p.tool_id === toolId && p.is_active !== false) : [];
+    const claimable = isFreeClaimable(cfg.slug);
+    // Claimable Free tiers stay discoverable even without paid plans;
+    // plan-less non-claimable tools are excluded (no truthful CTA exists).
+    if (toolPlans.length === 0 && !claimable) continue;
     const pick = (period: string) => {
       const p = toolPlans.find((x) => x.billing_period === period);
       return p ? { planId: p.id, amountMinor: p.amount_minor, currency: p.currency } : null;
@@ -272,6 +338,8 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
       icon: cfg.icon,
       monthly: pick("monthly"),
       yearly: pick("yearly"),
+      free: freeInfoFor(cfg.slug),
+      claimable,
     });
   }
 

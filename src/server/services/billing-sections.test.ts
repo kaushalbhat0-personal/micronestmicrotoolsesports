@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Plan } from "@/types/database";
+import { freeTierBySlug } from "@/config/marketing/free-tiers";
 import { buildBillingToolSections } from "./billing-service";
 
 const FUTURE = new Date(Date.now() + 86400000 * 30).toISOString();
@@ -12,6 +13,8 @@ const TOOLS_ROWS = [
   { id: "tool-prize", slug: "prize-splitter", is_active: true },
   { id: "tool-draft", slug: "draft-ban", is_active: true },
   { id: "tool-tie", slug: "tie-breaker", is_active: true },
+  { id: "tool-payout", slug: "payout-tracker", is_active: true },
+  { id: "tool-roster", slug: "roster-builder", is_active: true },
 ];
 
 const PLANS: PlanFixture[] = [
@@ -20,11 +23,15 @@ const PLANS: PlanFixture[] = [
   { id: "p-p-m", tool_id: "tool-prize", billing_period: "monthly", amount_minor: 69900, currency: "INR", is_active: true },
   { id: "p-d-m", tool_id: "tool-draft", billing_period: "monthly", amount_minor: 9900, currency: "INR", is_active: true },
   { id: "p-d-y", tool_id: "tool-draft", billing_period: "yearly", amount_minor: 99000, currency: "INR", is_active: true },
+  { id: "p-t-m", tool_id: "tool-tie", billing_period: "monthly", amount_minor: 79900, currency: "INR", is_active: true },
+  { id: "p-t-y", tool_id: "tool-tie", billing_period: "yearly", amount_minor: 799000, currency: "INR", is_active: true },
+  { id: "p-po-m", tool_id: "tool-payout", billing_period: "monthly", amount_minor: 79900, currency: "INR", is_active: true },
+  { id: "p-po-y", tool_id: "tool-payout", billing_period: "yearly", amount_minor: 799000, currency: "INR", is_active: true },
   { id: "p-aa-m", tool_id: null, billing_period: "monthly", amount_minor: 249900, currency: "INR", is_active: true },
 ];
 
-function ent(toolSlug: string | null, status: "permanent" | "active" | "expiring_soon" | "expired", expiresAt: string | null, isAllAccess = false) {
-  return { toolSlug, toolName: toolSlug ?? "All Access", isAllAccess, source: "subscription", expiresAt, status };
+function ent(toolSlug: string | null, status: "permanent" | "active" | "expiring_soon" | "expired", expiresAt: string | null, isAllAccess = false, source = "subscription") {
+  return { toolSlug, toolName: toolSlug ?? "All Access", isAllAccess, source, expiresAt, status };
 }
 
 describe("buildBillingToolSections", () => {
@@ -114,21 +121,28 @@ describe("buildBillingToolSections", () => {
   it("supports future tools automatically (plans-driven, no hardcoding)", () => {
     const { availableToAdd } = buildBillingToolSections({
       entitlements: [],
-      plans: [...PLANS, { id: "p-t-m", tool_id: "tool-tie", billing_period: "monthly", amount_minor: 7900, currency: "INR", is_active: true }],
+      plans: PLANS,
       tools: TOOLS_ROWS,
     });
+    // Tie-Breaker flows from input plans alone: prices pass through byte-identical.
     const tie = availableToAdd.find((t) => t.toolSlug === "tie-breaker");
     expect(tie).toBeDefined();
-    expect(tie!.monthly).toMatchObject({ planId: "p-t-m", amountMinor: 7900 });
+    expect(tie!.monthly).toMatchObject({ planId: "p-t-m", amountMinor: 79900 });
+    expect(tie!.yearly).toMatchObject({ planId: "p-t-y", amountMinor: 799000 });
   });
 
-  it("tool without plans cannot be purchased (excluded, not fake CTA)", () => {
+  it("claimable tool without plans appears with Start-free affordance, never a purchase CTA", () => {
     const { availableToAdd } = buildBillingToolSections({
       entitlements: [],
       plans: PLANS.filter((p) => p.tool_id !== "tool-draft"),
       tools: TOOLS_ROWS,
     });
-    expect(availableToAdd.some((t) => t.toolSlug === "draft-ban")).toBe(false);
+    const draft = availableToAdd.find((t) => t.toolSlug === "draft-ban");
+    expect(draft).toBeDefined();
+    expect(draft!.monthly).toBeNull();
+    expect(draft!.yearly).toBeNull();
+    expect(draft!.claimable).toBe(true);
+    expect(draft!.free).not.toBeNull();
   });
 
   it("1. no user grant + no org entitlement → sponsor in Available to Add", () => {
@@ -266,5 +280,118 @@ describe("buildBillingToolSections", () => {
     });
     expect(yourTools.some((t) => t.toolSlug === "prize-splitter")).toBe(false);
     expect(yourTools.some((t) => t.toolSlug === "draft-ban")).toBe(false);
+  });
+
+  it("F1. all six released tools are represented with canonical Free presentation", () => {
+    const { yourTools, availableToAdd } = buildBillingToolSections({ entitlements: [], plans: PLANS, tools: TOOLS_ROWS });
+    const slugs = new Set([...yourTools, ...availableToAdd].map((t) => t.toolSlug));
+    for (const slug of ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker", "roster-builder"]) {
+      expect(slugs.has(slug)).toBe(true);
+    }
+  });
+
+  it("F2. Free presentation values come verbatim from canonical FREE_TIERS", () => {
+    const { availableToAdd } = buildBillingToolSections({ entitlements: [], plans: PLANS, tools: TOOLS_ROWS });
+    for (const card of availableToAdd) {
+      const tier = freeTierBySlug(card.toolSlug);
+      expect(tier).not.toBeNull();
+      expect(card.free).not.toBeNull();
+      expect(card.free!.allowance).toBe(tier!.allowance);
+      expect(card.free!.details).toBe(tier!.details);
+    }
+  });
+
+  it("F3. unlimited tools badge Free forever, quota tools badge Free plan", () => {
+    const { availableToAdd } = buildBillingToolSections({ entitlements: [], plans: PLANS, tools: TOOLS_ROWS });
+    const badge = (slug: string) => availableToAdd.find((t) => t.toolSlug === slug)!.free!.badge;
+    expect(badge("roster-builder")).toBe("Free forever");
+    expect(badge("prize-splitter")).toBe("Free forever");
+    expect(badge("draft-ban")).toBe("Free plan");
+    expect(badge("tie-breaker")).toBe("Free plan");
+    expect(badge("payout-tracker")).toBe("Free plan");
+    expect(badge("sponsor-sentinel")).toBe("Free plan");
+  });
+
+  it("F4. roster-builder appears unclaimed with no paid plan: claimable, no prices, Free forever", () => {
+    const { yourTools, availableToAdd } = buildBillingToolSections({ entitlements: [], plans: PLANS, tools: TOOLS_ROWS });
+    expect(yourTools.some((t) => t.toolSlug === "roster-builder")).toBe(false);
+    const roster = availableToAdd.find((t) => t.toolSlug === "roster-builder");
+    expect(roster).toBeDefined();
+    expect(roster!.monthly).toBeNull();
+    expect(roster!.yearly).toBeNull();
+    expect(roster!.claimable).toBe(true);
+    expect(roster!.free!.badge).toBe("Free forever");
+  });
+
+  it("F5. roster-builder Free grant renders as free access with no paid plans", () => {
+    const { yourTools } = buildBillingToolSections({
+      entitlements: [ent("roster-builder", "permanent", null, false, "free")],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+    });
+    const roster = yourTools.find((t) => t.toolSlug === "roster-builder");
+    expect(roster).toBeDefined();
+    expect(roster!.accessKind).toBe("free");
+    expect(roster!.hasPaidPlans).toBe(false);
+    expect(roster!.free!.badge).toBe("Free forever");
+  });
+
+  it("F6. tie-breaker Free grant is free access with a visible quota badge, not bare Permanent", () => {
+    const { yourTools } = buildBillingToolSections({
+      entitlements: [ent("tie-breaker", "permanent", null, false, "free")],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+    });
+    const tie = yourTools.find((t) => t.toolSlug === "tie-breaker");
+    expect(tie).toBeDefined();
+    expect(tie!.accessKind).toBe("free");
+    expect(tie!.free!.badge).toBe("Free plan");
+    expect(tie!.free!.allowance).toBe(freeTierBySlug("tie-breaker")!.allowance);
+  });
+
+  it("F7. paid grants stay paid: Free baseline present, accessKind paid", () => {
+    const { yourTools } = buildBillingToolSections({
+      entitlements: [ent("draft-ban", "active", FUTURE)],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+    });
+    const draft = yourTools.find((t) => t.toolSlug === "draft-ban");
+    expect(draft).toBeDefined();
+    expect(draft!.accessKind).toBe("paid");
+    expect(draft!.free!.allowance).toBe(freeTierBySlug("draft-ban")!.allowance);
+    expect(draft!.hasPaidPlans).toBe(true);
+  });
+
+  it("F8. All Access covers all six tools, each with Free presentation", () => {
+    const { yourTools, availableToAdd } = buildBillingToolSections({
+      entitlements: [ent(null, "active", FUTURE, true)],
+      plans: PLANS,
+      tools: TOOLS_ROWS,
+    });
+    expect(yourTools.map((t) => t.toolSlug).sort()).toEqual(
+      ["draft-ban", "payout-tracker", "prize-splitter", "roster-builder", "sponsor-sentinel", "tie-breaker"].sort(),
+    );
+    for (const t of yourTools) {
+      expect(t.accessKind).toBe("all-access");
+      expect(t.free).not.toBeNull();
+    }
+    expect(availableToAdd).toHaveLength(0);
+  });
+
+  it("F9. paid prices pass through byte-identical (no Billing-side pricing)", () => {
+    const { availableToAdd } = buildBillingToolSections({ entitlements: [], plans: PLANS, tools: TOOLS_ROWS });
+    const payout = availableToAdd.find((t) => t.toolSlug === "payout-tracker");
+    expect(payout!.monthly).toMatchObject({ planId: "p-po-m", amountMinor: 79900, currency: "INR" });
+    expect(payout!.yearly).toMatchObject({ planId: "p-po-y", amountMinor: 799000, currency: "INR" });
+    const splitter = availableToAdd.find((t) => t.toolSlug === "prize-splitter");
+    expect(splitter!.monthly).toMatchObject({ planId: "p-p-m", amountMinor: 69900, currency: "INR" });
+  });
+
+  it("F10. removed tools never appear in either Billing section", () => {
+    const { yourTools, availableToAdd } = buildBillingToolSections({ entitlements: [], plans: PLANS, tools: TOOLS_ROWS });
+    const slugs = [...yourTools, ...availableToAdd].map((t) => t.toolSlug);
+    for (const removed of ["scrim-matchmaker", "vod-clipper", "roster-sentinel"]) {
+      expect(slugs).not.toContain(removed);
+    }
   });
 });

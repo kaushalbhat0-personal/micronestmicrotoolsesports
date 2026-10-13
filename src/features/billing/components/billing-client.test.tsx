@@ -1,12 +1,23 @@
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { renderToString } from "react-dom/server";
+import { freeTierBySlug } from "@/config/marketing/free-tiers";
 import { BillingClient } from "./billing-client";
 
 vi.mock("next/navigation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("next/navigation")>();
   return { ...actual, useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }) };
 });
+
+function freeFor(slug: string) {
+  const tier = freeTierBySlug(slug)!;
+  return { badge: "Free plan" as const, allowance: tier.allowance, details: tier.details };
+}
+
+function freeForeverFor(slug: string) {
+  const tier = freeTierBySlug(slug)!;
+  return { badge: "Free forever" as const, allowance: tier.allowance, details: tier.details };
+}
 
 describe("BillingClient", () => {
   it("renders Your Tools with permanent and finite access", () => {
@@ -19,8 +30,8 @@ describe("BillingClient", () => {
           { toolSlug: "prize-splitter", displayName: "Prize Pool Splitter", description: "Test", isAllAccess: false, source: "subscription", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), status: "active" },
         ]}
         yourTools={[
-          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "permanent", expiresAt: null, viaAllAccess: false, viaUserGrant: false },
-          { toolSlug: "prize-splitter", displayName: "Prize Pool Splitter", description: "Test", icon: "Split", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: false, viaUserGrant: false },
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "permanent", expiresAt: null, viaAllAccess: false, viaUserGrant: false, free: freeFor("sponsor-sentinel"), accessKind: "paid", hasPaidPlans: true },
+          { toolSlug: "prize-splitter", displayName: "Prize Pool Splitter", description: "Test", icon: "Split", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: false, viaUserGrant: false, free: freeForeverFor("prize-splitter"), accessKind: "paid", hasPaidPlans: true },
         ]}
         availableToAdd={[]}
         plans={[
@@ -48,16 +59,19 @@ describe("BillingClient", () => {
         entitlements={[]}
         yourTools={[]}
         availableToAdd={[
-          { toolSlug: "draft-ban", displayName: "Draft & Ban", description: "Test desc", icon: "Swords", monthly: { planId: "plan-m", amountMinor: 9900, currency: "INR" }, yearly: { planId: "plan-y", amountMinor: 99000, currency: "INR" } },
+          { toolSlug: "draft-ban", displayName: "Draft & Ban", description: "Test desc", icon: "Swords", monthly: { planId: "plan-m", amountMinor: 9900, currency: "INR" }, yearly: { planId: "plan-y", amountMinor: 99000, currency: "INR" }, free: freeFor("draft-ban"), claimable: true },
         ]}
         plans={[]}
         history={[]}
         currentPlan={null}
+        freeClaimCopy={null}
       />
     );
-    expect(html).toContain("Available to Add");
+    expect(html).toContain("Available tools");
     expect(html).toContain("Draft &amp; Ban");
-    expect(html).toContain("Add another tool to this workspace.");
+    expect(html).toContain("Start free or add a paid plan");
+    // Free-first: canonical allowance visible before any price.
+    expect(html).toContain(freeTierBySlug("draft-ban")!.allowance);
     // Prices from catalog data, CTA per period reusing checkout.
     // (React SSR inserts comments between text nodes, so assert fragments.)
     expect(html).toContain("Add ");
@@ -113,7 +127,7 @@ describe("BillingClient", () => {
           { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "", isAllAccess: false, source: "manual", expiresAt: null, status: "permanent" },
         ]}
         yourTools={[
-          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "", icon: "ShieldCheck", status: "permanent", expiresAt: null, viaAllAccess: false, viaUserGrant: false },
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "", icon: "ShieldCheck", status: "permanent", expiresAt: null, viaAllAccess: false, viaUserGrant: false, free: freeFor("sponsor-sentinel"), accessKind: "paid", hasPaidPlans: true },
         ]}
         availableToAdd={[]}
         plans={[
@@ -134,7 +148,7 @@ describe("BillingClient", () => {
         organizationSlug="test-org"
         entitlements={[]}
         yourTools={[
-          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: true, viaUserGrant: false },
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: true, viaUserGrant: false, free: freeFor("sponsor-sentinel"), accessKind: "all-access", hasPaidPlans: true },
         ]}
         availableToAdd={[]}
         plans={[]}
@@ -153,7 +167,7 @@ describe("BillingClient", () => {
         organizationSlug="test-org"
         entitlements={[]}
         yourTools={[
-          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: false, viaUserGrant: true },
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", status: "active", expiresAt: new Date(Date.now() + 86400000 * 10).toISOString(), viaAllAccess: false, viaUserGrant: true, free: freeFor("sponsor-sentinel"), accessKind: "paid", hasPaidPlans: true },
         ]}
         availableToAdd={[]}
         plans={[]}
@@ -177,14 +191,15 @@ describe("BillingClient", () => {
         entitlements={[]}
         yourTools={[]}
         availableToAdd={[
-          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", monthly: { planId: "p1", amountMinor: 149900, currency: "INR" }, yearly: null },
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", monthly: { planId: "p1", amountMinor: 149900, currency: "INR" }, yearly: null, free: freeFor("sponsor-sentinel"), claimable: true },
         ]}
         plans={[]}
         history={[]}
         currentPlan={null}
+        freeClaimCopy={null}
       />
     );
-    expect(html).toContain("Available to Add");
+    expect(html).toContain("Available tools");
     expect(html).toContain("Sponsorship Tracking");
   });
 
@@ -198,5 +213,143 @@ describe("BillingClient", () => {
     // No hardcoded prices anywhere in the client.
     expect(src).not.toMatch(/₹2,499|₹24,990/);
     expect(src).not.toMatch(/249900|149900|69900/);
+  });
+
+  it("roster-builder card shows Free forever + Start free with no purchase CTA", () => {
+    const html = renderToString(
+      <BillingClient
+        organizationId="org-a"
+        organizationSlug="test-org"
+        entitlements={[]}
+        yourTools={[]}
+        availableToAdd={[
+          { toolSlug: "roster-builder", displayName: "Tournament Roster & Slot Builder", description: "Test desc", icon: "ClipboardList", monthly: null, yearly: null, free: freeForeverFor("roster-builder"), claimable: true },
+        ]}
+        plans={[]}
+        history={[]}
+        currentPlan={null}
+        freeClaimCopy={null}
+      />
+    );
+    expect(html).toContain("Tournament Roster &amp; Slot Builder");
+    expect(html).toContain("Free forever");
+    expect(html).toContain(freeTierBySlug("roster-builder")!.allowance);
+    expect(html).toContain("Start free");
+    expect(html).not.toMatch(/Add(\s|<!-- -->|&nbsp;)*monthly/);
+    expect(html).not.toMatch(/Add(\s|<!-- -->|&nbsp;)*yearly/);
+  });
+
+  it("tie-breaker Free grant shows quota badge, never bare Permanent access", () => {
+    const html = renderToString(
+      <BillingClient
+        organizationId="org-a"
+        organizationSlug="test-org"
+        entitlements={[]}
+        yourTools={[
+          { toolSlug: "tie-breaker", displayName: "Tie-Breaker Resolver", description: "Test", icon: "Scale", status: "permanent", expiresAt: null, viaAllAccess: false, viaUserGrant: false, free: freeFor("tie-breaker"), accessKind: "free", hasPaidPlans: true },
+        ]}
+        availableToAdd={[]}
+        plans={[]}
+        history={[]}
+        currentPlan={null}
+        freeClaimCopy={null}
+      />
+    );
+    expect(html).toContain("Free plan");
+    expect(html).toContain(freeTierBySlug("tie-breaker")!.allowance);
+    expect(html).not.toContain("Permanent access");
+    expect(html).toContain("Upgrade to Tie-Breaker Resolver");
+  });
+
+  it("prize-splitter Free grant shows unlimited positioning with no invented PRO list", () => {
+    const html = renderToString(
+      <BillingClient
+        organizationId="org-a"
+        organizationSlug="test-org"
+        entitlements={[]}
+        yourTools={[
+          { toolSlug: "prize-splitter", displayName: "Prize Pool Splitter", description: "Test", icon: "Split", status: "permanent", expiresAt: null, viaAllAccess: false, viaUserGrant: false, free: freeForeverFor("prize-splitter"), accessKind: "free", hasPaidPlans: true },
+        ]}
+        availableToAdd={[]}
+        plans={[]}
+        history={[]}
+        currentPlan={null}
+        freeClaimCopy={null}
+      />
+    );
+    expect(html).toContain("Free forever");
+    expect(html).toContain("Unlimited calculations");
+    // No manufactured PRO feature claims — only the upgrade link to pricing.
+    expect(html).not.toContain("Unlocks");
+  });
+
+  it("sponsorship Free copy comes from canonical FREE_TIERS, old duplicate removed", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const src = readFileSync(join(process.cwd(), "src/features/billing/components/billing-client.tsx"), "utf8");
+    expect(src).not.toContain("Free Sponsorship Tracking — 1 campaign");
+    expect(src).toMatch(/freeTierBySlug|free\.allowance|freeClaimCopy/);
+    const html = renderToString(
+      <BillingClient
+        organizationId="org-a"
+        organizationSlug="test-org"
+        entitlements={[]}
+        yourTools={[]}
+        availableToAdd={[]}
+        plans={[]}
+        history={[]}
+        currentPlan={null}
+        showFreeClaim
+        freeClaimCopy={freeFor("sponsor-sentinel")}
+      />
+    );
+    expect(html).toContain(freeTierBySlug("sponsor-sentinel")!.allowance);
+  });
+
+  it("roster-builder resolves the ClipboardList icon (no ShieldCheck fallback)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const src = readFileSync(join(process.cwd(), "src/features/billing/components/billing-client.tsx"), "utf8");
+    expect(src).toMatch(/if \(icon === "ClipboardList"\) return ClipboardList/);
+  });
+
+  it("claim actions receive only the workspace slug; tool slugs stay server-bound", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const actions = readFileSync(join(process.cwd(), "src/features/billing/actions/claim-actions.ts"), "utf8");
+    for (const fn of [
+      "claimFreeSponsorshipBillingAction",
+      "claimFreePrizeSplitterBillingAction",
+      "claimFreeDraftBanBillingAction",
+      "claimFreeTieBreakerBillingAction",
+      "claimFreePayoutTrackerBillingAction",
+      "claimFreeRosterBuilderBillingAction",
+    ]) {
+      expect(actions).toContain(`export async function ${fn}(orgSlug: string)`);
+    }
+    expect(actions).not.toMatch(/toolSlug: string/);
+    const client = readFileSync(join(process.cwd(), "src/features/billing/components/billing-client.tsx"), "utf8");
+    expect(client).toMatch(/await action\?\.?\(organizationSlug\)/);
+  });
+
+  it("sections expose accessible names; Free vs paid is textual, not color-only", () => {
+    const html = renderToString(
+      <BillingClient
+        organizationId="org-a"
+        organizationSlug="test-org"
+        entitlements={[]}
+        yourTools={[]}
+        availableToAdd={[
+          { toolSlug: "draft-ban", displayName: "Draft & Ban", description: "Test", icon: "Swords", monthly: { planId: "p1", amountMinor: 9900, currency: "INR" }, yearly: null, free: freeFor("draft-ban"), claimable: true },
+        ]}
+        plans={[]}
+        history={[]}
+        currentPlan={null}
+        freeClaimCopy={null}
+      />
+    );
+    expect(html).toContain('aria-label="Your tools"');
+    expect(html).toContain('aria-label="Available tools"');
+    expect(html).toContain('aria-label="Start Draft &amp; Ban free"');
   });
 });

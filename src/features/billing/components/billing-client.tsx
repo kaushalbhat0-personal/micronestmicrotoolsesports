@@ -6,8 +6,24 @@ import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Split, Calendar, CreditCard, RefreshCw, Check, AlertCircle, Infinity as InfinityIcon, ArrowRight, Swords, Scale, ReceiptText } from "lucide-react";
+import { ShieldCheck, Split, Calendar, CreditCard, RefreshCw, Check, AlertCircle, Infinity as InfinityIcon, ArrowRight, Swords, Scale, ReceiptText, ClipboardList } from "lucide-react";
 import { getPurchaseGuide } from "@/lib/purchase/plan-guidance";
+import { FreePlanBadge } from "@/components/freemium/free-plan-badge";
+import { UpgradeCTA } from "@/components/freemium/upgrade-cta";
+import {
+  claimFreeSponsorshipBillingAction,
+  claimFreePrizeSplitterBillingAction,
+  claimFreeDraftBanBillingAction,
+  claimFreeTieBreakerBillingAction,
+  claimFreePayoutTrackerBillingAction,
+  claimFreeRosterBuilderBillingAction,
+} from "../actions/claim-actions";
+
+type BillingFreeInfo = {
+  badge: "Free forever" | "Free plan";
+  allowance: string;
+  details: string;
+};
 
 type ToolCard = {
   toolSlug: string;
@@ -19,6 +35,12 @@ type ToolCard = {
   viaAllAccess: boolean;
   viaUserGrant: boolean;
   isFree?: boolean;
+  /** Canonical Free presentation (server-built from FREE_TIERS). */
+  free: BillingFreeInfo | null;
+  /** Whether current access is Free, paid, or via All Access. */
+  accessKind: "free" | "paid" | "all-access";
+  /** True when an active paid plan exists (upgrade may be offered). */
+  hasPaidPlans: boolean;
 };
 
 type AvailableCard = {
@@ -28,6 +50,24 @@ type AvailableCard = {
   icon: string;
   monthly: { planId: string; amountMinor: number; currency: string } | null;
   yearly: { planId: string; amountMinor: number; currency: string } | null;
+  /** Canonical Free presentation (server-built from FREE_TIERS). */
+  free: BillingFreeInfo | null;
+  /** True when the workspace may self-claim Free. */
+  claimable: boolean;
+};
+
+/**
+ * Server-bound Free-claim actions by canonical tool slug. The client only
+ * supplies the workspace slug at call time; each action binds its tool
+ * slug server-side, so client input never drives authorization.
+ */
+const claimActionFor: Record<string, (orgSlug: string) => Promise<{ ok?: boolean; error?: string }>> = {
+  "sponsor-sentinel": claimFreeSponsorshipBillingAction,
+  "prize-splitter": claimFreePrizeSplitterBillingAction,
+  "draft-ban": claimFreeDraftBanBillingAction,
+  "tie-breaker": claimFreeTieBreakerBillingAction,
+  "payout-tracker": claimFreePayoutTrackerBillingAction,
+  "roster-builder": claimFreeRosterBuilderBillingAction,
 };
 
 function toolIcon(icon: string) {
@@ -35,6 +75,7 @@ function toolIcon(icon: string) {
   if (icon === "Scale") return Scale;
   if (icon === "Split") return Split;
   if (icon === "ReceiptText") return ReceiptText;
+  if (icon === "ClipboardList") return ClipboardList;
   return ShieldCheck;
 }
 
@@ -92,6 +133,61 @@ declare global {
   }
 }
 
+/**
+ * FreeBlock — Free-first presentation for a tool card. Badge + canonical
+ * allowance + details, all server-supplied. Nothing is hardcoded here.
+ */
+function FreeBlock({ free }: { free: BillingFreeInfo }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-semibold tracking-wide text-foreground">
+        <FreePlanBadge label={free.badge} /> <span className="sr-only">Free tier:</span>
+      </p>
+      <p className="text-xs text-muted-foreground">Free — {free.allowance}</p>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">{free.details}</p>
+    </div>
+  );
+}
+
+/**
+ * ClaimButton — per-card "Start free" for a claimable tool. Calls the
+ * server-bound action for its slug with the workspace slug only, then
+ * refreshes Billing state. No tool identity travels from client to server
+ * beyond selecting which pre-bound action runs.
+ */
+function ClaimButton({ toolSlug, displayName, organizationSlug }: { toolSlug: string; displayName: string; organizationSlug: string }) {
+  const router = useRouter();
+  const [claiming, setClaiming] = React.useState(false);
+  const [claimError, setClaimError] = React.useState<string | null>(null);
+  const action = claimActionFor[toolSlug];
+  if (action === undefined) return null;
+  async function onClaim() {
+    setClaiming(true);
+    setClaimError(null);
+    try {
+      const res = await action?.(organizationSlug);
+      if (res?.error) throw new Error(res.error);
+      router.refresh();
+    } catch (err) {
+      setClaimError(err instanceof Error ? err.message : "Could not start free access");
+    } finally {
+      setClaiming(false);
+    }
+  }
+  return (
+    <div>
+      <Button size="sm" className="min-h-[44px]" disabled={claiming} loading={claiming} onClick={onClaim} aria-label={`Start ${displayName} free`}>
+        Start free
+      </Button>
+      {claimError ? (
+        <p className="mt-1 text-xs text-destructive" role="alert">
+          {claimError}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function BillingClient({
   organizationId,
   organizationSlug,
@@ -104,6 +200,7 @@ export function BillingClient({
   currentPlan,
   hintedPlanSlug,
   showFreeClaim = false,
+  freeClaimCopy = null,
 }: {
   organizationId: string;
   organizationSlug: string;
@@ -116,6 +213,8 @@ export function BillingClient({
   currentPlan: Plan | null;
   hintedPlanSlug?: string | null;
   showFreeClaim?: boolean;
+  /** Canonical Sponsorship Free copy for the standalone claim card. */
+  freeClaimCopy?: BillingFreeInfo | null;
 }) {
   const displayOrgName = organizationName ?? organizationSlug;
   const initialHintedPlanId = React.useMemo(() => {
@@ -280,7 +379,7 @@ export function BillingClient({
         </section>
       ) : null}
       {/* Your Tools */}
-      <section>
+      <section aria-label="Your tools">
         <h2 className="font-display text-lg font-normal tracking-tight">Your Tools</h2>
         <p className="mt-1 text-sm text-muted-foreground">Tools currently active in this workspace.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -293,14 +392,15 @@ export function BillingClient({
           ) : (
             yourTools.map((t) => {
               const Icon = toolIcon(t.icon);
+              const isFreeAccess = t.accessKind === "free";
               return (
                 <Card key={t.toolSlug} variant="default" className="border-border/60">
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-sm">
                       <Icon className="h-4 w-4 text-primary" aria-hidden />
                       {t.displayName}
-                      {t.isFree ? (
-                        <Badge variant="secondary">Free plan</Badge>
+                      {isFreeAccess && t.free ? (
+                        <FreePlanBadge label={t.free.badge} />
                       ) : (
                         <>
                           {t.status === "permanent" && <Badge variant="secondary">Permanent</Badge>}
@@ -311,25 +411,26 @@ export function BillingClient({
                     </CardTitle>
                     <CardDescription className="text-xs">{t.description}</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      {t.status === "permanent" ? <InfinityIcon className="h-3.5 w-3.5" aria-hidden /> : <Calendar className="h-3.5 w-3.5" aria-hidden />}
-                      {expiryLabel(t.expiresAt, t.status)}
-                    </p>
-                    {t.viaAllAccess && <p className="mt-1 text-xs text-muted-foreground">Included with All Access</p>}
-                    {t.viaUserGrant && !t.isFree && <p className="mt-1 text-xs text-muted-foreground">Included with your Sponsorship access</p>}
-                    {t.isFree && (
-                      <>
-                        <p className="mt-1 text-xs text-muted-foreground">Free Sponsorship Tracking — 1 campaign, 1 channel, 10 checks a month, 7-day history.</p>
-                        <Link
-                          href="/pricing"
-                          className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          Upgrade to Sponsorship Tracking
-                        </Link>
-                        <p className="mt-1 text-[11px] text-muted-foreground">Manual renewal. No AutoPay.</p>
-                      </>
+                  <CardContent className="space-y-3">
+                    {isFreeAccess && t.free ? (
+                      <FreeBlock free={t.free} />
+                    ) : (
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        {t.status === "permanent" ? <InfinityIcon className="h-3.5 w-3.5" aria-hidden /> : <Calendar className="h-3.5 w-3.5" aria-hidden />}
+                        {expiryLabel(t.expiresAt, t.status)}
+                      </p>
                     )}
+                    {!isFreeAccess && t.free ? (
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">Free baseline included — {t.free.allowance}</p>
+                    ) : null}
+                    {t.viaAllAccess && <p className="mt-1 text-xs text-muted-foreground">Included with All Access</p>}
+                    {t.viaUserGrant && t.accessKind !== "free" && <p className="mt-1 text-xs text-muted-foreground">Included with your Sponsorship access</p>}
+                    {isFreeAccess && t.hasPaidPlans ? (
+                      <div>
+                        <UpgradeCTA href="/pricing" label={`Upgrade to ${t.displayName}`} />
+                        <p className="mt-1 text-[11px] text-muted-foreground">Manual renewal. No AutoPay.</p>
+                      </div>
+                    ) : null}
                   </CardContent>
                 </Card>
               );
@@ -338,13 +439,15 @@ export function BillingClient({
         </div>
       </section>
 
-      {/* Free Sponsorship Tracking claim — no payment, no order, no Razorpay */}
-      {showFreeClaim ? (
+      {/* Free Sponsorship Tracking claim — no payment, no order, no Razorpay.
+          Copy comes from the canonical FREE_TIERS entry via props. Hidden
+          when Sponsorship already has its own Start-free card below. */}
+      {showFreeClaim && freeClaimCopy && !availableToAdd.some((t) => t.toolSlug === "sponsor-sentinel") ? (
         <section aria-label="Try Sponsorship Tracking free">
           <Card className="border-primary/20 bg-primary/5">
             <CardHeader>
               <CardTitle className="text-sm">Try Sponsorship Tracking free</CardTitle>
-              <CardDescription>1 campaign, 1 channel, 10 checks a month. No payment required.</CardDescription>
+              <CardDescription>{freeClaimCopy.allowance}. No payment required.</CardDescription>
             </CardHeader>
             <CardContent>
               <Button size="sm" className="min-h-[44px]" disabled={loading} onClick={handleClaimFree}>
@@ -355,10 +458,11 @@ export function BillingClient({
         </section>
       ) : null}
 
-      {/* Available to Add */}
-      <section>
-        <h2 className="font-display text-lg font-normal tracking-tight">Available to Add</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Add another tool to this workspace.</p>
+      {/* Available tools — free-first: every tool shows its Free tier.
+          Paid Add buttons appear only where active paid plans exist. */}
+      <section aria-label="Available tools">
+        <h2 className="font-display text-lg font-normal tracking-tight">Available tools</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Start free or add a paid plan — every tool includes a Free tier.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {availableToAdd.length === 0 ? (
             <Card>
@@ -372,6 +476,7 @@ export function BillingClient({
               const options = [t.monthly ? { ...t.monthly, period: "monthly" as const } : null, t.yearly ? { ...t.yearly, period: "yearly" as const } : null].filter(
                 (o): o is { planId: string; amountMinor: number; currency: string; period: "monthly" | "yearly" } => o !== null
               );
+              const hasPaid = options.length > 0;
               return (
                 <Card key={t.toolSlug} variant="default" className="border-border/60">
                   <CardHeader className="pb-3">
@@ -382,20 +487,30 @@ export function BillingClient({
                     <CardDescription className="text-xs">{t.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="space-y-1">
-                      {options.map((o) => (
-                        <p key={o.planId} className="font-mono text-xs text-muted-foreground">
-                          {formatAmount(o.amountMinor, o.currency)} / {o.period === "monthly" ? "month" : "year"}
-                        </p>
-                      ))}
-                    </div>
+                    {t.free ? <FreeBlock free={t.free} /> : null}
                     <div className="flex flex-wrap gap-2">
-                      {options.map((o) => (
-                        <Button key={o.planId} size="sm" className="min-h-[44px]" disabled={loading} onClick={() => handleCheckout(o.planId)}>
-                          Add {o.period === "monthly" ? "monthly" : "yearly"} — {formatAmount(o.amountMinor, o.currency)}
-                        </Button>
-                      ))}
+                      {t.claimable ? (
+                        <ClaimButton toolSlug={t.toolSlug} displayName={t.displayName} organizationSlug={organizationSlug} />
+                      ) : null}
                     </div>
+                    {hasPaid ? (
+                      <>
+                        <div className="space-y-1">
+                          {options.map((o) => (
+                            <p key={o.planId} className="font-mono text-xs text-muted-foreground">
+                              {formatAmount(o.amountMinor, o.currency)} / {o.period === "monthly" ? "month" : "year"}
+                            </p>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {options.map((o) => (
+                            <Button key={o.planId} size="sm" variant="outline" className="min-h-[44px]" disabled={loading} onClick={() => handleCheckout(o.planId)} aria-label={`Add ${t.displayName} ${o.period} — ${formatAmount(o.amountMinor, o.currency)}`}>
+                              Add {o.period === "monthly" ? "monthly" : "yearly"} — {formatAmount(o.amountMinor, o.currency)}
+                            </Button>
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
                   </CardContent>
                 </Card>
               );
@@ -405,7 +520,7 @@ export function BillingClient({
       </section>
 
       {/* Current Plan */}
-      <section>
+      <section aria-label="Current plan">
         <h2 className="font-display text-lg font-normal tracking-tight">Current Plan</h2>
         {currentPlan ? (
           <Card className="mt-4 border-primary/20 bg-primary/5">
@@ -432,7 +547,7 @@ export function BillingClient({
       </section>
 
       {/* Renewal */}
-      <section>
+      <section aria-label="Renewal">
         <h2 className="font-display text-lg font-normal tracking-tight">Renewal</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {hasPermanent ? "You have permanent access. You can still purchase a paid plan for renewal or upgrade." : hasFinite ? "Renew your access before it expires." : "Choose a plan to get access."}
@@ -580,7 +695,7 @@ export function BillingClient({
       </section>
 
       {/* Billing History */}
-      <section>
+      <section aria-label="Billing history">
         <h2 className="font-display text-lg font-normal tracking-tight">Billing History</h2>
         <p className="mt-1 text-sm text-muted-foreground">Recent orders and payments for this workspace.</p>
         <Card className="mt-4 overflow-hidden">
