@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -42,6 +43,21 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ReceiptText,
   ClipboardList,
 };
+
+/**
+ * Public hands-on demos — Prize Pool Splitter and Tournament Roster Builder
+ * only. Both workspaces are fully client-side and ephemeral (no account, no
+ * persistence, no entitlement grant), so strangers can experience real value
+ * before signup. All other tools remain gated. Dynamically imported so the
+ * remaining tool pages never carry this client JavaScript.
+ */
+// Code-split so the remaining tool pages never carry demo JavaScript.
+const PublicSplitterDemo = dynamic(() =>
+  import("@/features/prize-splitter/components/public-splitter-demo").then((m) => m.PublicSplitterDemo),
+);
+const PublicRosterDemo = dynamic(() =>
+  import("@/features/roster-builder/components/public-roster-demo").then((m) => m.PublicRosterDemo),
+);
 
 function accentClass(accent: ToolAccent): string {
   switch (accent) {
@@ -162,6 +178,18 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
                   </Link>
                 </div>
               </div>
+            </section>
+          ) : null}
+
+          {/* Public hands-on demo — Splitter + Roster only, no signup needed */}
+          {tool.slug === "prize-pool-splitter" ? (
+            <section aria-label="Try Prize Pool Splitter now" className="mt-10 rounded-[20px] border border-border bg-card p-4 sm:p-6">
+              <PublicSplitterDemo />
+            </section>
+          ) : null}
+          {tool.slug === "tournament-roster-builder" ? (
+            <section aria-label="Try Tournament Roster and Slot Builder now" className="mt-10 rounded-[20px] border border-border bg-card p-4 sm:p-6">
+              <PublicRosterDemo />
             </section>
           ) : null}
 
