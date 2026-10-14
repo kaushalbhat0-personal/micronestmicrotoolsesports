@@ -10,6 +10,15 @@ vi.mock("@/lib/auth/require-membership", () => ({
     membership: { id: "mem-1", organization_id: "org-a", user_id: "user-1", role: "owner" },
     organization: { id: "org-a", name: "Test", slug: "test", owner_id: "user-1" },
   })),
+  requireOrganizationRole: vi.fn(async (_orgId: string, roles: string[]) => {
+    const ctx = {
+      user: { id: "user-1" },
+      membership: { id: "mem-1", organization_id: "org-a", user_id: "user-1", role: "owner" },
+      organization: { id: "org-a", name: "Test", slug: "test", owner_id: "user-1" },
+    };
+    if (!roles.includes(ctx.membership.role)) throw Object.assign(new Error("forbidden"), { code: "FORBIDDEN", status: 403 });
+    return ctx;
+  }),
 }));
 
 const mockAdminFrom = vi.fn();

@@ -10,6 +10,12 @@ vi.mock("@/lib/auth/require-membership", () => ({
     if (orgId === "org-stranger") throw Object.assign(new Error("not member"), { code: "FORBIDDEN", status: 403 });
     return { user: { id: "user-1" }, membership: { id: "mem-1", organization_id: orgId, user_id: "user-1", role: "owner" }, organization: { id: orgId } };
   }),
+  requireOrganizationRole: vi.fn(async (orgId: string, roles: string[]) => {
+    if (orgId === "org-stranger") throw Object.assign(new Error("not member"), { code: "FORBIDDEN", status: 403 });
+    const ctx = { user: { id: "user-1" }, membership: { id: "mem-1", organization_id: orgId, user_id: "user-1", role: "owner" }, organization: { id: orgId } };
+    if (!roles.includes(ctx.membership.role)) throw Object.assign(new Error("forbidden"), { code: "FORBIDDEN", status: 403 });
+    return ctx;
+  }),
 }));
 
 // ── Supabase mocks ──

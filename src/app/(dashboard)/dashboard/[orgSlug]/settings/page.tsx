@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type { Route } from "next";
-import { Settings2, Tv, Plug, CreditCard, Lock } from "lucide-react";
+import { Settings2, Tv, Plug, CreditCard, Lock, Users } from "lucide-react";
 
 export default async function SettingsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
@@ -63,6 +63,19 @@ export default async function SettingsPage({ params }: { params: Promise<{ orgSl
           <CardContent>
             <Link href={`/dashboard/${orgSlug}/settings/security` as Route}>
               <Button variant="outline" size="sm">Manage security</Button>
+            </Link>
+          </CardContent>
+        </Card>
+        <Card variant="default">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4 text-muted-foreground" /> Members
+            </CardTitle>
+            <CardDescription>Owners, admins and members of this workspace</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href={`/dashboard/${orgSlug}/settings/members` as Route}>
+              <Button variant="outline" size="sm">Manage members</Button>
             </Link>
           </CardContent>
         </Card>

@@ -10,6 +10,12 @@ vi.mock("@/lib/auth/require-membership", () => ({
     if (orgId === "org-b") throw Object.assign(new Error("not member"), { code: "FORBIDDEN", status: 403 });
     return { user: { id: "user-1" }, membership: { id: "mem-1", organization_id: orgId, user_id: "user-1", role: "owner" }, organization: { id: orgId, name: "Test Org", slug: "test-org", owner_id: "user-1" } };
   }),
+  requireOrganizationRole: vi.fn(async (orgId: string, roles: string[]) => {
+    const ctx = { user: { id: "user-1" }, membership: { id: "mem-1", organization_id: orgId, user_id: "user-1", role: "owner" }, organization: { id: orgId, name: "Test Org", slug: "test-org", owner_id: "user-1" } };
+    if (orgId === "org-b") throw Object.assign(new Error("not member"), { code: "FORBIDDEN", status: 403 });
+    if (!roles.includes(ctx.membership.role)) throw Object.assign(new Error("forbidden"), { code: "FORBIDDEN", status: 403 });
+    return ctx;
+  }),
 }));
 
 // Mock supabase
@@ -148,6 +154,23 @@ describe("billing checkout — server-authoritative", () => {
 
   it("cross-tenant checkout rejected", async () => {
     await expect(createCheckoutOrder({ planId: "plan-1", organizationId: "org-b" })).rejects.toThrow();
+  });
+
+  it("member role cannot create paid checkout (owner/admin only)", async () => {
+    const { requireOrganizationRole } = await import("@/lib/auth/require-membership");
+    vi.mocked(requireOrganizationRole).mockRejectedValueOnce(
+      Object.assign(new Error("Requires role: owner | admin"), { code: "FORBIDDEN", status: 403 }),
+    );
+    const insertSpy = vi.fn();
+    mockAdminFrom.mockImplementation((table: string) => {
+      if (table === "orders") return { insert: insertSpy } as never;
+      if (table === "plans") {
+        return mockPlanRow({ id: "plan-1", tool_id: "tool-1", billing_period: "monthly", amount_minor: 149900, currency: "INR", is_active: true, slug: "sponsorship-tracking-monthly" }) as never;
+      }
+      return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
+    });
+    await expect(createCheckoutOrder({ planId: "plan-1", organizationId: "org-a" })).rejects.toThrow(/owner | admin/);
+    expect(insertSpy).not.toHaveBeenCalled();
   });
 
   it("razorpay order failure marks order failed", async () => {
@@ -314,6 +337,30 @@ describe("billing verify — payment verification", () => {
         razorpaySignature: "valid_sig",
       })
     ).rejects.toThrow();
+  });
+
+  it("member role cannot verify/complete payment (owner/admin only)", async () => {
+    const { requireOrganizationRole } = await import("@/lib/auth/require-membership");
+    mockAdminRpc.mockClear();
+    vi.mocked(requireOrganizationRole).mockRejectedValueOnce(
+      Object.assign(new Error("Requires role: owner | admin"), { code: "FORBIDDEN", status: 403 }),
+    );
+    const mockOrder = { id: "order-1", organization_id: "org-a", plan_id: "plan-1", tool_id: "tool-1", is_all_access: false, amount_minor: 149900, currency: "INR", razorpay_order_id: "order_razor_123" };
+    mockAdminFrom.mockImplementation((table: string) => {
+      if (table === "orders") {
+        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: mockOrder, error: null })) })) })) } as never;
+      }
+      return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
+    });
+    await expect(
+      verifyPaymentAndActivate({
+        orderId: "order-1",
+        razorpayOrderId: "order_razor_123",
+        razorpayPaymentId: "pay_1",
+        razorpaySignature: "valid_sig",
+      })
+    ).rejects.toThrow(/owner | admin/);
+    expect(mockAdminRpc).not.toHaveBeenCalled();
   });
 
   it("amount mismatch rejected", async () => {

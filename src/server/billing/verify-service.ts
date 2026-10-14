@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/auth/get-user";
-import { requireOrganizationMember } from "@/lib/auth/require-membership";
+import { requireOrganizationRole } from "@/lib/auth/require-membership";
 import { verifyRazorpayPayment, fetchRazorpayPayment, type RazorpayClientLike } from "./razorpay";
 import type { BillingPeriod } from "./period";
 
@@ -38,8 +38,10 @@ export async function verifyPaymentAndActivate(
     throw validationError("Invalid order");
   }
 
-  // 2. Verify organization ownership — server-authoritative tenant check
-  await requireOrganizationMember((order as { organization_id: string }).organization_id);
+  // 2. Paid completion moves organization money — Owner/Admin only,
+  // consistent with checkout creation (RCCF-ORG-MEMBERS-01). Tenant is
+  // server-derived from the order row, never client input.
+  await requireOrganizationRole((order as { organization_id: string }).organization_id, ["owner", "admin"]);
 
   // 3. Verify Razorpay order match (server-side, not client trust)
   if ((order as { razorpay_order_id: string | null }).razorpay_order_id !== input.razorpayOrderId) {

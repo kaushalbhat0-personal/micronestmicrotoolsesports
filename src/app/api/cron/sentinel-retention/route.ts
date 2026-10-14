@@ -5,6 +5,7 @@ import { handleRouteError } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runRetention } from "@/server/cron/sentinel-retention";
 import { reconcileAllSubscriptions } from "@/server/subscriptions/reconciler";
+import { recordCronRunStart, recordCronRunComplete } from "@/server/cron/run-ledger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,12 @@ async function handler(request: Request) {
   const cronStart = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
   try {
     assertCronAuth(request);
+
+    try {
+      await recordCronRunStart("/api/cron/sentinel-retention", cronRunId);
+    } catch {
+      // non-fatal
+    }
 
     console.warn(JSON.stringify({ event: "daily_maintenance_started", cronRunId, startedAt: new Date().toISOString() }));
 
@@ -65,6 +72,16 @@ async function handler(request: Request) {
     );
 
     // If both failed, propagate error (so Vercel marks cron failed)
+    const overallOk = !retentionError && !subscriptionError;
+    try {
+      await recordCronRunComplete(
+        cronRunId,
+        overallOk,
+        overallOk ? undefined : (retentionError ?? subscriptionError) instanceof Error ? ((retentionError ?? subscriptionError) as Error).message : String(retentionError ?? subscriptionError),
+      );
+    } catch {
+      // non-fatal
+    }
     if (retentionError && subscriptionError) {
       throw retentionError;
     }

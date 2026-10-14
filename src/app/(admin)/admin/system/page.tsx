@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminSystem } from "@/server/admin/system";
+import { getAdminHealth } from "@/server/admin/health";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ export default async function AdminSystemPage({
   await requireSuperAdmin();
   const params = await searchParams;
   const data = await getAdminSystem(params);
+  const health = await getAdminHealth();
 
   const buildWebhookHref = (overrides: Record<string, string | number | undefined>) => {
     const p = new URLSearchParams();
@@ -162,6 +164,128 @@ export default async function AdminSystemPage({
             </CardContent>
           </Card>
         </div>
+      </section>
+
+      {/* 1b. Platform Health Probes (SUPERADMIN-V1-02) */}
+      <section aria-labelledby="health-probes-heading">
+        <h2 id="health-probes-heading" className="sr-only">
+          Platform health probes
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs uppercase tracking-widest">Database</CardDescription>
+              <CardTitle className={`text-2xl tabular-nums ${health.db.healthy ? "" : "text-destructive"}`}>
+                {health.db.healthy ? "Healthy" : "Unhealthy"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                {health.db.error ?? (health.db.latencyMs !== null ? `Probe latency ${health.db.latencyMs}ms.` : "No latency data.")}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs uppercase tracking-widest">Unprocessed Webhooks</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">
+                {health.webhooks.error ? <span className="text-sm text-destructive">Unavailable</span> : (health.webhooks.unprocessedCount ?? "—")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                {health.webhooks.oldestUnprocessedAgeHours !== null
+                  ? `Oldest unprocessed ${health.webhooks.oldestUnprocessedAgeHours}h old.`
+                  : "No unprocessed age data."}{" "}
+                {health.webhooks.recentFailureCount !== null ? `${health.webhooks.recentFailureCount} failures in 24h.` : ""}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs uppercase tracking-widest">Stuck Orders</CardDescription>
+              <CardTitle className={`text-2xl tabular-nums ${(health.orders.stuckCreatedCount ?? 0) > 0 ? "text-destructive" : ""}`}>
+                {health.orders.error ? <span className="text-sm text-destructive">Unavailable</span> : (health.orders.stuckCreatedCount ?? "—")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Created &gt; 24h. Repair in Billing Exceptions.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs uppercase tracking-widest">Cron Ledger</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">{health.cronError ? <span className="text-sm text-destructive">Unavailable</span> : health.cron.length}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Tracked jobs with persisted run history.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* 1c. Cron Run Ledger (SUPERADMIN-V1-02) */}
+      <section aria-labelledby="cron-ledger-heading">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden />
+              <span id="cron-ledger-heading">Cron Run Ledger</span>
+            </CardTitle>
+            <CardDescription>Persisted runs — last run, last success, last failure. Configured ≠ Executed ≠ Healthy.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {health.cronError ? (
+              <p className="p-4 text-sm text-destructive">{health.cronError}</p>
+            ) : health.cron.length === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground">No cron runs recorded yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <caption className="sr-only">Cron run ledger</caption>
+                  <thead>
+                    <tr className="border-y border-border bg-surface-muted/40 text-left">
+                      <th scope="col" className="px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Job</th>
+                      <th scope="col" className="px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Last Run</th>
+                      <th scope="col" className="px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Last Success</th>
+                      <th scope="col" className="px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Last Failure</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {health.cron.map((c) => (
+                      <tr key={c.jobId} className="hover:bg-surface-muted/30">
+                        <td className="px-4 py-3 font-mono text-xs">{c.jobId}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {c.lastRun ? (
+                            <>
+                              <Badge variant={c.lastRun.status === "succeeded" ? "success" : c.lastRun.status === "failed" ? "destructive" : "secondary"}>
+                                {c.lastRun.status}
+                              </Badge>{" "}
+                              <span>{formatDate(c.lastRun.startedAt)}</span>
+                            </>
+                          ) : (
+                            "Never executed"
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{c.lastSuccess ? formatDate(c.lastSuccess.startedAt) : "—"}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {c.lastFailure ? (
+                            <>
+                              {formatDate(c.lastFailure.startedAt)}
+                              {c.lastFailure.errorSummary ? <span className="ml-1">· {c.lastFailure.errorSummary.slice(0, 80)}</span> : ""}
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       {/* 2. Scheduled Jobs */}

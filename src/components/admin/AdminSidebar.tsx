@@ -8,9 +8,12 @@ import {
   LayoutDashboard,
   Building2,
   Users,
+  UserSearch,
   KeyRound,
   CreditCard,
+  AlertTriangle,
   ShieldCheck,
+  ShieldPlus,
   Settings2,
   ScrollText,
 } from "lucide-react";
@@ -24,10 +27,13 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
+  { label: "Customers", href: "/admin/customers", icon: UserSearch },
   { label: "Organizations", href: "/admin/organizations", icon: Building2 },
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Entitlements", href: "/admin/entitlements", icon: KeyRound },
   { label: "Billing", href: "/admin/billing", icon: CreditCard },
+  { label: "Billing Exceptions", href: "/admin/billing/exceptions", icon: AlertTriangle },
+  { label: "Platform Admins", href: "/admin/platform-admins", icon: ShieldPlus },
   { label: "Sentinel", href: "/admin/sentinel", icon: ShieldCheck },
   { label: "System", href: "/admin/system", icon: Settings2 },
   { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText },

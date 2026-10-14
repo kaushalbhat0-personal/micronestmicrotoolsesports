@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/auth/get-user";
-import { requireOrganizationMember } from "@/lib/auth/require-membership";
+import { requireOrganizationRole } from "@/lib/auth/require-membership";
 import { getPlanById } from "@/server/repositories/plans";
 import { createRazorpayOrder } from "./razorpay";
 import { getRazorpayConfig } from "@/server/integrations/razorpay/client";
@@ -27,8 +27,9 @@ export async function createCheckoutOrder(
   // Buyer attribution (Phase 4): the authenticated purchaser is the buyer.
   // Never accepted from client input — CheckoutInput has no buyer field.
   const user = await requireUser();
-  // Verify organization membership — server-authoritative, prevents org spoof
-  await requireOrganizationMember(input.organizationId);
+  // Paid purchases move organization money: Owner/Admin only (RCCF-ORG-MEMBERS-01).
+  // Free claims stay member-accessible (freemium); billing reads stay open.
+  await requireOrganizationRole(input.organizationId, ["owner", "admin"]);
 
   // Use admin client for plan lookup (authoritative catalog, no RLS variance)
   // Tenant check already done via requireOrganizationMember; plan is global catalog.
