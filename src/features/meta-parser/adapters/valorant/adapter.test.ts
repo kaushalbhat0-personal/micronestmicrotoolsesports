@@ -1,14 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { htmlToLines } from "./html";
 import { ingestGamePatches, type MetaParserStore } from "../../services/ingest";
+import { safeFetchText } from "../../services/safe-fetch";
 import {
   VALORANT_ADAPTER_KEY,
   VALORANT_ADAPTER_VERSION,
   VALORANT_ALLOWED_HOSTS,
   VALORANT_GAME_SLUG,
   VALORANT_PARSER_VERSION,
+  VALORANT_PATCH_INDEX_MAX_BYTES,
+  VALORANT_PATCH_INDEX_URL,
   datasetKeyToVersion,
   patchSlugToVersion,
   upstreamIdForVersion,
@@ -147,5 +150,64 @@ describe("valorant adapter contract", () => {
     expect(report.inserted).toBe(1);
     expect(report.outcomes[0]?.changeCount).toBeGreaterThan(0);
     expect(aliasGame).toBe("valorant");
+  });
+});
+
+describe("valorant listing size cap (production regression)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubListingFetch(totalBytes: number): void {
+    const pieces: string[] = [];
+    let remaining = totalBytes;
+    const unit = "x".repeat(1024);
+    while (remaining > 0) {
+      const size = Math.min(unit.length, remaining);
+      pieces.push(unit.slice(0, size));
+      remaining -= size;
+    }
+    const encoded = pieces.map((part) => new TextEncoder().encode(part));
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of encoded) controller.enqueue(chunk);
+        controller.close();
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        url: VALORANT_PATCH_INDEX_URL,
+        headers: new Headers(),
+        body,
+      }))
+    );
+  }
+
+  function fetchListing(): Promise<{ bytes: number }> {
+    return safeFetchText(VALORANT_PATCH_INDEX_URL, {
+      allowedHosts: VALORANT_ALLOWED_HOSTS,
+      maxBytes: VALORANT_PATCH_INDEX_MAX_BYTES,
+      accept: "text/html",
+    });
+  }
+
+  it("pins the listing cap at 1 MiB", () => {
+    expect(VALORANT_PATCH_INDEX_MAX_BYTES).toBe(1024 * 1024);
+  });
+
+  it("accepts a production-sized listing above the old 512 KiB cap", async () => {
+    // Production measured 554,440 bytes on 2026-10-15; the previous 512 KiB
+    // cap rejected it during discovery before any patch was persisted.
+    stubListingFetch(600 * 1024);
+    const result = await fetchListing();
+    expect(result.bytes).toBe(600 * 1024);
+  });
+
+  it("still rejects a listing exceeding the new cap", async () => {
+    stubListingFetch(1024 * 1024 + 1);
+    await expect(fetchListing()).rejects.toMatchObject({ code: "INTEGRATION_ERROR" });
   });
 });

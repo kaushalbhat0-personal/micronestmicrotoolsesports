@@ -37,8 +37,16 @@ export const VALORANT_ALLOWED_HOSTS = ["playvalorant.com"] as const;
 
 export const VALORANT_PATCH_INDEX_URL = "https://playvalorant.com/en-us/news/game-updates/";
 
-/** Listing page cap (verified small index page). */
-export const VALORANT_PATCH_INDEX_MAX_BYTES = 512 * 1024;
+/**
+ * Listing page cap (1 MiB).
+ *
+ * Production measurement (2026-10-15): the official Riot listing returns
+ * ~554 KB (heavy Next.js app shell), which exceeded the previous 512 KiB
+ * cap and failed discovery with "Upstream response exceeded size cap"
+ * before any patch was persisted. 1 MiB leaves ~470 KB headroom while
+ * keeping the streaming size guard strict. Article cap unchanged.
+ */
+export const VALORANT_PATCH_INDEX_MAX_BYTES = 1024 * 1024;
 
 /** Single article cap (long-form patch pages with images referenced, not fetched). */
 export const VALORANT_PATCH_PAGE_MAX_BYTES = 2 * 1024 * 1024;
