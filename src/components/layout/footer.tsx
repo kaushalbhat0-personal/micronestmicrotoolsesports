@@ -1,6 +1,8 @@
+import * as React from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { Logo } from "@/components/shared/logo";
+import { getHomepageToolboxItems } from "@/lib/marketing/homepage-seo";
 
 export function Footer() {
   return (
@@ -15,13 +17,19 @@ export function Footer() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Tools</p>
             <ul className="mt-3 space-y-2 text-sm">
-              <li><Link href="/tools/sponsorship-tracking" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Sponsorship Tracking</Link></li>
-              <li><Link href="/tools/prize-pool-splitter" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Prize Pool Splitter</Link></li>
-              <li><Link href="/tools/draft-ban" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Draft &amp; Ban</Link></li>
-                <li><Link href="/tools/tie-breaker" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Tie-Breaker Resolver</Link></li>
-                <li><Link href="/tools/prize-payout-tracker" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Prize Payout Tracker</Link></li>
-                <li><Link href="/tools/tournament-roster-builder" className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">Tournament Roster &amp; Slot Builder</Link></li>
-              </ul>
+              {/* Canonical toolbox entries — registry workspace tools + Meta-Parser. */}
+              {getHomepageToolboxItems().map((item) => (
+                <li key={item.url}>
+                  <Link
+                    href={item.url as Route}
+                    aria-label={item.kind === "patch-intelligence" ? item.name : undefined}
+                    className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                  >
+                    {item.kind === "patch-intelligence" ? "Meta-Parser" : item.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Explore</p>

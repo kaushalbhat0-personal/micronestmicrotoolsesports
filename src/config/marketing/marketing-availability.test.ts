@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TOOLS } from "@/config/app/tools";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
+import { getHomepageToolboxItems } from "@/lib/marketing/homepage-seo";
 import { toWorkspaceTools } from "@/server/services/workspace-tools";
 
 const RELEASED = ["sponsor-sentinel", "prize-splitter", "draft-ban", "tie-breaker", "payout-tracker", "roster-builder"] as const;
@@ -41,12 +42,18 @@ describe("frontend availability truth — RCCF-CLEANUP-02 (released-only catalog
   });
 
   it("footer links the released tools and none of the removed tools", () => {
+    // Footer derives its Tools column from the canonical toolbox source
+    // (`getHomepageToolboxItems`) — assert the wiring plus the resolved
+    // entries rather than hardcoded href literals.
     const footer = src("src/components/layout/footer.tsx");
-    expect(footer).toContain('href="/tools/tie-breaker"');
-    expect(footer).toContain("Tie-Breaker Resolver");
-    expect(footer).toContain('href="/tools/prize-payout-tracker"');
-    expect(footer).toContain("Prize Payout Tracker");
-    expect(footer).toContain('href="/tools/tournament-roster-builder"');
+    expect(footer).toContain("getHomepageToolboxItems");
+    const items = getHomepageToolboxItems();
+    expect(items.map((i) => i.url)).toContain("/tools/tie-breaker");
+    expect(items.map((i) => i.name)).toContain("Tie-Breaker Resolver");
+    expect(items.map((i) => i.url)).toContain("/tools/prize-payout-tracker");
+    expect(items.map((i) => i.name)).toContain("Prize Payout Tracker");
+    expect(items.map((i) => i.url)).toContain("/tools/tournament-roster-builder");
+    expect(items.map((i) => i.url)).toContain("/meta-parser");
     for (const slug of REMOVED) expect(footer).not.toContain(slug);
     for (const name of ["Scrim Matchmaker", "VOD Clipper", "Roster Sentinel"]) {
       expect(footer).not.toContain(name);

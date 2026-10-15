@@ -137,28 +137,40 @@ describe("catalog badges follow the canonical Free policy (data-driven)", () => 
 });
 
 describe("homepage exposes Free discovery", () => {
-  it("renders a Free section with all six tiers and an Explore free tools CTA", () => {
-    const code = sourceOf(HOMEPAGE);
-    expect(code).toContain("Every MicroNest tool has a Free tier");
+  it("renders a neutral Free reassurance section with toolbox and pricing CTAs", () => {
+    const code = sourceOf("src/components/marketing/homepage/pricing-reassurance.tsx");
     expect(code).toContain("Start free. Upgrade when you need more.");
-    expect(code).toContain("Explore free tools");
-    expect(code).toContain('href="/tools"');
-    expect(code).toContain("FREE_TIERS");
+    expect(code).toContain("Every workspace tool starts free.");
     expect(code).toContain("No credit card required");
+    expect(code).toContain("Free never expires");
+    expect(code).toContain("never needs a plan");
+    expect(code).toContain('href="/tools"');
+    expect(code).toContain('href="/pricing"');
+    expect(code).not.toContain("sponsorship-tracking-monthly");
+    expect(code).not.toMatch(/₹|149900/);
   });
 
-  it("marks featured and toolbox cards with canonical Free badges", () => {
-    const code = sourceOf(HOMEPAGE);
-    // Badges derive from the canonical policy chain — no hardcoded wording.
-    expect(code).toContain("freeBadgeBySlug");
-    expect(code).toContain("freeTierBySlug");
-    expect(code).not.toMatch(/>Free forever</);
+  it("marks toolbox cards with canonical Free badges", () => {
+    // Badges derive from the canonical policy chain in the shared helper —
+    // no hardcoded wording, no per-card invention.
+    const helper = sourceOf("src/lib/marketing/homepage-seo.ts");
+    expect(helper).toContain("freeBadgeBySlug");
+    expect(helper).toContain("freeTierBySlug");
+    expect(helper).not.toMatch(/>Free forever</);
+    const cards = sourceOf("src/components/marketing/homepage/toolbox-groups.tsx");
+    expect(cards).toContain("resolveToolboxGroups");
+    expect(cards).toContain("{card.accessNote}");
+    expect(cards).not.toMatch(/>Free forever</);
   });
 
-  it("keeps SEO metadata (titles intact, descriptions mention free naturally)", () => {
+  it("keeps toolbox-first SEO metadata (titles toolbox-level, descriptions mention free naturally)", () => {
     const code = sourceOf(HOMEPAGE);
-    expect(code).toContain("Sponsorship Tracking for Esports Creators & Teams | MicroNest");
-    expect(code).toContain("can be started free");
+    const seo = sourceOf("src/lib/marketing/homepage-seo.ts");
+    expect(code).toContain("HOMEPAGE_TITLE");
+    expect(code).toContain("HOMEPAGE_DESCRIPTION");
+    expect(seo).toContain("The Toolbox Behind Esports");
+    expect(seo).toContain("Every workspace tool starts free");
+    expect(code).not.toContain("Sponsorship Tracking for Esports Creators & Teams | MicroNest");
     expect(code).toContain('canonical: "/"');
   });
 });
@@ -186,8 +198,16 @@ describe("homepage toolbox discovery (canonical, no hardcoded subset)", () => {
       expect(slugs.has(slug)).toBe(false);
       expect(getMarketingTool(slug)).toBeUndefined();
     }
+    const homepageCode =
+      sourceOf(HOMEPAGE) +
+      "\n" +
+      sourceOf("src/components/marketing/homepage/toolbox-groups.tsx") +
+      "\n" +
+      sourceOf("src/components/marketing/homepage/intelligence-section.tsx") +
+      "\n" +
+      sourceOf("src/components/layout/footer.tsx");
     for (const name of ["Scrim Matchmaker", "VOD Clipper", "Roster Sentinel"]) {
-      expect(sourceOf(HOMEPAGE)).not.toContain(name);
+      expect(homepageCode).not.toContain(name);
     }
   });
 
@@ -197,36 +217,41 @@ describe("homepage toolbox discovery (canonical, no hardcoded subset)", () => {
   });
 
   it("renders the toolbox section from canonical data (no hardcoded tool subset)", () => {
-    const code = sourceOf(HOMEPAGE);
-    expect(code).toContain("getAvailableTools");
+    const code = sourceOf("src/components/marketing/homepage/toolbox-groups.tsx");
+    expect(code).toContain("resolveToolboxGroups");
     expect(code).not.toContain("ORGANIZER_TOOL_SLUGS");
-    expect(code).toContain("One toolbox for every esports job");
-    expect(code).toContain("Try it now");
-    expect(code).toContain("View all tools");
-    expect(code).toContain("hasPublicDemo");
+    expect(code).toContain("Tools for the work behind esports.");
+    expect(code).not.toContain("Featured");
+    // Group labels live in the shared helper (organizational only, not ranked).
+    const helper = sourceOf("src/lib/marketing/homepage-seo.ts");
+    for (const label of ["Run the tournament", "Run the business", "Understand the game"]) {
+      expect(helper).toContain(label);
+    }
+    expect(sourceOf(HOMEPAGE)).toContain("ToolboxGroups");
   });
 
-  it("links Free-tier names to their public tool pages", () => {
-    const code = sourceOf(HOMEPAGE);
-    expect(code).toContain("tier.marketingSlug");
-    for (const tier of FREE_TIERS) {
-      expect(getMarketingTool(tier.marketingSlug)?.slug).toBeTruthy();
+  it("links toolbox cards to their canonical routes", () => {
+    const code = sourceOf("src/components/marketing/homepage/toolbox-groups.tsx");
+    expect(code).toContain("href={card.url as Route}");
+    expect(code).toContain("resolveToolboxGroups");
+    // The Meta-Parser route resolves from the shared helper, not a hardcoded card.
+    expect(sourceOf("src/lib/marketing/homepage-seo.ts")).toContain('url: "/meta-parser"');
+    for (const tool of getAvailableTools()) {
+      expect(getMarketingTool(tool.slug)?.slug).toBeTruthy();
     }
   });
 
-  it("keeps every existing homepage section intact", () => {
+  it("keeps the approved homepage sections intact", () => {
     const code = sourceOf(HOMEPAGE);
     for (const marker of [
-      "Featured • Available now",
-      "Reporting sponsors shouldn&apos;t take all week",
-      "Who it is for",
-      "Start free. Upgrade when you need more.",
-      "Every MicroNest tool has a Free tier",
-      "Explore free tools",
-      "Supported platforms",
-      "Start with Sponsorship Tracking",
-      "Prove it. Send it. Get renewed.",
-      "Built in Pune",
+      "ToolboxHero",
+      "ToolboxGroups",
+      "IntelligenceSection",
+      "DemoSection",
+      "HowItWorks",
+      "PricingReassurance",
+      "PhilosophySection",
+      "FinalToolboxCTA",
     ]) {
       expect(code).toContain(marker);
     }
