@@ -30,7 +30,7 @@ export type {
   StoredPatchRow,
 } from "./services/ingest";
 export { assessFreshness, META_PARSER_STALE_AFTER_DAYS } from "./services/health";
-export { META_PARSER_JOB_ID } from "./services/job-id";
+export { META_PARSER_JOB_ID, metaParserJobIdForGame } from "./services/job-id";
 export {
   clearAdapterRegistry,
   getAdapter,
@@ -43,12 +43,20 @@ export type {
   MetaParserAdapter,
 } from "./adapters/registry";
 export { dota2Adapter, DOTA_ADAPTER_VERSION, DOTA_PARSER_VERSION } from "./adapters/dota-2/adapter";
+export {
+  valorantAdapter,
+  VALORANT_ADAPTER_VERSION,
+  VALORANT_PARSER_VERSION,
+} from "./adapters/valorant/adapter";
+export { registerAllAdapters } from "./adapters";
 export { createSupabaseMetaParserStore } from "./repositories/store";
 export {
   META_PARSER_PUBLISHED_STATUS,
   META_PARSER_STAGING_STATUS,
   META_PARSER_READ_DEFAULT_LIMIT,
   META_PARSER_READ_MAX_LIMIT,
+  isGenericPatchVersion,
+  isGenericEntityTypeValue,
   listGames,
   listPatches,
   getPatch,
@@ -56,6 +64,7 @@ export {
 } from "./repositories/reads";
 export type {
   PublishedGame,
+  PublishedGameProvenance,
   PublishedPatch,
   PublishedPatchHeader,
   PublishedChange,

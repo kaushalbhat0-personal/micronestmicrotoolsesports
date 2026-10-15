@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHANGE_TYPE_OPTIONS,
-  ENTITY_TYPE_OPTIONS,
+  ENTITY_TYPE_LABELS,
   changeTypeBadgeVariant,
   changeTypeLabel,
   entityTypeLabel,
@@ -80,15 +80,19 @@ describe("facts presentation maps", () => {
     expect(Object.keys(CHANGE_TYPE_OPTIONS).length).toBeGreaterThan(0);
   });
 
-  it("labels every entity-type enum value", () => {
-    for (const option of ENTITY_TYPE_OPTIONS) {
-      expect(entityTypeLabel(option.value)).toBe(option.label);
+  it("labels known entity types and Title-Cases unknown future types", () => {
+    for (const [value, label] of Object.entries(ENTITY_TYPE_LABELS)) {
+      expect(entityTypeLabel(value)).toBe(label);
     }
+    expect(entityTypeLabel("champion")).toBe("Champion");
+    expect(entityTypeLabel("agent")).toBe("Agent");
+    expect(entityTypeLabel("operator")).toBe("Operator");
+    expect(entityTypeLabel("weapon")).toBe("Weapon");
+    expect(entityTypeLabel("mystery-boss")).toBe("Mystery Boss");
   });
 
-  it("falls back to the raw value for unknown types (never blank)", () => {
+  it("falls back to the raw value for unknown change types (never blank)", () => {
     expect(changeTypeLabel("mystery")).toBe("mystery");
-    expect(entityTypeLabel("mystery")).toBe("mystery");
     expect(changeTypeBadgeVariant("mystery")).toBe("outline");
   });
 
@@ -105,12 +109,14 @@ describe("facts presentation maps", () => {
 });
 
 describe("version param guard", () => {
-  it("accepts dotted numeric versions with optional letter suffix", () => {
-    for (const v of ["7.41", "7.40", "7.38c"]) expect(isVersionParam(v)).toBe(true);
+  it("accepts safe generic version identifiers (dota, lol, valorant, date, season)", () => {
+    for (const v of ["7.41", "7.40", "7.38c", "14.10", "10.08", "EP09", "2.2.16a", "2026-03-12", "Y10S1.1", "7", "7.41.1", "v7.41"]) {
+      expect(isVersionParam(v), v).toBe(true);
+    }
   });
 
-  it("rejects malformed versions (repository remains the validator)", () => {
-    for (const v of ["", "seven", "7", "7.41.1", "../etc", "7,41", "v7.41"]) {
+  it("rejects unsafe versions (repository remains the validator)", () => {
+    for (const v of ["", "seven", "../etc", "7,41", "7 41", "a/b", ".", "-"]) {
       expect(isVersionParam(v), v).toBe(false);
     }
   });

@@ -16,7 +16,6 @@ import {
 } from "@/features/meta-parser/repositories/reads";
 import {
   CHANGE_TYPE_OPTIONS,
-  ENTITY_TYPE_OPTIONS,
   changeTypeBadgeVariant,
   changeTypeLabel,
   entityTypeLabel,
@@ -25,6 +24,7 @@ import {
   isVersionParam,
   parseFactsQuery,
 } from "../../_lib/facts";
+import { resolveGameProvenance } from "../../_lib/game-provenance";
 import { Provenance } from "../../_components/provenance";
 
 export const revalidate = 3600;
@@ -157,8 +157,9 @@ export default async function PatchFactsPage({
       offset: query.offset,
     });
   } catch (error) {
-    // Invalid filter values are rejected by the repository's closed enums;
-    // surface them as "no matching filters", never as a crash.
+    // Invalid filter values are rejected by the repository (closed
+    // change_type enum, generic entity shape guards); surface them as
+    // "no matching filters", never as a crash.
     if (error instanceof AppError && error.code === "VALIDATION_ERROR") {
       result = { published: true, changes: [], limit: query.limit, offset: query.offset, hasMore: false };
     } else {
@@ -216,17 +217,15 @@ export default async function PatchFactsPage({
                 <label htmlFor="facts-entity-type" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                   Entity type
                 </label>
-                <select
+                <input
                   id="facts-entity-type"
                   name="entity_type"
+                  type="search"
                   defaultValue={query.entityType ?? ""}
-                  className="min-h-[44px] rounded-[10px] border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="">All types</option>
-                  {ENTITY_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+                  placeholder="e.g. hero, champion, weapon"
+                  autoComplete="off"
+                  className="min-h-[44px] rounded-[10px] border border-border bg-background px-3 text-sm placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="facts-change-type" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -253,7 +252,7 @@ export default async function PatchFactsPage({
                   name="entity"
                   type="search"
                   defaultValue={query.entity ?? ""}
-                  placeholder="e.g. clockwerk"
+                  placeholder="Search entity name"
                   autoComplete="off"
                   className="min-h-[44px] rounded-[10px] border border-border bg-background px-3 text-sm placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
@@ -371,7 +370,12 @@ export default async function PatchFactsPage({
           </section>
 
           <div className="mt-10">
-            <Provenance sourceUrl={patch.sourceUrl} patchVersion={patch.patchVersion} />
+            <Provenance
+              sourceUrl={patch.sourceUrl}
+              patchVersion={patch.patchVersion}
+              gameName={game.name}
+              provenance={resolveGameProvenance(game)}
+            />
           </div>
         </section>
       </main>

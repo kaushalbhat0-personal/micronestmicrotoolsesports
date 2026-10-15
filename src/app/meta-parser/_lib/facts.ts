@@ -1,5 +1,8 @@
 import type { BadgeVariant } from "@/components/ui/badge";
-import { META_PARSER_READ_DEFAULT_LIMIT } from "@/features/meta-parser/repositories/reads";
+import {
+  META_PARSER_READ_DEFAULT_LIMIT,
+  isGenericPatchVersion,
+} from "@/features/meta-parser/repositories/reads";
 
 /**
  * Shared public-Facts URL/query/presentation helpers.
@@ -12,11 +15,13 @@ import { META_PARSER_READ_DEFAULT_LIMIT } from "@/features/meta-parser/repositor
 
 export const FACTS_PAGE_SIZE = META_PARSER_READ_DEFAULT_LIMIT;
 
-const VERSION_PARAM_PATTERN = /^\d+\.\d+[a-z]?$/;
-
-/** URL-shape guard for `[version]` segments. The read repository remains the source of truth. */
+/**
+ * URL-shape guard for `[version]` segments. Generic transport guard only
+ * (safe chars + at least one digit); the read repository remains the
+ * source of truth. Supports 7.41, 14.10, EP09, Y10S1.1, 2026-03-12, etc.
+ */
 export function isVersionParam(value: string): boolean {
-  return VERSION_PARAM_PATTERN.test(value);
+  return isGenericPatchVersion(value);
 }
 
 export interface FactsQuery {
@@ -98,15 +103,32 @@ export function changeTypeLabel(changeType: string): string {
   return CHANGE_TYPE_LABELS[changeType] ?? changeType;
 }
 
-/** Single presentation map for entity-type enum → label. */
+/** Single presentation map for known entity types; unknown types fall back to Title Case. */
 export const ENTITY_TYPE_LABELS: Readonly<Record<string, string>> = {
   hero: "Hero",
+  champion: "Champion",
+  agent: "Agent",
+  operator: "Operator",
+  weapon: "Weapon",
   item: "Item",
+  map: "Map",
+  legend: "Legend",
+  ability: "Ability",
+  character: "Character",
   system: "System",
 };
 
+/** Humanize any adapter-defined entity type (champion → Champion). Never blank. */
 export function entityTypeLabel(entityType: string): string {
-  return ENTITY_TYPE_LABELS[entityType] ?? entityType;
+  const known = ENTITY_TYPE_LABELS[entityType];
+  if (known !== undefined) return known;
+  const words = entityType
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 0)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  return words.length > 0 ? words.join(" ") : entityType;
 }
 
 /** Badge styling per change type. The text label is always rendered alongside — never color-only. */
@@ -129,13 +151,7 @@ export function changeTypeBadgeVariant(changeType: string): BadgeVariant {
   }
 }
 
-/** Filter option lists for the GET form. Sourced from the closed enums, not invented. */
-export const ENTITY_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "hero", label: "Hero" },
-  { value: "item", label: "Item" },
-  { value: "system", label: "System" },
-];
-
+/** Known change types stay closed (shared vocabulary); entity types are open. */
 export const CHANGE_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "buff", label: "Buff" },
   { value: "nerf", label: "Nerf" },

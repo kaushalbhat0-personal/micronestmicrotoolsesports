@@ -303,7 +303,7 @@ async function ingestOnePatch(
 
   try {
     await replaceAndVerify(options, inserted.id, changes);
-    await seedHeroAliases(options, changes);
+    await seedEntityAliases(options, changes);
   } catch (replaceError) {
     // Compensation is belt-and-braces: attempt the delete, but correctness
     // no longer depends on it — the provisional hash forces retry either
@@ -338,7 +338,7 @@ async function promoteExisting(
 ): Promise<void> {
   await options.store.markPatchStaging(existing.id);
   await replaceAndVerify(options, existing.id, changes);
-  await seedHeroAliases(options, changes);
+  await seedEntityAliases(options, changes);
   const nextRevision =
     existing.contentHash === PROVISIONAL_CONTENT_HASH ? existing.revision : existing.revision + 1;
   await options.store.bumpPatchRevision(existing.id, blockHash, nextRevision);
@@ -357,13 +357,19 @@ async function replaceAndVerify(
   }
 }
 
-async function seedHeroAliases(
+/**
+ * Seed entity aliases from observed changes (generic: heroes, champions,
+ * agents, weapons, operators, maps, etc.). Scoped to
+ * (game_slug, entity_normalized) — never leaks across games.
+ */
+async function seedEntityAliases(
   options: IngestGameOptions,
   changes: readonly PatchChangeInsert[]
 ): Promise<void> {
   const seen = new Map<string, string>();
   for (const change of changes) {
-    if (change.entityType === "hero" && !seen.has(change.entityNormalized)) {
+    if (change.entityNormalized === "") continue;
+    if (!seen.has(change.entityNormalized)) {
       seen.set(change.entityNormalized, change.entityName);
     }
   }

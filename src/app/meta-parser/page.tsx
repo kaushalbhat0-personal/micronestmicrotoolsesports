@@ -12,25 +12,26 @@ import {
   listGames,
   listPatches,
 } from "@/features/meta-parser/repositories/reads";
+import { resolveGameProvenance } from "./_lib/game-provenance";
 
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Meta-Parser — Structured Esports Patch Facts | MicroNest",
   description:
-    "Meta-Parser turns competitive-game patch notes into structured, searchable facts — every buff, nerf, and adjustment, attributable to its source. Currently covering Dota 2.",
+    "Meta-Parser turns competitive-game patch notes into structured, searchable facts — every buff, nerf, and adjustment, attributable to its source.",
   alternates: { canonical: "/meta-parser" },
   openGraph: {
     title: "Meta-Parser — Structured Esports Patch Facts",
     description:
-      "Esports patch intelligence, without the noise. Structured, searchable patch facts with source attribution. Currently covering Dota 2.",
+      "Esports patch intelligence, without the noise. Structured, searchable patch facts with source attribution.",
     url: "/meta-parser",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Meta-Parser — Structured Esports Patch Facts",
-    description: "Esports patch intelligence, without the noise. Currently covering Dota 2.",
+    description: "Esports patch intelligence, without the noise.",
   },
 };
 
@@ -137,18 +138,22 @@ export default async function MetaParserPage() {
                 ? "No patch catalogue is published yet."
                 : `The public dataset currently covers ${coverage.join("; ")}. Additional games will appear here when their catalogues are published — nothing on this page implies broader coverage than exists.`}
             </p>
-            <p className="mt-2">
-              Structured dataset:{" "}
-              <a
-                href="https://github.com/odota/dotaconstants"
-                target="_blank"
-                rel="noopener noreferrer external"
-                className="font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-              >
-                OpenDota dotaconstants
-              </a>{" "}
-              (MIT License, © 2017 The OpenDota Project). Canonical patch pages: Valve / Dota 2.
-            </p>
+            {overviews.length > 0 ? (
+              <ul className="mt-2 space-y-1">
+                {overviews.map(({ game }) => {
+                  const provenance = resolveGameProvenance(game);
+                  return (
+                    <li key={game.slug}>
+                      {game.name}: {provenance.sourceLabel}
+                      {provenance.datasetLabel !== null
+                        ? ` · ${provenance.datasetLabel}${provenance.license !== null ? ` (${provenance.license})` : ""}`
+                        : ""}
+                      .
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
           </section>
         </section>
       </main>

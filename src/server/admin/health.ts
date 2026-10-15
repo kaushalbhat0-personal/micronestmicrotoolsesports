@@ -40,6 +40,17 @@ export const CRON_JOB_IDS = [
   "/api/ingest/meta-parser",
 ] as const;
 
+/**
+ * Multi-game note: the ingestion route stays single (`META_PARSER_JOB_ID`)
+ * so ledger history is continuous. Per-game runs are distinguished by the
+ * matrix `?game=` value in the structured `meta_parser_ingest_completed`
+ * log event and per-game report (`game`, `adapterVersion`, `viaFallback`).
+ * Per-game ledger keys (`metaParserJobIdForGame`) are available for future
+ * adoption without a health rewrite — `getCronLedgerSummaries` already
+ * aggregates by arbitrary job ids. Freshness stays per-game via pure
+ * `assessFreshness({ latestUpstreamDate, lastIngestedDate })` inputs.
+ */
+
 export async function getAdminHealth(): Promise<AdminHealthResult> {
   await requireSuperAdmin();
   const admin = createAdminClient();

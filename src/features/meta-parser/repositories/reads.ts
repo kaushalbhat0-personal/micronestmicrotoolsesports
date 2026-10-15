@@ -30,18 +30,74 @@ export const META_PARSER_READ_DEFAULT_LIMIT = 50;
 export const META_PARSER_READ_MAX_LIMIT = 100;
 
 const GAME_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const VERSION_PATTERN = /^\d+\.\d+[a-z]?$/;
 
-const READABLE_ENTITY_TYPES = ["hero", "item", "system"] as const;
+/**
+ * Safe generic version identifier (game-agnostic).
+ *
+ * Contract: 1–40 chars, `[A-Za-z0-9._-]`, starts alphanumeric, contains at
+ * least one digit. Accepts 7.41, 14.10, 10.08, EP09, 2.2.16a, 2026-03-12,
+ * Y10S1.1 while rejecting path traversal, spaces, slashes, and bare words
+ * like "seven". Source-specific semantics stay in the adapter/catalog
+ * (`meta_parser_games.version_scheme`); this is only a transport guard.
+ */
+const VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/;
+const VERSION_MAX_LENGTH = 40;
+
+function isGenericVersion(value: string): boolean {
+  if (value.length === 0 || value.length > VERSION_MAX_LENGTH) return false;
+  if (!VERSION_PATTERN.test(value)) return false;
+  return /\d/.test(value);
+}
+
+/** Shared URL-shape guard; the read repository remains the source of truth. */
+export function isGenericPatchVersion(value: string): boolean {
+  return isGenericVersion(value);
+}
+
+/**
+ * Safe generic entity-type identifier (game-agnostic).
+ *
+ * Adapters introduce new types (hero, champion, agent, operator, weapon,
+ * map, legend, ability, character, system, item, ...) without shared-code
+ * changes. The repository validates shape only; it never allowlists values.
+ */
+const ENTITY_TYPE_PATTERN = /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/;
+const ENTITY_TYPE_MAX_LENGTH = 40;
+
+function isGenericEntityType(value: string): boolean {
+  if (value.length === 0 || value.length > ENTITY_TYPE_MAX_LENGTH) return false;
+  return ENTITY_TYPE_PATTERN.test(value);
+}
+
+/** Shared entity-type shape guard for filters and UI. */
+export function isGenericEntityTypeValue(value: string): boolean {
+  return isGenericEntityType(value);
+}
+
 const READABLE_CHANGE_TYPES = ["buff", "nerf", "adjustment", "rework", "new", "bugfix", "neutral"] as const;
 
-export type ReadableEntityType = (typeof READABLE_ENTITY_TYPES)[number];
+/** Entity types are open vocabulary (adapter-defined); change types are closed. */
+export type ReadableEntityType = string;
 export type ReadableChangeType = (typeof READABLE_CHANGE_TYPES)[number];
+
+/**
+ * Data-driven game provenance parsed from
+ * `meta_parser_games.expected_fields.provenance` (JSONB, no migration).
+ * All fields nullable: absent catalog metadata yields nulls and the UI
+ * applies presentation fallbacks. No game literals live here.
+ */
+export interface PublishedGameProvenance {
+  readonly sourceLabel: string | null;
+  readonly datasetLabel: string | null;
+  readonly datasetUrl: string | null;
+  readonly license: string | null;
+}
 
 /** Public-safe game projection (no catalog internals). */
 export interface PublishedGame {
   readonly slug: string;
   readonly name: string;
+  readonly provenance: PublishedGameProvenance;
 }
 
 /**
@@ -112,7 +168,7 @@ function assertGameSlug(gameSlug: string): void {
 }
 
 function assertVersion(patchVersion: string): void {
-  if (!VERSION_PATTERN.test(patchVersion)) {
+  if (!isGenericVersion(patchVersion)) {
     throw validationError(`Invalid patch version: ${patchVersion}`);
   }
 }
@@ -130,10 +186,10 @@ function assertFilters(filters: ListChangesFilters): {
 } {
   let entityType: ReadableEntityType | null = null;
   if (filters.entityType !== undefined) {
-    if (!(READABLE_ENTITY_TYPES as readonly string[]).includes(filters.entityType)) {
+    if (!isGenericEntityType(filters.entityType)) {
       throw validationError(`Invalid entity_type: ${filters.entityType}`);
     }
-    entityType = filters.entityType as ReadableEntityType;
+    entityType = filters.entityType;
   }
   let changeType: ReadableChangeType | null = null;
   if (filters.changeType !== undefined) {
@@ -221,18 +277,47 @@ function toPublishedChange(row: {
   };
 }
 
+/** Coerce one provenance string field (bounded, no markup). Null when absent. */
+function provenanceField(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  return trimmed.slice(0, 200);
+}
+
+/** Parse `expected_fields.provenance` generically — never game-specific. */
+function toPublishedProvenance(expectedFields: unknown): PublishedGameProvenance {
+  if (typeof expectedFields !== "object" || expectedFields === null || Array.isArray(expectedFields)) {
+    return { sourceLabel: null, datasetLabel: null, datasetUrl: null, license: null };
+  }
+  const provenance = (expectedFields as Record<string, unknown>)["provenance"];
+  if (typeof provenance !== "object" || provenance === null || Array.isArray(provenance)) {
+    return { sourceLabel: null, datasetLabel: null, datasetUrl: null, license: null };
+  }
+  const record = provenance as Record<string, unknown>;
+  return {
+    sourceLabel: provenanceField(record["sourceLabel"]),
+    datasetLabel: provenanceField(record["datasetLabel"]),
+    datasetUrl: provenanceField(record["datasetUrl"]),
+    license: provenanceField(record["license"]),
+  };
+}
+
 /** Active games only — unregistered/inactive games are never readable. */
 export async function listGames(supabase: SupabaseClient): Promise<readonly PublishedGame[]> {
   const { data, error } = await supabase
     .from("meta_parser_games")
-    .select("slug, name")
+    .select("slug, name, expected_fields")
     .eq("is_active", true)
     .order("slug", { ascending: true });
   if (error) throw new Error(`Failed to list games: ${error.message}`);
-  return ((data ?? []) as Array<{ slug: string; name: string }>).map((row) => ({
-    slug: row.slug,
-    name: row.name,
-  }));
+  return ((data ?? []) as Array<{ slug: string; name: string; expected_fields?: unknown }>).map(
+    (row) => ({
+      slug: row.slug,
+      name: row.name,
+      provenance: toPublishedProvenance(row.expected_fields),
+    })
+  );
 }
 
 /** Published patches for a game, newest first. No per-patch counts (N+1). */

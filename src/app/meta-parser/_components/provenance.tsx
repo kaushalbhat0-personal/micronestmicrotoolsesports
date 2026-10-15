@@ -1,24 +1,24 @@
 import { ExternalLink } from "lucide-react";
+import type { ResolvedGameProvenance } from "../_lib/game-provenance";
 
 /**
  * Facts provenance block (server-rendered, no client JS).
  *
- * Two distinct attributions, never conflated:
- * - Canonical patch source: Valve / Dota 2 (per-patch official page).
- * - Structured dataset: OpenDota dotaconstants (MIT License,
- *   Copyright (c) 2017 The OpenDota Project — verified against the upstream
- *   LICENSE at github.com/odota/dotaconstants during IMPL-02).
+ * Fully data-driven: canonical source + structured dataset attribution come
+ * from the caller (catalog `expected_fields.provenance` via
+ * `resolveGameProvenance`). No game literals live here.
  */
-
-const DOTACONSTANTS_REPO_URL = "https://github.com/odota/dotaconstants";
-
 export function Provenance({
   sourceUrl,
   patchVersion,
+  gameName,
+  provenance,
   compact = false,
 }: {
   sourceUrl: string;
   patchVersion: string;
+  gameName: string;
+  provenance: ResolvedGameProvenance;
   compact?: boolean;
 }) {
   return (
@@ -39,23 +39,29 @@ export function Provenance({
           rel="noopener noreferrer external"
           className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
         >
-          Valve — Dota 2 Patch {patchVersion}
+          {provenance.sourceLabel} Patch {patchVersion}
           <ExternalLink className="h-3 w-3" aria-hidden />
         </a>
       </p>
-      <p className="mt-1">
-        Structured dataset:{" "}
-        <a
-          href={DOTACONSTANTS_REPO_URL}
-          target="_blank"
-          rel="noopener noreferrer external"
-          className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-        >
-          OpenDota dotaconstants
-          <ExternalLink className="h-3 w-3" aria-hidden />
-        </a>{" "}
-        (MIT License, © 2017 The OpenDota Project).
-      </p>
+      {provenance.datasetLabel !== null ? (
+        <p className="mt-1">
+          Structured dataset:{" "}
+          {provenance.datasetUrl !== null ? (
+            <a
+              href={provenance.datasetUrl}
+              target="_blank"
+              rel="noopener noreferrer external"
+              className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+            >
+              {provenance.datasetLabel}
+              <ExternalLink className="h-3 w-3" aria-hidden />
+            </a>
+          ) : (
+            <span className="font-medium text-primary">{provenance.datasetLabel}</span>
+          )}{" "}
+          {provenance.license !== null ? `(${provenance.license}).` : `for ${gameName}.`}
+        </p>
+      ) : null}
     </section>
   );
 }

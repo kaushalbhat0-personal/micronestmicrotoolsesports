@@ -63,6 +63,11 @@ const OVERRIDES: Readonly<Record<string, Readonly<Record<string, AttributePolari
     base_attack_time: "up-bad",
     attack_time: "up-bad",
   },
+  // Verified against the 13.01 fixture: Outlaw "Recovery from 0.1 >>> 0.15"
+  // weakens the weapon, so a recovery increase is a nerf.
+  valorant: {
+    recovery: "up-bad",
+  },
 };
 
 export function normalizeAttribute(raw: string): string {

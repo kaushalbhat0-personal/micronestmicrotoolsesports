@@ -224,9 +224,40 @@ function patchPredicates(filters: Filter[]): { status: unknown; hash: unknown } 
 }
 
 describe("facts read repository games and patches", () => {
-  it("listGames returns active games only", async () => {
+  it("listGames returns active games only (with data-driven provenance)", async () => {
     const { client } = makeClient();
-    expect(await listGames(client as never)).toEqual([{ slug: "dota-2", name: "Dota 2" }]);
+    expect(await listGames(client as never)).toEqual([
+      {
+        slug: "dota-2",
+        name: "Dota 2",
+        provenance: { sourceLabel: null, datasetLabel: null, datasetUrl: null, license: null },
+      },
+    ]);
+  });
+
+  it("listGames parses expected_fields.provenance without game-specific code", async () => {
+    const { client, tables } = makeClient();
+    const games = tables["meta_parser_games"];
+    if (games?.[0]) {
+      games[0]["expected_fields"] = {
+        provenance: {
+          sourceLabel: "Test Source",
+          datasetLabel: "Test Dataset",
+          datasetUrl: "https://example.com/dataset",
+          license: "Test License",
+        },
+      };
+    }
+    const listed = await listGames(client as never);
+    expect(listed[0]?.provenance).toEqual({
+      sourceLabel: "Test Source",
+      datasetLabel: "Test Dataset",
+      datasetUrl: "https://example.com/dataset",
+      license: "Test License",
+    });
+    // Cross-game isolation: provenance never leaks default values.
+    const { client: fresh } = makeClient();
+    expect((await listGames(fresh as never))[0]?.provenance?.sourceLabel).toBeNull();
   });
 
   it("listPatches returns published patches newest first, hiding staging/provisional/failed", async () => {
@@ -346,11 +377,20 @@ describe("facts read repository changes", () => {
     expect(combined.changes).toHaveLength(2);
   });
 
-  it("rejects unknown filter enums and empty entity text", async () => {
+  it("rejects unsafe filter values but accepts any safe entity type (open vocabulary)", async () => {
     const { client } = makeClient();
-    await expect(listChanges(client as never, "patch-741", { entityType: "boss" })).rejects.toThrow();
+    // change_type stays closed vocabulary.
     await expect(listChanges(client as never, "patch-741", { changeType: "mega-buff" })).rejects.toThrow();
+    // Unsafe entity_type shapes still rejected.
+    await expect(listChanges(client as never, "patch-741", { entityType: "BOSS!!" })).rejects.toThrow();
+    await expect(listChanges(client as never, "patch-741", { entityType: "../etc" })).rejects.toThrow();
     await expect(listChanges(client as never, "patch-741", { entityNormalized: "   " })).rejects.toThrow();
+    // Adapter-defined types need no shared-code change: safe values filter, not throw.
+    const champions = await listChanges(client as never, "patch-741", { entityType: "champion" });
+    expect(champions.published).toBe(true);
+    expect(champions.changes).toEqual([]);
+    const boss = await listChanges(client as never, "patch-741", { entityType: "boss" });
+    expect(boss.published).toBe(true);
   });
 
   it("paginates with default 50, clamps to max 100, and reports hasMore without exact counts", async () => {

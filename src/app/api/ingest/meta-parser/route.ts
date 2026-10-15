@@ -6,10 +6,8 @@ import { handleRouteError } from "@/lib/errors";
 import { parseOrThrow } from "@/lib/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordCronRunComplete, recordCronRunStart } from "@/server/cron/run-ledger";
-import {
-  dota2Adapter,
-} from "@/features/meta-parser/adapters/dota-2/adapter";
-import { getAdapter, registerAdapter } from "@/features/meta-parser/adapters/registry";
+import { registerAllAdapters } from "@/features/meta-parser/adapters";
+import { getAdapter } from "@/features/meta-parser/adapters/registry";
 import { createSupabaseMetaParserStore } from "@/features/meta-parser/repositories/store";
 import { ingestGamePatches } from "@/features/meta-parser/services/ingest";
 
@@ -28,8 +26,8 @@ const ingestQuerySchema = z.object({
   backfill: z.coerce.number().int().min(1).max(BACKFILL_MAX).optional(),
 });
 
-// Ensure the Dota adapter is registered exactly once per runtime.
-registerAdapter(dota2Adapter);
+// Ensure all shipped adapters are registered exactly once per runtime.
+registerAllAdapters();
 
 /**
  * Meta-Parser ingestion — single entry point for every game adapter.

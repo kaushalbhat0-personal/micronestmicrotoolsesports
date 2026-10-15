@@ -1,5 +1,6 @@
-# Meta-Parser ingestion — single daily scheduler for every game adapter.
-# No per-game cron jobs. Game selection travels in the request, not infra.
+# Meta-Parser ingestion — controlled multi-game scheduler.
+# Game selection travels in the request (matrix value → ?game=), not infra.
+# Adding valorant/lol is a matrix data change, not a workflow redesign.
 name: meta-parser-ingest
 
 on:
@@ -9,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       game:
-        description: "Game adapter key (default dota-2)"
+        description: "Game adapter key (empty = all matrix games)"
         required: false
-        default: "dota-2"
+        default: ""
       backfill:
         description: "Bounded backfill depth, 1-5 (empty = latest only)"
         required: false
@@ -21,11 +22,20 @@ jobs:
   ingest:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      # One game failure never cancels the others.
+      fail-fast: false
+      matrix:
+        # Adding a game is a matrix data change, not a workflow redesign.
+        game: ["dota-2", "valorant"]
     steps:
-      - name: Trigger Meta-Parser ingestion
+      - name: Trigger Meta-Parser ingestion (${{ matrix.game }})
         run: |
-          GAME="${{ inputs.game || 'dota-2' }}"
-          URL="$APP_URL/api/ingest/meta-parser?game=$GAME"
+          if [ -n "${{ inputs.game }}" ] && [ "${{ inputs.game }}" != "${{ matrix.game }}" ]; then
+            echo "Skipping ${{ matrix.game }} (dispatch scoped to ${{ inputs.game }})"
+            exit 0
+          fi
+          URL="$APP_URL/api/ingest/meta-parser?game=${{ matrix.game }}"
           if [ -n "${{ inputs.backfill }}" ]; then
             URL="$URL&backfill=${{ inputs.backfill }}"
           fi
