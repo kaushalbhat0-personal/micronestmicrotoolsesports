@@ -179,16 +179,25 @@ export async function ingestGamePatches(options: IngestGameOptions): Promise<Ing
     return toReport(options, outcomes, false);
   }
 
+  // Alias bundle is run-local: the map and its source version travel
+  // together from this fetch into every parseBlock call below, so
+  // concurrent same-process ingestions can never cross-contaminate
+  // metadata. A failed fetch degrades to an empty map AND a null
+  // version — no stale value from any previous run may survive.
   let aliasMap: ReadonlyMap<string, string> = new Map();
+  let aliasVersion: string | null = null;
   try {
-    aliasMap = await options.adapter.fetchAliasMap();
+    const fetched = await options.adapter.fetchAliasMap();
+    aliasMap = fetched.aliasMap;
+    aliasVersion = fetched.aliasVersion;
   } catch {
     aliasMap = new Map();
+    aliasVersion = null;
   }
 
   for (const patch of needsWork) {
     try {
-      const outcome = await ingestOnePatch(options, corpus, aliasMap, patch);
+      const outcome = await ingestOnePatch(options, corpus, aliasMap, aliasVersion, patch);
       outcomes.push(outcome);
     } catch (error) {
       fail(patch.version, error instanceof Error ? error.message : "patch failed");
@@ -236,6 +245,7 @@ async function ingestOnePatch(
   options: IngestGameOptions,
   corpus: CorpusSnapshot,
   aliasMap: ReadonlyMap<string, string>,
+  aliasVersion: string | null,
   patch: DiscoveredPatch
 ): Promise<PatchIngestOutcome> {
   const { block, blockHash } = options.adapter.extractPatchBlock(corpus.text, patch.datasetKey);
@@ -244,7 +254,7 @@ async function ingestOnePatch(
     return { version: patch.version, outcome: "unchanged", changeCount: 0 };
   }
 
-  const raw = options.adapter.parseBlock(block, { upstreamCommit: corpus.upstreamCommit, aliasMap });
+  const raw = options.adapter.parseBlock(block, { upstreamCommit: corpus.upstreamCommit, aliasMap, aliasVersion });
   const changes: PatchChangeInsert[] = raw.map((change) => ({
     gameSlug: options.gameSlug,
     patchVersion: patch.version,

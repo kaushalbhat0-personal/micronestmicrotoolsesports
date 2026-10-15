@@ -9,6 +9,7 @@ import {
 import { registerAllAdapters } from "./adapters";
 import { dota2Adapter } from "./adapters/dota-2/adapter";
 import { valorantAdapter } from "./adapters/valorant/adapter";
+import { lolAdapter } from "./adapters/lol/adapter";
 import { valveProvenanceUrl } from "./adapters/dota-2/sources";
 import { ingestGamePatches, type MetaParserStore } from "./services/ingest";
 import {
@@ -86,7 +87,7 @@ function stubAdapter(
       return { text: "{}", upstreamCommit: null, viaFallback: false };
     },
     async fetchAliasMap() {
-      return new Map();
+      return { aliasMap: new Map(), aliasVersion: null };
     },
     extractPatchBlock() {
       return { block: {}, blockHash: "ab".repeat(32) };
@@ -185,13 +186,14 @@ describe("multigame hardening: generic alias seeding + isolation", () => {
 });
 
 describe("multigame hardening: adapter registration", () => {
-  it("registerAllAdapters exposes dota-2 and valorant with no per-game route imports", () => {
+  it("registerAllAdapters exposes dota-2, valorant, and lol with no per-game route imports", () => {
     clearAdapterRegistry();
     registerAllAdapters();
     expect(getAdapter("dota-2")).toBe(dota2Adapter);
     expect(getAdapter("valorant")).toBe(valorantAdapter);
-    expect(registeredAdapterKeys()).toEqual(["dota-2", "valorant"]);
-    expect(getAdapter("lol")).toBeUndefined();
+    expect(getAdapter("lol")).toBe(lolAdapter);
+    expect(registeredAdapterKeys()).toEqual(["dota-2", "valorant", "lol"]);
+    expect(getAdapter("mlbb")).toBeUndefined();
     clearAdapterRegistry();
   });
 
@@ -210,9 +212,9 @@ describe("multigame hardening: scheduler matrix", () => {
     );
     expect(workflow).toContain("fail-fast: false");
     expect(workflow).toContain("matrix");
-    expect(workflow).toContain('game: ["dota-2", "valorant"]');
+    expect(workflow).toContain('game: ["dota-2", "valorant", "lol"]');
     // Only shipped adapters are active matrix entries.
-    expect(workflow).not.toContain('"lol"');
+    expect(workflow).not.toContain('"mlbb"');
     expect(workflow).toContain("${{ secrets.CRON_SECRET }}");
     // No unbounded backfill: route bound stays 5 and workflow passes through only.
     const route = readFileSync(

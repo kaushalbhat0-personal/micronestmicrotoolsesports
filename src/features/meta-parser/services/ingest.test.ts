@@ -168,7 +168,7 @@ function makeAdapter(overrides?: Partial<MetaParserAdapter>): MetaParserAdapter 
       return { text: JSON.stringify(CORPUS), upstreamCommit: "test-commit", viaFallback: false };
     },
     async fetchAliasMap() {
-      return CHECKED_IN_ALIASES;
+      return { aliasMap: CHECKED_IN_ALIASES, aliasVersion: null };
     },
     extractPatchBlock(corpusText: string, datasetKey: string) {
       const corpus = JSON.parse(corpusText) as Record<string, unknown>;

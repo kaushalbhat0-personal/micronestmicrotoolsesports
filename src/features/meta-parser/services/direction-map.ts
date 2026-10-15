@@ -30,6 +30,7 @@ const POLARITY: Readonly<Record<string, AttributePolarity>> = {
   armor: "up-good",
   magic_resist: "up-good",
   attack_speed: "up-good",
+  ability_haste: "up-good",
   move_speed: "up-good",
   movement_speed: "up-good",
   range: "up-good",
@@ -67,6 +68,12 @@ const OVERRIDES: Readonly<Record<string, Readonly<Record<string, AttributePolari
   // weakens the weapon, so a recovery increase is a nerf.
   valorant: {
     recovery: "up-bad",
+  },
+  // Verified against live LoL notes: "Damage Taken: 105% ⇒ 100%" helps the
+  // champion, so a damage-taken decrease is a buff (the shared "damage"
+  // substring would otherwise invert it to a nerf).
+  lol: {
+    damage_taken: "up-bad",
   },
 };
 

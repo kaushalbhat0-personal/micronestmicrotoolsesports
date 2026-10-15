@@ -23,6 +23,18 @@ export interface CorpusFetch {
   readonly viaFallback: boolean;
 }
 
+/**
+ * Alias fetch result. The map stays the primary lookup; `aliasVersion`
+ * carries the alias-source version for provenance (e.g. the run-pinned
+ * Data Dragon version) and is threaded run-locally into parse metadata.
+ * Adapters without a versioned alias source return null. No globals:
+ * concurrent same-process ingestions must never share this value.
+ */
+export interface AliasFetch {
+  readonly aliasMap: ReadonlyMap<string, string>;
+  readonly aliasVersion: string | null;
+}
+
 export interface MetaParserAdapter {
   readonly adapterKey: string;
   readonly gameSlug: string;
@@ -31,14 +43,14 @@ export interface MetaParserAdapter {
   readonly adapterVersion: string;
   discover(): Promise<{ patches: readonly DiscoveredPatch[]; latest: DiscoveredPatch }>;
   fetchCorpus(): Promise<CorpusFetch>;
-  fetchAliasMap(): Promise<ReadonlyMap<string, string>>;
+  fetchAliasMap(): Promise<AliasFetch>;
   extractPatchBlock(
     corpusText: string,
     datasetKey: string
   ): { block: unknown; blockHash: string };
   parseBlock(
     block: unknown,
-    opts: { upstreamCommit: string | null; aliasMap: ReadonlyMap<string, string> }
+    opts: { upstreamCommit: string | null; aliasMap: ReadonlyMap<string, string>; aliasVersion?: string | null }
   ): RawPatchChange[];
   sourceUrlFor(version: string): string;
 }

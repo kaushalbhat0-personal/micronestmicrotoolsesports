@@ -38,6 +38,7 @@ export {
   registeredAdapterKeys,
 } from "./adapters/registry";
 export type {
+  AliasFetch,
   CorpusFetch,
   DiscoveredPatch,
   MetaParserAdapter,
@@ -48,6 +49,11 @@ export {
   VALORANT_ADAPTER_VERSION,
   VALORANT_PARSER_VERSION,
 } from "./adapters/valorant/adapter";
+export {
+  lolAdapter,
+  LOL_ADAPTER_VERSION,
+  LOL_PARSER_VERSION,
+} from "./adapters/lol/adapter";
 export { registerAllAdapters } from "./adapters";
 export { createSupabaseMetaParserStore } from "./repositories/store";
 export {

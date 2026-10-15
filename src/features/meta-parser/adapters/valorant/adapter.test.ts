@@ -74,7 +74,7 @@ describe("valorant adapter contract", () => {
   });
 
   it("returns an empty alias map through the established fallback", async () => {
-    await expect(valorantAdapter.fetchAliasMap()).resolves.toEqual(new Map());
+    await expect(valorantAdapter.fetchAliasMap()).resolves.toEqual({ aliasMap: new Map(), aliasVersion: null });
   });
 
   it("runs end-to-end through the unmodified shared ingestion pipeline", async () => {

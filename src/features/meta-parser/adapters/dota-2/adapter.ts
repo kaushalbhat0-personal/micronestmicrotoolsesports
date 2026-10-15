@@ -30,7 +30,7 @@ import {
   valveProvenanceUrl,
   versionToDatasetKey,
 } from "./sources";
-import type { CorpusFetch, DiscoveredPatch, MetaParserAdapter } from "../registry";
+import type { AliasFetch, CorpusFetch, DiscoveredPatch, MetaParserAdapter } from "../registry";
 
 const heroesRowSchema = z.object({ name: z.string(), localized_name: z.string() });
 const heroesResponseSchema = z.array(heroesRowSchema);
@@ -113,7 +113,7 @@ export const dota2Adapter: MetaParserAdapter = {
     }
   },
 
-  async fetchAliasMap(): Promise<ReadonlyMap<string, string>> {
+  async fetchAliasMap(): Promise<AliasFetch> {
     const result = await safeFetchText(DOTA_HEROES_URL, {
       allowedHosts: DOTA_ALLOWED_HOSTS,
       maxBytes: 256 * 1024,
@@ -122,7 +122,8 @@ export const dota2Adapter: MetaParserAdapter = {
     const rows = parseOrThrow(heroesResponseSchema, JSON.parse(result.body) as unknown);
     const live = buildAliasMap(rows);
     // Live map wins; checked-in covers any key missing upstream.
-    return new Map([...CHECKED_IN_ALIASES, ...live]);
+    // The heroes API carries no dataset version: aliasVersion stays null.
+    return { aliasMap: new Map([...CHECKED_IN_ALIASES, ...live]), aliasVersion: null };
   },
 
   extractPatchBlock(corpusText: string, datasetKey: string): { block: unknown; blockHash: string } {

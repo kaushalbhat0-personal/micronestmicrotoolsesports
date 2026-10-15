@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         # Adding a game is a matrix data change, not a workflow redesign.
-        game: ["dota-2", "valorant"]
+        game: ["dota-2", "valorant", "lol"]
     steps:
       - name: Trigger Meta-Parser ingestion (${{ matrix.game }})
         run: |

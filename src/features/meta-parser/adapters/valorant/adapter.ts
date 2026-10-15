@@ -26,7 +26,7 @@ import {
   VALORANT_PATCH_PAGE_MAX_BYTES,
   valorantPatchUrl,
 } from "./sources";
-import type { CorpusFetch, DiscoveredPatch, MetaParserAdapter } from "../registry";
+import type { AliasFetch, CorpusFetch, DiscoveredPatch, MetaParserAdapter } from "../registry";
 
 function sha256Hex(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
@@ -81,10 +81,11 @@ export const valorantAdapter: MetaParserAdapter = {
     return { text: JSON.stringify(pages), upstreamCommit: null, viaFallback: false };
   },
 
-  async fetchAliasMap(): Promise<ReadonlyMap<string, string>> {
+  async fetchAliasMap(): Promise<AliasFetch> {
     // V1: heading-derived display names (parseBlock resolves them directly).
     // Empty map flows through the pipeline's established fallback.
-    return new Map();
+    // No versioned alias source exists: aliasVersion stays null.
+    return { aliasMap: new Map(), aliasVersion: null };
   },
 
   extractPatchBlock(corpusText: string, datasetKey: string): { block: unknown; blockHash: string } {
