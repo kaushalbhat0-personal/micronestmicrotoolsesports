@@ -292,6 +292,81 @@ export interface Payment {
 export type OrganizationWithRole = Organization & { role: OrganizationRole };
 export type EntitlementWithTool = ToolEntitlement & { tool: Tool | null };
 
+// Meta-Parser (multi-game patch intelligence — global catalogue, service-role writes)
+export type MetaParserPatchStatus = "ingested" | "parse_failed" | "analysis_pending" | "complete";
+export type MetaParserChangeType =
+  | "buff"
+  | "nerf"
+  | "adjustment"
+  | "rework"
+  | "new"
+  | "bugfix"
+  | "neutral";
+
+export interface MetaParserGame {
+  slug: string;
+  name: string;
+  adapter_key: string;
+  cadence: string;
+  version_scheme: string;
+  source_listing_url: string;
+  allowed_hosts: string[];
+  expected_fields: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MetaParserPatch {
+  id: string;
+  game_slug: string;
+  patch_version: string;
+  title: string;
+  source_url: string;
+  source_published_at: string | null;
+  content_hash: string;
+  revision: number;
+  status: MetaParserPatchStatus;
+  parser_version: string;
+  adapter_version: string;
+  upstream_commit: string | null;
+  upstream_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MetaParserChange {
+  id: string;
+  patch_id: string;
+  game_slug: string;
+  patch_version: string;
+  stable_key: string;
+  entity_type: string;
+  entity_name: string;
+  entity_normalized: string;
+  entity_key: string | null;
+  category: string;
+  attribute: string | null;
+  old_text: string | null;
+  new_text: string | null;
+  old_numeric: number | null;
+  new_numeric: number | null;
+  unit: string | null;
+  change_type: MetaParserChangeType;
+  confidence: "high" | "medium" | "low";
+  description: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface MetaParserAlias {
+  id: string;
+  game_slug: string;
+  canonical_name: string;
+  entity_normalized: string;
+  created_at: string;
+}
+
 export type DraftMatchStatus = "in_progress" | "completed" | "abandoned";
 
 export interface DraftMatch {

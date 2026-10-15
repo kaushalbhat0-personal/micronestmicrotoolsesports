@@ -1,0 +1,37 @@
+# Meta-Parser ingestion — single daily scheduler for every game adapter.
+# No per-game cron jobs. Game selection travels in the request, not infra.
+name: meta-parser-ingest
+
+on:
+  schedule:
+    # Daily 07:00 UTC — after sentinel-retention (04:00) and sentinel-scan (06:00).
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+    inputs:
+      game:
+        description: "Game adapter key (default dota-2)"
+        required: false
+        default: "dota-2"
+      backfill:
+        description: "Bounded backfill depth, 1-5 (empty = latest only)"
+        required: false
+        default: ""
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Meta-Parser ingestion
+        run: |
+          GAME="${{ inputs.game || 'dota-2' }}"
+          URL="$APP_URL/api/ingest/meta-parser?game=$GAME"
+          if [ -n "${{ inputs.backfill }}" ]; then
+            URL="$URL&backfill=${{ inputs.backfill }}"
+          fi
+          curl --fail --show-error --max-time 300 \
+            -X POST "$URL" \
+            -H "Authorization: Bearer $CRON_SECRET"
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

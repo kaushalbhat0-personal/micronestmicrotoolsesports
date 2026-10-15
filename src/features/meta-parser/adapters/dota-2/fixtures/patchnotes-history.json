@@ -1,0 +1,40 @@
+{
+  "7_06d": {
+    "general": [],
+    "items": {
+      "necronomicon": ["Duration increased from 45 to 50"],
+      "helm_of_the_dominator": ["Minimum HP increased from 1400 to 1500"],
+      "echo_sabre": ["Slow duration increased from 0.6 to 0.7"]
+    },
+    "heroes": {
+      "alchemist": {
+        "alchemist_chemical_rage": [
+          "Chemical Rage movement speed increased from 30/40/60 to 40/50/60"
+        ],
+        "talents": ["Level 15 Talent increased from +80 Unstable Concoction Damage to +100"]
+      },
+      "rattletrap": {
+        "rattletrap_hookshot": ["Hookshot damage reduced from 100/200/300 to 75/175/275"]
+      },
+      "leshrac": {
+        "talents": [
+          "Level 10 Talent increased from +15 Movement Speed to +25",
+          "Level 10 Talent increased from +125 Health to +175"
+        ]
+      }
+    }
+  },
+  "7_40": {
+    "general": [
+      "Captains Mode",
+      "Changed order of the first and the third ban phases",
+      "First Ban Phase (<font color=\"#7CA1CC\">First</font> = team with the first pick, <font color=\"#F05039\">Second</font> = team with the second pick)",
+      "OLD: <font color=\"#7CA1CC\">First</font> - <font color=\"#F05039\">Second</font> - <font color=\"#F05039\">Second</font> - <font color=\"#7CA1CC\">First</font> - <font color=\"#F05039\">Second</font> - <font color=\"#F05039\">Second</font> - <font color=\"#7CA1CC\">First</font>",
+      "NEW: <font color=\"#7CA1CC\">First</font> - <font color=\"#7CA1CC\">First</font> - <font color=\"#F05039\">Second</font> - <font color=\"#F05039\">Second</font> - <font color=\"#7CA1CC\">First</font> - <font color=\"#F05039\">Second</font> - <font color=\"#F05039\">Second</font>",
+      "Assist Gold Formula Reworked",
+      "OLD: 60 + ( ( VictimNetworth * 0.037 ) / NumHeroes )",
+      "NEW: 15 + ( ( 50 + ( VictimNetworth * 0.037 ) ) / NumHeroes )",
+      "Courier respawn time decreased from (60s + 6s per Hero Level) to (45s + 5s per Hero Level)"
+    ]
+  }
+}

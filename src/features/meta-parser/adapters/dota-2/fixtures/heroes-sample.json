@@ -1,0 +1,15 @@
+[
+  { "id": 1, "name": "npc_dota_hero_antimage", "localized_name": "Anti-Mage" },
+  { "id": 2, "name": "npc_dota_hero_axe", "localized_name": "Axe" },
+  { "id": 3, "name": "npc_dota_hero_bane", "localized_name": "Bane" },
+  { "id": 19, "name": "npc_dota_hero_tiny", "localized_name": "Tiny" },
+  { "id": 21, "name": "npc_dota_hero_windrunner", "localized_name": "Windranger" },
+  { "id": 22, "name": "npc_dota_hero_zuus", "localized_name": "Zeus" },
+  { "id": 51, "name": "npc_dota_hero_rattletrap", "localized_name": "Clockwerk" },
+  { "id": 73, "name": "npc_dota_hero_alchemist", "localized_name": "Alchemist" },
+  { "id": 91, "name": "npc_dota_hero_wisp", "localized_name": "Io" },
+  { "id": 11, "name": "npc_dota_hero_nevermore", "localized_name": "Shadow Fiend" },
+  { "id": 36, "name": "npc_dota_hero_necrolyte", "localized_name": "Necrophos" },
+  { "id": 53, "name": "npc_dota_hero_furion", "localized_name": "Nature's Prophet" },
+  { "id": 94, "name": "npc_dota_hero_medusa", "localized_name": "Medusa" }
+]

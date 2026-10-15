@@ -1,0 +1,31 @@
+{
+  "7_41": {
+    "general": [
+      "Global Changes",
+      "Facets removed from the game",
+      "Innate abilities no longer scale with other abilities' level",
+      "All innate abilities that used to scale with other abilities now either provide unchangeable bonuses or improve on 'per level' basis",
+      "Abilities that improve with hero level have base value and increment value. Some also have amount of levels required for increment",
+      "Abilities that improve each level provide their increment value at level 1",
+      "Added UI icon that shows you which parameters increase with hero level and what is the current value ",
+      "Pressing ALT key will show base value and increment of the ability",
+      "Some non-innate ability might have this per level UI as well",
+      "Abilities that had 'per level up' scaling changed to be 'per level'",
+      "This mostly affects heroes reworked in update 7.40 and Largo",
+      "<br>",
+      "Flagbearer Creep Experience Bounty increased from 57 to 60",
+      "First +1 siege creep timing decreased from 35:00 to 30:00",
+      "Second +1 siege creep timing now occurs at 60:00",
+      "<br>",
+      "Adjusted the meeting point of the lane creeps toward the offlane",
+      "Now offlane creeps are slightly slowed upon leaving the base for a couple of seconds",
+      "Map Objectives",
+      "<span class=\"Subtitle\">Tormentor</span>",
+      "Tormentor's spawn preference has switched ",
+      "Now begins in the Bottom Chasm",
+      "Unyielding Shield Base barrier increased from 2000 to 3000",
+      "Unyielding Shield Barrier upgrade per minute increased from 20 to 50",
+      "Reflect Base damage reflection percentage decreased from 50% to 30%"
+    ]
+  }
+}

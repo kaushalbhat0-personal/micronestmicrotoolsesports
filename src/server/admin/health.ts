@@ -34,7 +34,11 @@ export interface AdminHealthResult {
   cronError?: string | undefined;
 }
 
-export const CRON_JOB_IDS = ["/api/cron/sentinel-scan", "/api/cron/sentinel-retention"] as const;
+export const CRON_JOB_IDS = [
+  "/api/cron/sentinel-scan",
+  "/api/cron/sentinel-retention",
+  "/api/ingest/meta-parser",
+] as const;
 
 export async function getAdminHealth(): Promise<AdminHealthResult> {
   await requireSuperAdmin();
