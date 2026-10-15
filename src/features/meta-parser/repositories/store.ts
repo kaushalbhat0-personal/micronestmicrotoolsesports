@@ -25,6 +25,7 @@ function toStoredPatch(row: {
   revision: number;
   upstream_id: number | null;
   status: string;
+  parser_version: string | null;
 }): StoredPatchRow {
   return {
     id: row.id,
@@ -34,6 +35,7 @@ function toStoredPatch(row: {
     revision: row.revision,
     upstreamId: row.upstream_id,
     status: row.status,
+    parserVersion: row.parser_version,
   };
 }
 
@@ -57,7 +59,7 @@ export function createSupabaseMetaParserStore(supabase: SupabaseClient): MetaPar
     async getPatchByVersion(gameSlug: string, version: string): Promise<StoredPatchRow | null> {
       const { data, error } = await supabase
         .from("meta_parser_patches")
-        .select("id, game_slug, patch_version, content_hash, revision, upstream_id, status")
+        .select("id, game_slug, patch_version, content_hash, revision, upstream_id, status, parser_version")
         .eq("game_slug", gameSlug)
         .eq("patch_version", version)
         .maybeSingle();
@@ -72,6 +74,7 @@ export function createSupabaseMetaParserStore(supabase: SupabaseClient): MetaPar
           revision: number;
           upstream_id: number | null;
           status: string;
+          parser_version: string | null;
         }
       );
     },
@@ -109,7 +112,7 @@ export function createSupabaseMetaParserStore(supabase: SupabaseClient): MetaPar
           // only see `status = 'complete'` rows (see repositories/reads.ts).
           status: "ingested",
         })
-        .select("id, game_slug, patch_version, content_hash, revision, upstream_id, status")
+        .select("id, game_slug, patch_version, content_hash, revision, upstream_id, status, parser_version")
         .single();
       if (error) {
         // Unique-violation races (concurrent double-ingest) are recoverable:
@@ -133,19 +136,32 @@ export function createSupabaseMetaParserStore(supabase: SupabaseClient): MetaPar
           revision: number;
           upstream_id: number | null;
           status: string;
+          parser_version: string | null;
         }
       );
     },
 
     /**
      * Publication: the complete change set is verified, so the real hash,
-     * the revision, and the publicly readable state become authoritative
-     * together. Never call before replaceAndVerify succeeds.
+     * the revision, the current parser version, and the publicly readable
+     * state become authoritative together. Never call before
+     * replaceAndVerify succeeds.
      */
-    async bumpPatchRevision(patchId: string, contentHash: string, revision: number): Promise<void> {
+    async bumpPatchRevision(
+      patchId: string,
+      contentHash: string,
+      revision: number,
+      parserVersion: string
+    ): Promise<void> {
       const { error } = await supabase
         .from("meta_parser_patches")
-        .update({ content_hash: contentHash, revision, status: "complete", updated_at: new Date().toISOString() })
+        .update({
+          content_hash: contentHash,
+          revision,
+          parser_version: parserVersion,
+          status: "complete",
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", patchId);
       if (error) throw new Error(`Failed to bump patch revision: ${error.message}`);
     },

@@ -104,6 +104,7 @@ describe("valorant adapter contract", () => {
           contentHash: input.contentHash,
           revision: 1,
           upstreamId: input.upstreamId,
+          parserVersion: input.parserVersion,
           status: "ingested",
         };
       },

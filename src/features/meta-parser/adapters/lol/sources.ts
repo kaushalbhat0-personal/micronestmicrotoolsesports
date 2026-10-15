@@ -32,7 +32,7 @@
 export const LOL_ADAPTER_KEY = "lol" as const;
 export const LOL_GAME_SLUG = "lol" as const;
 export const LOL_ADAPTER_VERSION = "lol.1" as const;
-export const LOL_PARSER_VERSION = "lol-html.1" as const;
+export const LOL_PARSER_VERSION = "lol-html.2" as const;
 
 /** Human-readable canonical source label (data-driven provenance). */
 export const LOL_SOURCE_LABEL = "Riot Games — League of Legends" as const;

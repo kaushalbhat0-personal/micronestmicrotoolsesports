@@ -47,6 +47,7 @@ function stubStore(gameSlug: string, adapterKey: string) {
         contentHash: input.contentHash,
         revision: 1,
         upstreamId: input.upstreamId,
+        parserVersion: input.parserVersion,
         status: "ingested",
       };
     },

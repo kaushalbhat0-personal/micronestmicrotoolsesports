@@ -31,12 +31,12 @@ describe("lol adapter contract", () => {
   it("exposes stable identity, versions, and provenance URLs", () => {
     expect(lolAdapter.adapterKey).toBe("lol");
     expect(lolAdapter.gameSlug).toBe("lol");
-    expect(lolAdapter.parserVersion).toBe("lol-html.1");
+    expect(lolAdapter.parserVersion).toBe("lol-html.2");
     expect(lolAdapter.adapterVersion).toBe("lol.1");
     expect(LOL_ADAPTER_KEY).toBe("lol");
     expect(LOL_GAME_SLUG).toBe("lol");
     expect(LOL_ADAPTER_VERSION).toBe("lol.1");
-    expect(LOL_PARSER_VERSION).toBe("lol-html.1");
+    expect(LOL_PARSER_VERSION).toBe("lol-html.2");
     expect(lolAdapter.sourceUrlFor("26.20")).toBe(
       "https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-notes-26-20"
     );
@@ -219,6 +219,7 @@ describe("lol adapter contract", () => {
           contentHash: input.contentHash,
           revision: 1,
           upstreamId: input.upstreamId,
+          parserVersion: input.parserVersion,
           status: "ingested",
         };
       },

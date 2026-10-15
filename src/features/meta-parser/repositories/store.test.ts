@@ -38,6 +38,7 @@ const PATCH_ROW = {
   revision: 1,
   upstream_id: 60,
   status: "complete",
+  parser_version: "dotaconstants-structured.1",
 };
 
 describe("supabase meta-parser store reads", () => {
@@ -64,7 +65,12 @@ describe("supabase meta-parser store reads", () => {
 
   it("getPatchByVersion distinguishes row / missing / failure", async () => {
     const found = createSupabaseMetaParserStore(stubClient(() => ({ data: PATCH_ROW, error: null })) as never);
-    expect(await found.getPatchByVersion("dota-2", "7.41")).toMatchObject({ version: "7.41", revision: 1, status: "complete" });
+    expect(await found.getPatchByVersion("dota-2", "7.41")).toMatchObject({
+      version: "7.41",
+      revision: 1,
+      status: "complete",
+      parserVersion: "dotaconstants-structured.1",
+    });
     const missing = createSupabaseMetaParserStore(stubClient(() => ({ data: null, error: null })) as never);
     expect(await missing.getPatchByVersion("dota-2", "7.40")).toBeNull();
     const broken = createSupabaseMetaParserStore(
@@ -200,14 +206,15 @@ describe("supabase meta-parser store publication transitions", () => {
     expect(captured.inserts[0]).toMatchObject({ status: "ingested" });
   });
 
-  it("bumpPatchRevision promotes (status complete) with hash + revision", async () => {
+  it("bumpPatchRevision promotes (status complete) with hash + revision + parser version", async () => {
     const captured = { inserts: [] as unknown[], updates: [] as unknown[] };
     const store = createSupabaseMetaParserStore(captureClient(captured) as never);
-    await store.bumpPatchRevision("patch-1", "hash-7_41", 1);
+    await store.bumpPatchRevision("patch-1", "hash-7_41", 1, "dotaconstants-structured.1");
     expect(captured.updates).toHaveLength(1);
     expect(captured.updates[0]).toMatchObject({
       content_hash: "hash-7_41",
       revision: 1,
+      parser_version: "dotaconstants-structured.1",
       status: "complete",
     });
   });

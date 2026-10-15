@@ -122,6 +122,63 @@ function detectUnit(raw: string): string | null {
 const DASH_PATTERN = /[−–—]/g;
 const NUMBER_PATTERN = /-?\d+(?:\.\d+)?/;
 
+/** Dash-normalized text: unicode dashes become ASCII `-` before tokenizing. */
+function normalizeDashes(text: string): string {
+  return text.replace(DASH_PATTERN, "-");
+}
+
+/** Every numeric token with its offset into the dash-normalized text. */
+function numericTokens(normalized: string): Array<{ raw: string; start: number }> {
+  const pattern = new RegExp(NUMBER_PATTERN.source, "g");
+  const out: Array<{ raw: string; start: number }> = [];
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(normalized)) !== null) {
+    out.push({ raw: match[0], start: match.index });
+  }
+  return out;
+}
+
+/**
+ * True when a `-`-prefixed numeric token is a range separator, not a sign.
+ *
+ * In fragments such as `+0-9%` / `+0-10.5%` the trailing match is `-9` /
+ * `-10.5`, where the `-` joins two magnitudes (preceded immediately by a
+ * digit). A legitimate negative (`-1 second`, `Damage: -5 ⇒ -3`) is always
+ * preceded by a non-digit (space, colon, paren, start of string), so it is
+ * never rejected here.
+ */
+function isRangeFragment(normalized: string, token: { raw: string; start: number }): boolean {
+  if (!token.raw.startsWith("-")) return false;
+  const prev = token.start > 0 ? normalized[token.start - 1] : undefined;
+  return prev !== undefined && ((prev >= "0" && prev <= "9") || prev === ".");
+}
+
+/**
+ * Conservative trailing direction (audited fix `lol-html.2`).
+ *
+ * The trailing fallback decides ONLY when the old/new endpoints carry equal
+ * numeric token counts AND neither trailing token is a signed range
+ * fragment. Otherwise it abstains (0) and the row falls through to
+ * adjustment/low (or a scoped TL;DR buff hint) instead of inventing
+ * Buff/Nerf from a misaligned `-9`-vs-`-10.5` comparison.
+ */
+function safeTrailingDirection(oldText: string, newText: string): -1 | 0 | 1 {
+  const oldTokens = numericTokens(normalizeDashes(oldText));
+  const newTokens = numericTokens(normalizeDashes(newText));
+  if (oldTokens.length !== newTokens.length || oldTokens.length === 0) return 0;
+  const lastOld = oldTokens[oldTokens.length - 1];
+  const lastNew = newTokens[newTokens.length - 1];
+  if (lastOld === undefined || lastNew === undefined) return 0;
+  if (isRangeFragment(normalizeDashes(oldText), lastOld)) return 0;
+  if (isRangeFragment(normalizeDashes(newText), lastNew)) return 0;
+  return compareNumbers(toTokenNumber(lastOld.raw), toTokenNumber(lastNew.raw));
+}
+
+function toTokenNumber(raw: string): number | null {
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
 /** Leading numeric token (dashes normalized). Null when absent. */
 export function leadingNumber(text: string): number | null {
   const match = NUMBER_PATTERN.exec(text.replace(DASH_PATTERN, "-"));
@@ -187,7 +244,12 @@ export function extractLoLTransition(entry: string): LolTransition | null {
   const newText = right.trim().replace(/\.$/, "").slice(0, 300);
   if (oldText === "" || newText === "") return null;
   const leading = compareNumbers(leadingNumber(oldText), leadingNumber(newText));
-  const trailing = compareNumbers(trailingNumber(oldText), trailingNumber(newText));
+  // Blind trailing is preserved ONLY for contradictory detection (unchanged
+  // semantics). The direction fallback below uses the conservative
+  // position-aware comparison, which abstains on unequal token counts and
+  // signed range fragments instead of inventing Buff/Nerf.
+  const blindTrailing = compareNumbers(trailingNumber(oldText), trailingNumber(newText));
+  const trailing = safeTrailingDirection(oldText, newText);
   return {
     oldText,
     newText,
@@ -195,7 +257,7 @@ export function extractLoLTransition(entry: string): LolTransition | null {
     newNumeric: toScalarNumber(newText),
     unit: detectUnit(oldText) ?? detectUnit(newText),
     direction: leading !== 0 ? leading : trailing,
-    contradictory: leading !== 0 && trailing !== 0 && leading !== trailing,
+    contradictory: leading !== 0 && blindTrailing !== 0 && leading !== blindTrailing,
     attributeSource,
   };
 }

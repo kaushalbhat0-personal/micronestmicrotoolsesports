@@ -86,6 +86,7 @@ function makeStore(): TestStore {
         contentHash: input.contentHash,
         revision: 1,
         upstreamId: input.upstreamId,
+        parserVersion: input.parserVersion,
         // Mirrors the Supabase store: new rows are staged, never published.
         status: "ingested",
       };
@@ -93,10 +94,15 @@ function makeStore(): TestStore {
       patches.push(row);
       return row;
     },
-    async bumpPatchRevision(patchId: string, contentHash: string, revision: number): Promise<void> {
+    async bumpPatchRevision(
+      patchId: string,
+      contentHash: string,
+      revision: number,
+      parserVersion: string
+    ): Promise<void> {
       const row = patches.find((r) => r.id === patchId);
       if (row) {
-        patches.splice(patches.indexOf(row), 1, { ...row, contentHash, revision, status: "complete" });
+        patches.splice(patches.indexOf(row), 1, { ...row, contentHash, revision, parserVersion, status: "complete" });
         statusLog.push("complete");
       }
     },
@@ -501,5 +507,201 @@ describe("ingestGamePatches publication protocol (Option C)", () => {
     expect(store.patches[0]?.status).toBe("complete");
     expect(store.patches[0]?.contentHash).toBe("hash-changed");
     expect(store.patches[0]?.revision).toBe(2);
+  });
+});
+
+describe("ingestGamePatches parser-version-aware reparse", () => {
+  const BLOCK_HASH = "hash-stable-content";
+
+  function versionAdapter(
+    parserVersion: string,
+    adapterKey = "lol",
+    gameSlug = "lol",
+    version = "26.20"
+  ): MetaParserAdapter {
+    return {
+      adapterKey,
+      gameSlug,
+      parserVersion,
+      adapterVersion: `${adapterKey}.1`,
+      async discover() {
+        const patch = {
+          version,
+          releasedAt: "2026-10-06T00:00:00Z",
+          upstreamId: 26020,
+          datasetKey: version.replace(".", "_"),
+        };
+        return { patches: [patch], latest: patch };
+      },
+      async fetchCorpus() {
+        return { text: "{}", upstreamCommit: null, viaFallback: false };
+      },
+      async fetchAliasMap() {
+        return { aliasMap: new Map(), aliasVersion: null };
+      },
+      extractPatchBlock() {
+        return { block: {}, blockHash: BLOCK_HASH };
+      },
+      parseBlock() {
+        return [
+          {
+            stableKey: "lol:champion:smolder:passive:super_scorcher:0",
+            entityType: "champion",
+            entityName: "Smolder",
+            entityKey: null,
+            category: "passive",
+            attribute: "super_scorcher",
+            description: "Super Scorcher Bonus Magic Damage: 25 - 55% ⇒ 25 - 60%",
+            oldText: "25 - 55%",
+            newText: "25 - 60%",
+            oldNumeric: null,
+            newNumeric: null,
+            unit: "%",
+            changeType: "buff" as const,
+            confidence: "low" as const,
+            metadata: {},
+          },
+        ];
+      },
+      sourceUrlFor(version: string) {
+        return `https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-notes-${version.replace(".", "-")}`;
+      },
+    };
+  }
+
+  function versionStore(
+    stored: StoredPatchRow | null,
+    gameSlug = "lol",
+    adapterKey = "lol"
+  ): TestStore & { stored: () => StoredPatchRow | null } {
+    const store = makeStore();
+    if (stored !== null) store.patches.push({ ...stored });
+    store.getGame = async (slug: string) =>
+      slug === gameSlug ? { slug, adapterKey, isActive: true } : null;
+    return Object.assign(store, { stored: () => store.patches[0] ?? null });
+  }
+
+  function storedRow(overrides?: Partial<StoredPatchRow>): StoredPatchRow {
+    return {
+      id: "patch-26.20",
+      gameSlug: "lol",
+      version: "26.20",
+      contentHash: BLOCK_HASH,
+      revision: 3,
+      upstreamId: 26020,
+      parserVersion: "lol-html.1",
+      status: "complete",
+      ...overrides,
+    };
+  }
+
+  it("Case A: hash equal + parser version equal → skip (zero writes)", async () => {
+    const store = versionStore(storedRow({ parserVersion: "lol-html.2" }));
+    const writesBefore = store.changeWrites;
+    const report = await ingestGamePatches({
+      adapter: versionAdapter("lol-html.2"),
+      store,
+      gameSlug: "lol",
+    });
+    expect(report.unchanged).toBe(1);
+    expect(report.revised).toBe(0);
+    expect(store.changeWrites).toBe(writesBefore);
+    expect(store.stored()?.revision).toBe(3);
+  });
+
+  it("Case B: hash equal + parser version differs → reparse through promoteExisting", async () => {
+    const store = versionStore(storedRow({ parserVersion: "lol-html.1" }));
+    const report = await ingestGamePatches({
+      adapter: versionAdapter("lol-html.2"),
+      store,
+      gameSlug: "lol",
+    });
+    expect(report.revised).toBe(1);
+    expect(report.unchanged).toBe(0);
+    // Existing stage → replace → count verify → alias seed → revision bump → publish pipeline.
+    expect(store.stagingCalls).toBe(1);
+    expect(store.statusLog).toEqual(["ingested", "complete"]);
+    expect(store.stored()?.status).toBe("complete");
+    expect(store.stored()?.revision).toBe(4);
+    expect(store.stored()?.contentHash).toBe(BLOCK_HASH);
+    // Parser version advances on publish.
+    expect(store.stored()?.parserVersion).toBe("lol-html.2");
+  });
+
+  it("Case C: hash differs → reparse regardless of parser version", async () => {
+    const store = versionStore(storedRow({ contentHash: "hash-older-content", parserVersion: "lol-html.2" }));
+    const report = await ingestGamePatches({
+      adapter: versionAdapter("lol-html.2"),
+      store,
+      gameSlug: "lol",
+    });
+    expect(report.revised).toBe(1);
+    expect(store.stored()?.contentHash).toBe(BLOCK_HASH);
+  });
+
+  it("Case D: Dota current parser version → no unnecessary reparse", async () => {
+    const store = versionStore(
+      storedRow({
+        gameSlug: "dota-2",
+        version: "7.41",
+        id: "patch-7.41",
+        parserVersion: "dotaconstants-structured.1",
+      }),
+      "dota-2",
+      "dota-2"
+    );
+    const dota = versionAdapter("dotaconstants-structured.1", "dota-2", "dota-2", "7.41");
+    const report = await ingestGamePatches({ adapter: dota, store, gameSlug: "dota-2" });
+    expect(report.unchanged).toBe(1);
+    expect(report.revised).toBe(0);
+  });
+
+  it("Case E: VALORANT current parser version → no unnecessary reparse", async () => {
+    const store = versionStore(
+      storedRow({
+        gameSlug: "valorant",
+        version: "13.01",
+        id: "patch-13.01",
+        parserVersion: "valorant-html.1",
+      }),
+      "valorant",
+      "valorant"
+    );
+    const valorant = versionAdapter("valorant-html.1", "valorant", "valorant", "13.01");
+    const report = await ingestGamePatches({ adapter: valorant, store, gameSlug: "valorant" });
+    expect(report.unchanged).toBe(1);
+    expect(report.revised).toBe(0);
+  });
+
+  it("Case F: second LoL run after healing → hash + parser version equal → skip", async () => {
+    const store = versionStore(storedRow({ parserVersion: "lol-html.1" }));
+    const adapter = versionAdapter("lol-html.2");
+    const first = await ingestGamePatches({ adapter, store, gameSlug: "lol" });
+    expect(first.revised).toBe(1);
+    expect(store.stored()?.parserVersion).toBe("lol-html.2");
+    const writesAfterHealing = store.changeWrites;
+    const second = await ingestGamePatches({ adapter, store, gameSlug: "lol" });
+    expect(second.unchanged).toBe(1);
+    expect(second.revised).toBe(0);
+    expect(store.changeWrites).toBe(writesAfterHealing);
+  });
+
+  it("legacy rows with a null stored parser version always reparse (safe comparison)", async () => {
+    const store = versionStore(storedRow({ parserVersion: null }));
+    const report = await ingestGamePatches({
+      adapter: versionAdapter("lol-html.2"),
+      store,
+      gameSlug: "lol",
+    });
+    expect(report.revised).toBe(1);
+    expect(store.stored()?.parserVersion).toBe("lol-html.2");
+  });
+
+  it("isCurrentParse requires both hash and version equality", async () => {
+    const { isCurrentParse } = await import("./ingest");
+    expect(isCurrentParse({ contentHash: "h", parserVersion: "lol-html.2" }, "h", "lol-html.2")).toBe(true);
+    expect(isCurrentParse({ contentHash: "h", parserVersion: "lol-html.1" }, "h", "lol-html.2")).toBe(false);
+    expect(isCurrentParse({ contentHash: "other", parserVersion: "lol-html.2" }, "h", "lol-html.2")).toBe(false);
+    expect(isCurrentParse({ contentHash: "h", parserVersion: null }, "h", "lol-html.2")).toBe(false);
   });
 });

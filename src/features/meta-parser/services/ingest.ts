@@ -5,8 +5,10 @@
  *   discover (lightweight index) → diff vs stored → fetch corpus once
  *   → extract → hash → parse → normalize → upsert (idempotent) → report.
  *
- * Revision semantics: same version + same content hash → no-op.
- * Same version + changed hash → revision bump + change replacement.
+ * Revision semantics: same content hash + same parser version → no-op.
+ * Same hash + changed parser version → revision bump + change replacement
+ * (parser healing reuses the normal promoteExisting pipeline).
+ * Changed hash (any parser version) → revision bump + change replacement.
  * No duplicate logical patches, ever.
  */
 
@@ -27,6 +29,12 @@ export interface StoredPatchRow {
   readonly contentHash: string;
   readonly revision: number;
   readonly upstreamId: number | null;
+  /**
+   * Parser version that produced the stored change set. Null only for
+   * legacy/test rows predating version tracking — never equal to a real
+   * adapter version, so such rows always reparse (safe by construction).
+   */
+  readonly parserVersion: string | null;
   /**
    * Publication state. `ingested` = staging/non-public, `complete` =
    * published/readable. Readers only ever see `complete` rows with a real
@@ -76,7 +84,7 @@ export interface MetaParserStore {
     upstreamCommit: string | null;
     upstreamId: number | null;
   }): Promise<StoredPatchRow>;
-  bumpPatchRevision(patchId: string, contentHash: string, revision: number): Promise<void>;
+  bumpPatchRevision(patchId: string, contentHash: string, revision: number, parserVersion: string): Promise<void>;
   /**
    * Demote a published patch back to staging (`status = 'ingested'`) before
    * a revision replacement. Readers filter on `complete`, so the subsequent
@@ -231,12 +239,28 @@ function shortMessage(error: unknown, max = 90): string {
   return message.length > max ? `${message.slice(0, max)}…` : message;
 }
 /**
+ * Parser-version-aware freshness check. BOTH must match to skip:
+ * the content hash AND the adapter's current parser version.
+ *
+ * Explicit and safe: a null/legacy stored version never equals a real
+ * adapter version, so it always reparses. Unrelated games never reparse
+ * because their stored and current versions remain identical strings.
+ */
+export function isCurrentParse(
+  existing: Pick<StoredPatchRow, "contentHash" | "parserVersion">,
+  blockHash: string,
+  currentParserVersion: string
+): boolean {
+  return existing.contentHash === blockHash && existing.parserVersion === currentParserVersion;
+}
+/**
  * Ingest a single patch with convergence + compensation semantics.
  *
- * - Same hash as stored → unchanged (zero writes).
- * - Changed hash → verified replace, hash/revision advance ONLY on success.
+ * - Same hash + same parser version as stored → unchanged (zero writes).
+ * - Changed hash OR changed parser version → verified replace,
+ *   hash/revision/parser-version advance ONLY on success.
  * - Unique-violation on insert (concurrent winner) → re-read and converge:
- *   same content → unchanged; different content → revise in place.
+ *   same content + same parser version → unchanged; otherwise revise.
  * - New rows are inserted with a provisional hash and promoted to the real
  *   hash only after verification, so a double failure (replace + delete
  *   both fail) still retries instead of reporting a false unchanged.
@@ -250,7 +274,7 @@ async function ingestOnePatch(
 ): Promise<PatchIngestOutcome> {
   const { block, blockHash } = options.adapter.extractPatchBlock(corpus.text, patch.datasetKey);
   const existing = await options.store.getPatchByVersion(options.gameSlug, patch.version);
-  if (existing !== null && existing.contentHash === blockHash) {
+  if (existing !== null && isCurrentParse(existing, blockHash, options.adapter.parserVersion)) {
     return { version: patch.version, outcome: "unchanged", changeCount: 0 };
   }
 
@@ -304,7 +328,7 @@ async function ingestOnePatch(
     if (!isConflictError(error)) throw error;
     const winner = await options.store.getPatchByVersion(options.gameSlug, patch.version);
     if (winner === null) throw error;
-    if (winner.contentHash === blockHash) {
+    if (isCurrentParse(winner, blockHash, options.adapter.parserVersion)) {
       return { version: patch.version, outcome: "unchanged", changeCount: 0 };
     }
     await promoteExisting(options, winner, blockHash, changes);
@@ -328,7 +352,7 @@ async function ingestOnePatch(
     throw replaceError;
   }
   // Promotion: the complete set verified, so the real hash is now authoritative.
-  await options.store.bumpPatchRevision(inserted.id, blockHash, inserted.revision);
+  await options.store.bumpPatchRevision(inserted.id, blockHash, inserted.revision, options.adapter.parserVersion);
   return { version: patch.version, outcome: "inserted", changeCount: changes.length };
 }
 
@@ -338,7 +362,8 @@ async function ingestOnePatch(
  * before. A row still carrying the provisional hash never completed a
  * promotion, so it keeps its revision instead of skipping a number.
  * A failure after demotion leaves `status = 'ingested'` (non-public); the
- * next run retries because the stored hash still differs from the block hash.
+ * next run retries because the stored hash/version still differ from the
+ * block hash/current parser version.
  */
 async function promoteExisting(
   options: IngestGameOptions,
@@ -351,7 +376,7 @@ async function promoteExisting(
   await seedEntityAliases(options, changes);
   const nextRevision =
     existing.contentHash === PROVISIONAL_CONTENT_HASH ? existing.revision : existing.revision + 1;
-  await options.store.bumpPatchRevision(existing.id, blockHash, nextRevision);
+  await options.store.bumpPatchRevision(existing.id, blockHash, nextRevision, options.adapter.parserVersion);
 }
 async function replaceAndVerify(
   options: IngestGameOptions,
