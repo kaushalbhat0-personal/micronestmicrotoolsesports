@@ -151,7 +151,10 @@ function freshState(): StubState {
   return { filters: [], orders: [], range: null, head: false };
 }
 
-function makeClient(): {
+function makeClient(
+  /** PostgREST-like default cap applied only to un-ranged selects. */
+  rowCap: number = Number.POSITIVE_INFINITY
+): {
   client: unknown;
   seen: Seen[];
   tables: Record<string, Row[]>;
@@ -183,6 +186,9 @@ function makeClient(): {
     }
     if (state.range !== null) {
       rows = rows.slice(state.range[0], state.range[1] + 1);
+    } else if (rows.length > rowCap) {
+      // Mirrors the PostgREST default response cap for unbounded selects.
+      rows = rows.slice(0, rowCap);
     }
     return rows;
   }
@@ -470,6 +476,112 @@ describe("facts read repository changes", () => {
     ]);
     await expect(listPatchEntityTypes(client as never, "")).rejects.toThrow();
     await expect(listPatchEntityNames(client as never, "")).rejects.toThrow();
+  });
+});
+
+describe("distinct entity-type response boundary (UX-11)", () => {
+  const POSTGREST_DEFAULT_CAP = 1000;
+
+  function bulkRows(counts: ReadonlyArray<{ type: string; count: number }>): Row[] {
+    const rows: Row[] = [];
+    let ordinal = 0;
+    for (const { type, count } of counts) {
+      for (let i = 0; i < count; i++) {
+        ordinal += 1;
+        rows.push(
+          changeRow("patch-741", `${type}:bulk:${ordinal}`, type, `${type}-${ordinal}`, "buff")
+        );
+      }
+    }
+    return rows;
+  }
+
+  function cappedClient(rows: Row[]): { client: unknown } {
+    const stub = makeClient(POSTGREST_DEFAULT_CAP);
+    stub.tables["meta_parser_changes"] = rows.map((row) => ({ ...row }));
+    return { client: stub.client };
+  }
+
+  it("discovers trailing types past 1,000 ordered rows (the 7.41 failure mode)", async () => {
+    // 1,000 hero rows fill the first response window; system sorts after hero.
+    const { client } = cappedClient([
+      ...bulkRows([
+        { type: "hero", count: 1000 },
+        { type: "system", count: 3 },
+      ]),
+    ]);
+    expect(await listPatchEntityTypes(client as never, "patch-741")).toEqual([
+      "hero",
+      "system",
+    ]);
+  });
+
+  it("returns complete types at 999, 1000, and 1001 rows", async () => {
+    const under = cappedClient([
+      ...bulkRows([
+        { type: "hero", count: 998 },
+        { type: "system", count: 1 },
+      ]),
+    ]);
+    expect(await listPatchEntityTypes(under.client as never, "patch-741")).toEqual([
+      "hero",
+      "system",
+    ]);
+    const exact = cappedClient([
+      ...bulkRows([
+        { type: "hero", count: 999 },
+        { type: "item", count: 1 },
+      ]),
+    ]);
+    expect(await listPatchEntityTypes(exact.client as never, "patch-741")).toEqual([
+      "hero",
+      "item",
+    ]);
+    const over = cappedClient([
+      ...bulkRows([
+        { type: "hero", count: 1000 },
+        { type: "system", count: 1 },
+      ]),
+    ]);
+    expect(await listPatchEntityTypes(over.client as never, "patch-741")).toEqual([
+      "hero",
+      "system",
+    ]);
+  });
+
+  it("returns hero, item, and system regardless of row distribution", async () => {
+    const { client } = cappedClient([
+      ...bulkRows([
+        { type: "hero", count: 1005 },
+        { type: "item", count: 3 },
+        { type: "system", count: 2 },
+      ]),
+    ]);
+    expect(await listPatchEntityTypes(client as never, "patch-741")).toEqual([
+      "hero",
+      "item",
+      "system",
+    ]);
+  });
+
+  it("keeps staging patches invisible under the response cap", async () => {
+    const stub = makeClient(POSTGREST_DEFAULT_CAP);
+    expect(await listPatchEntityTypes(stub.client as never, "patch-739")).toEqual([]);
+    expect(await listPatchEntityTypes(stub.client as never, "patch-738")).toEqual([]);
+  });
+
+  it("produces deterministic ordered results across repeated reads", async () => {
+    const { client } = cappedClient([
+      ...bulkRows([
+        { type: "system", count: 2 },
+        { type: "hero", count: 1005 },
+        { type: "item", count: 3 },
+      ]),
+    ]);
+    const first = await listPatchEntityTypes(client as never, "patch-741");
+    const second = await listPatchEntityTypes(client as never, "patch-741");
+    expect(first).toEqual(["hero", "item", "system"]);
+    expect(second).toEqual(first);
   });
 });
 

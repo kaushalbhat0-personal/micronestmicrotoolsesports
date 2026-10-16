@@ -463,6 +463,12 @@ async function isPatchPublished(supabase: SupabaseClient, patchId: string): Prom
  * Sorted ascending; empty when the patch is missing, staging, or
  * provisional. Same anon RLS client and gate as `listChanges` — no new
  * data layer, no service-role access.
+ *
+ * Bounded distinct scan (UX-11): the select is chunked in stable
+ * `entity_type` order and folded server-side, so large patches (beyond the
+ * PostgREST default response cap) still disclose every type instead of only
+ * the types present in the first response window. Single-column rows only;
+ * the browser receives just the distinct list.
  */
 export async function listPatchEntityTypes(
   supabase: SupabaseClient,
@@ -470,16 +476,26 @@ export async function listPatchEntityTypes(
 ): Promise<readonly string[]> {
   assertPatchId(patchId);
   if (!(await isPatchPublished(supabase, patchId))) return [];
-  const { data, error } = await supabase
-    .from("meta_parser_changes")
-    .select("entity_type")
-    .eq("patch_id", patchId)
-    .order("entity_type", { ascending: true });
-  if (error) throw new Error(`Failed to list patch entity types: ${error.message}`);
-  const values = ((data ?? []) as Array<{ entity_type: unknown }>)
-    .map((row) => row.entity_type)
-    .filter((value): value is string => typeof value === "string" && value !== "");
-  return [...new Set(values)].sort();
+  const types = new Set<string>();
+  let offset = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("meta_parser_changes")
+      .select("entity_type")
+      .eq("patch_id", patchId)
+      .order("entity_type", { ascending: true })
+      .range(offset, offset + ENTITY_TYPE_SCAN_CHUNK - 1);
+    if (error) throw new Error(`Failed to list patch entity types: ${error.message}`);
+    const rows = (data ?? []) as Array<{ entity_type: unknown }>;
+    for (const row of rows) {
+      if (typeof row.entity_type === "string" && row.entity_type !== "") {
+        types.add(row.entity_type);
+      }
+    }
+    offset += rows.length;
+    if (rows.length < ENTITY_TYPE_SCAN_CHUNK) break;
+  }
+  return [...types].sort();
 }
 
 /** Cap for entity-name suggestions (Search datalist). Bounded by design. */
@@ -635,6 +651,9 @@ function clampGroupedPagination(pagination: ListGroupedChangesPagination): {
 
 /** Rows per bounded fetch chunk (PostgREST caps single responses). */
 const GROUPED_FETCH_CHUNK = 1000;
+
+/** Rows per distinct entity-type scan chunk (same response cap). */
+const ENTITY_TYPE_SCAN_CHUNK = 1000;
 
 /**
  * Grouped entity changes for a patch (RCCF-META-PARSER-UX-07).
