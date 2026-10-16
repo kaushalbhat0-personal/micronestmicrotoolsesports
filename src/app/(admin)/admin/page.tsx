@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminOverview } from "@/server/admin/overview";
+import { getMetaParserHealth } from "@/server/admin/meta-parser-health";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +21,8 @@ export default async function AdminOverviewPage() {
   await requireSuperAdmin();
 
   const data = await getAdminOverview();
+  // Read-only ingestion summary; never blocks the overview on failure.
+  const metaHealth = await getMetaParserHealth().catch(() => null);
 
   const stats = [
     {
@@ -93,6 +97,32 @@ export default async function AdminOverviewPage() {
             <AdminStatCard key={s.label} label={s.label} value={s.value} description={s.description} icon={s.icon} error={s.error} />
           ))}
         </div>
+      </section>
+
+      {/* Meta-Parser ingestion summary — details live on System */}
+      <section aria-labelledby="meta-parser-summary-heading">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">
+              <span id="meta-parser-summary-heading">Meta-Parser Health</span>
+            </CardTitle>
+            <CardDescription>Daily automatic ingestion for Dota 2, VALORANT, and League of Legends.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {metaHealth ? (
+              <p className="flex flex-wrap items-center gap-2 text-sm">
+                <Badge variant={metaHealth.healthyCount === metaHealth.totalSources ? "success" : "warning"}>
+                  {metaHealth.healthyCount} / {metaHealth.totalSources} sources healthy
+                </Badge>
+                <Link href="/admin/system" className="text-xs font-medium underline underline-offset-4 hover:text-foreground">
+                  View details in System
+                </Link>
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Meta-Parser health unavailable.</p>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       {/* Secondary */}

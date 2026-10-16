@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminSystem } from "@/server/admin/system";
 import { getAdminHealth } from "@/server/admin/health";
+import { getMetaParserHealth, type MetaParserSourceStatus } from "@/server/admin/meta-parser-health";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,9 @@ import {
   CalendarClock,
   ShieldCheck,
   Database,
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +44,39 @@ function formatCount(v: number | null, err?: string): string {
   return new Intl.NumberFormat("en-IN").format(v);
 }
 
+function formatRelative(value: string | null): string {
+  if (!value) return "—";
+  const diffMs = Date.now() - new Date(value).getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "just now";
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 48) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+const META_PARSER_STATUS_META: Record<
+  MetaParserSourceStatus,
+  { label: string; variant: "success" | "warning" | "destructive" | "secondary"; Icon: typeof CheckCircle2 }
+> = {
+  healthy: { label: "Healthy", variant: "success", Icon: CheckCircle2 },
+  stale: { label: "Stale", variant: "warning", Icon: AlertTriangle },
+  failed: { label: "Failed", variant: "destructive", Icon: XCircle },
+  "no-data": { label: "No data", variant: "secondary", Icon: MinusCircle },
+};
+
+const META_PARSER_REASON_TEXT: Record<string, string> = {
+  "recent-success": "Ingestion succeeded within the expected window.",
+  "run-in-progress": "A run is in progress; last success within the window.",
+  "success-too-old": "No successful ingestion within the expected 48h window.",
+  "last-run-failed": "Latest run failed; previous success on record.",
+  "last-run-failed-no-success": "Latest run failed; no success on record.",
+  "no-runs-no-patch": "No ingestion runs or published patches yet.",
+  "no-success": "No successful tracked run yet.",
+  unavailable: "Health data unavailable.",
+};
+
 export default async function AdminSystemPage({
   searchParams,
 }: {
@@ -49,6 +86,7 @@ export default async function AdminSystemPage({
   const params = await searchParams;
   const data = await getAdminSystem(params);
   const health = await getAdminHealth();
+  const metaHealth = await getMetaParserHealth();
 
   const buildWebhookHref = (overrides: Record<string, string | number | undefined>) => {
     const p = new URLSearchParams();
@@ -222,6 +260,70 @@ export default async function AdminSystemPage({
             </CardContent>
           </Card>
         </div>
+      </section>
+
+      {/* 1b2. Meta-Parser Health (read-only ingestion observability) */}
+      <section aria-labelledby="meta-parser-health-heading">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <HeartPulse className="h-4 w-4 text-muted-foreground" aria-hidden />
+              <span id="meta-parser-health-heading">Meta-Parser Health</span>
+            </CardTitle>
+            <CardDescription>
+              {metaHealth.healthyCount} / {metaHealth.totalSources} sources healthy · Daily scheduled ingestion per game · Health reflects run
+              freshness, not whether a new patch was released.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid gap-4 sm:grid-cols-3">
+              {metaHealth.games.map((game) => {
+                const meta = META_PARSER_STATUS_META[game.status];
+                const StatusIcon = meta.Icon;
+                return (
+                  <li key={game.slug} className="rounded-[12px] border border-border bg-surface-muted/20 p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold">{game.name}</h3>
+                      <Badge variant={meta.variant}>
+                        <StatusIcon className="h-3 w-3" aria-hidden />
+                        {meta.label}
+                      </Badge>
+                    </div>
+                    <dl className="mt-3 space-y-1.5 text-xs">
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-muted-foreground">Latest patch</dt>
+                        <dd className="font-medium tabular-nums">{game.latestPatch ?? "—"}</dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-muted-foreground">Last successful sync</dt>
+                        <dd className="font-medium tabular-nums" title={game.lastSuccessAt ?? undefined}>
+                          {game.lastSuccessAt ? formatRelative(game.lastSuccessAt) : "—"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-muted-foreground">Latest ingestion result</dt>
+                        <dd className="font-medium">
+                          {game.lastRunStatus ? `${game.lastRunStatus} · ${formatRelative(game.lastRunAt)}` : "No tracked runs"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <dt className="text-muted-foreground">Published changes</dt>
+                        <dd className="font-medium tabular-nums">
+                          {game.changeCount !== null ? new Intl.NumberFormat("en-IN").format(game.changeCount) : "—"}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                      {META_PARSER_REASON_TEXT[game.statusReason] ?? game.statusReason}
+                      {game.status === "failed" && game.lastFailureSummary ? ` · ${game.lastFailureSummary.slice(0, 80)}` : ""}
+                      {game.error ? ` · ${game.error}` : ""}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
       </section>
 
       {/* 1c. Cron Run Ledger (SUPERADMIN-V1-02) */}

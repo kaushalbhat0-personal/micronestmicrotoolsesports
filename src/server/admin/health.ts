@@ -2,6 +2,7 @@ import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCronLedgerSummaries, type CronJobLedgerSummary } from "@/server/cron/run-ledger";
 import { STUCK_CREATED_AFTER_HOURS } from "@/server/admin/billing-exceptions";
+import { META_PARSER_JOB_ID, metaParserJobIdForGame } from "@/features/meta-parser/services/job-id";
 
 /**
  * Minimal platform health probes — admin-only. No monitoring platform.
@@ -37,18 +38,19 @@ export interface AdminHealthResult {
 export const CRON_JOB_IDS = [
   "/api/cron/sentinel-scan",
   "/api/cron/sentinel-retention",
-  "/api/ingest/meta-parser",
+  META_PARSER_JOB_ID,
+  metaParserJobIdForGame("dota-2"),
+  metaParserJobIdForGame("valorant"),
+  metaParserJobIdForGame("lol"),
 ] as const;
 
 /**
- * Multi-game note: the ingestion route stays single (`META_PARSER_JOB_ID`)
- * so ledger history is continuous. Per-game runs are distinguished by the
- * matrix `?game=` value in the structured `meta_parser_ingest_completed`
- * log event and per-game report (`game`, `adapterVersion`, `viaFallback`).
- * Per-game ledger keys (`metaParserJobIdForGame`) are available for future
- * adoption without a health rewrite — `getCronLedgerSummaries` already
- * aggregates by arbitrary job ids. Freshness stays per-game via pure
- * `assessFreshness({ latestUpstreamDate, lastIngestedDate })` inputs.
+ * Multi-game note: the ingestion route records per-game ledger keys
+ * (`metaParserJobIdForGame`) so each source gets its own last-run /
+ * last-success / last-failure row. The bare `META_PARSER_JOB_ID` row keeps
+ * pre-per-game history and serves as a freshness fallback only — it is
+ * never attributed to a single game. Freshness stays per-game via the
+ * Meta-Parser health service (`server/admin/meta-parser-health.ts`).
  */
 
 export async function getAdminHealth(): Promise<AdminHealthResult> {

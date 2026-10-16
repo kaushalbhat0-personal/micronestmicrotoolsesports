@@ -11,7 +11,7 @@ import { getAdapter } from "@/features/meta-parser/adapters/registry";
 import { createSupabaseMetaParserStore } from "@/features/meta-parser/repositories/store";
 import { ingestGamePatches } from "@/features/meta-parser/services/ingest";
 
-import { META_PARSER_JOB_ID } from "@/features/meta-parser/services/job-id";
+import { META_PARSER_JOB_ID, metaParserJobIdForGame } from "@/features/meta-parser/services/job-id";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,26 +34,38 @@ registerAllAdapters();
  * GitHub Actions → Bearer <CRON_SECRET> → discover/diff/fetch/parse/upsert.
  * Query/body carry only the game selector and bounded backfill depth.
  * No organization input is accepted (global catalog ingestion).
+ *
+ * Observability: ledger rows are written per game
+ * (`metaParserJobIdForGame`) so the Superadmin health view can attribute
+ * last-attempt / last-failure per source. `META_PARSER_JOB_ID` (no game
+ * suffix) is retained as the legacy key for pre-per-game history fallback.
  */
 async function handler(request: Request) {
   const cronRunId = randomUUID();
+  let jobId = META_PARSER_JOB_ID;
   try {
     assertCronAuth(request);
-
-    try {
-      await recordCronRunStart(META_PARSER_JOB_ID, cronRunId);
-    } catch {
-      // ledger write failure is non-fatal
-    }
 
     const url = new URL(request.url);
     const params = parseOrThrow(ingestQuerySchema, {
       game: url.searchParams.get("game") ?? undefined,
       backfill: url.searchParams.get("backfill") ?? undefined,
     });
+    jobId = metaParserJobIdForGame(params.game);
+
+    try {
+      await recordCronRunStart(jobId, cronRunId);
+    } catch {
+      // ledger write failure is non-fatal
+    }
 
     const adapter = getAdapter(params.game);
     if (!adapter) {
+      try {
+        await recordCronRunComplete(cronRunId, false, `No adapter registered for game: ${params.game}`.slice(0, 500));
+      } catch {
+        // non-fatal
+      }
       return NextResponse.json(
         { ok: false, error: { code: "NOT_FOUND", message: `No adapter registered for game: ${params.game}` } },
         { status: 404 }
@@ -85,7 +97,16 @@ async function handler(request: Request) {
     );
 
     try {
-      await recordCronRunComplete(cronRunId, report.failed === 0);
+      // Per-patch failures carry an error summary so the ledger (and the
+      // Superadmin health view) shows WHAT failed, not just that it failed.
+      const failureSummary =
+        report.failed === 0
+          ? undefined
+          : `${report.failed} patch(es) failed: ${report.outcomes
+              .filter((outcome) => outcome.outcome === "failed")
+              .map((outcome) => outcome.version)
+              .join(", ")}`.slice(0, 500);
+      await recordCronRunComplete(cronRunId, report.failed === 0, failureSummary);
     } catch {
       // non-fatal
     }
