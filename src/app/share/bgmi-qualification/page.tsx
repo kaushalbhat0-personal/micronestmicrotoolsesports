@@ -10,6 +10,7 @@ import { decodeShareState } from "@/features/bgmi-qualification/services/share";
 import { getPresetById } from "@/features/bgmi-qualification/services/presets";
 import { compareToTarget, pointsGap, projectedTotal, scenarioPoints } from "@/features/bgmi-qualification/services/scoring";
 import { gapMessage, scenarioMessage, verdictLabel } from "@/features/bgmi-qualification/services/copy";
+import { formatPoints } from "@/features/bgmi-qualification/services/format";
 
 export const metadata: Metadata = {
   title: "Shared BGMI Qualification Check — MicroNest",
@@ -126,8 +127,8 @@ export default async function ShareBgmiQualificationPage({ searchParams }: { sea
               <CardHeader>
                 <CardTitle className="text-sm">Average rate</CardTitle>
                 <CardDescription>
-                  Averaging {st.averageRate} pts per match lands at{" "}
-                  <span className="font-semibold tabular-nums">{st.current + st.averageRate * st.matches}</span> —{" "}
+                  Averaging {formatPoints(st.averageRate)} pts per match lands at{" "}
+                  <span className="font-semibold tabular-nums">{formatPoints(st.current + st.averageRate * st.matches)}</span> —{" "}
                   {verdictLabel(compareToTarget(st.current + st.averageRate * st.matches, st.target)).toLowerCase()}.
                 </CardDescription>
               </CardHeader>

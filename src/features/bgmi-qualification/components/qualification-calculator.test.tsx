@@ -137,6 +137,32 @@ describe("QualificationCalculator UX", () => {
     expect(container.textContent).toContain("66 projected");
   });
 
+  it("average-rate mode never renders floating-point artifacts", () => {
+    mount();
+    act(() => {
+      setInputValue(byLabel("Current points") as HTMLInputElement, "42");
+      setInputValue(byLabel("Qualification target") as HTMLInputElement, "58");
+      setInputValue(byLabel("Matches remaining") as HTMLInputElement, "3");
+      setInputValue(byLabel("Average points per match") as HTMLInputElement, "0.1");
+    });
+    // Task-specified probe: projection must render cleanly, never as 42.300000000000004.
+    expect(container.textContent).toContain("42.3 projected");
+    expect(container.textContent).not.toContain("42.300000000000004");
+  });
+
+  it("average-rate mode collapses a genuine engine artifact (1 + 1.1 × 3)", () => {
+    mount();
+    act(() => {
+      setInputValue(byLabel("Current points") as HTMLInputElement, "1");
+      setInputValue(byLabel("Qualification target") as HTMLInputElement, "58");
+      setInputValue(byLabel("Matches remaining") as HTMLInputElement, "3");
+      setInputValue(byLabel("Average points per match") as HTMLInputElement, "1.1");
+    });
+    // Raw engine math is 4.300000000000001 — the display layer must collapse it.
+    expect(container.textContent).toContain("4.3 projected");
+    expect(container.textContent).not.toContain("4.300000000000001");
+  });
+
   it("share affordances appear after mount (client-only, hydration-safe)", () => {
     const html = renderToString(<QualificationCalculator />);
     expect(html).not.toContain("Copy share link");

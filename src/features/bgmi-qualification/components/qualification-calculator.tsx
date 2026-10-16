@@ -26,6 +26,7 @@ import {
   scenarioPoints,
 } from "../services/scoring";
 import { gapMessage, outOfReachMessage, rateMessage, verdictLabel } from "../services/copy";
+import { formatPoints } from "../services/format";
 import type { QualificationScenario, QualificationShareState } from "../types";
 import { ScenarioEditor, SavedScenarioRow, type ScenarioDraft } from "./scenario-editor";
 import { ShareBlock } from "./share-block";
@@ -270,16 +271,16 @@ export function QualificationCalculator({ initialState = null }: QualificationCa
           <div aria-live="polite">
             {avgProjected !== null && target !== null && avgVerdict !== null ? (
               <p className="text-sm leading-relaxed">
-                <span className="font-semibold tabular-nums">{avgProjected} projected</span>{" "}
+                <span className="font-semibold tabular-nums">{formatPoints(avgProjected)} projected</span>{" "}
                 <Badge variant={avgVerdict === "above" ? "success" : avgVerdict === "exact" ? "warning" : "secondary"}>
                   {verdictLabel(avgVerdict)}
                 </Badge>
                 <span className="mt-1 block text-xs text-muted-foreground">
                   {avgVerdict === "above"
-                    ? `Averaging ${averageText} pts lands at ${avgProjected} — above your ${target}-pt target on current standings.`
+                    ? `Averaging ${averageText} pts lands at ${formatPoints(avgProjected)} — above your ${target}-pt target on current standings.`
                     : avgVerdict === "exact"
                       ? "That average lands exactly on target — final position may depend on tiebreaks."
-                      : `That average lands at ${avgProjected} — ${target - avgProjected} short of target.`}
+                      : `That average lands at ${formatPoints(avgProjected)} — ${formatPoints(target - avgProjected)} short of target.`}
                 </span>
               </p>
             ) : (
