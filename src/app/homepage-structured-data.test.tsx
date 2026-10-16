@@ -17,7 +17,7 @@ import {
  * Homepage UI is intentionally unchanged in this stage — only `<title>`,
  * meta/OG/Twitter, and JSON-LD are toolbox-first. These tests pin the
  * structured-data contract: valid Organization/WebSite, an ItemList of
- * exactly the seven released tools with canonical routes, truthful
+ * exactly the eight released tools with canonical routes, truthful
  * SoftwareApplication fields only, and no hidden-FAQ markup.
  */
 
@@ -35,13 +35,14 @@ const EXPECTED_ROUTES = [
   "/tools/prize-payout-tracker",
   "/tools/tournament-roster-builder",
   "/meta-parser",
+  "/bgmi-qualification",
 ];
 
 describe("homepage toolbox items derive from existing sources (no duplicated registry)", () => {
-  it("contains exactly seven released tools in stable positions", () => {
+  it("contains exactly eight released tools in stable positions", () => {
     const items = getHomepageToolboxItems();
-    expect(items).toHaveLength(7);
-    expect(items.map((i) => i.position)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(items).toHaveLength(8);
+    expect(items.map((i) => i.position)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(items.map((i) => i.url)).toEqual(EXPECTED_ROUTES);
   });
 
@@ -56,11 +57,18 @@ describe("homepage toolbox items derive from existing sources (no duplicated reg
     }
   });
 
-  it("Meta-Parser closes the list as public patch intelligence, not workspace SaaS", () => {
+  it("Meta-Parser sits at position seven as public patch intelligence, not workspace SaaS", () => {
     const last = getHomepageToolboxItems()[6];
     expect(last?.name).toBe("Meta-Parser — Patch Notes Intelligence");
     expect(last?.url).toBe("/meta-parser");
     expect(last?.kind).toBe("patch-intelligence");
+  });
+
+  it("BGMI simulator closes the list as a free public microtool, not workspace SaaS", () => {
+    const last = getHomepageToolboxItems()[7];
+    expect(last?.name).toBe("BGMI Qualification Simulator");
+    expect(last?.url).toBe("/bgmi-qualification");
+    expect(last?.kind).toBe("public-microtool");
   });
 
   it("never includes removed or unreleased tools", () => {
@@ -106,13 +114,13 @@ describe("WebSite JSON-LD represents the toolbox site", () => {
   });
 });
 
-describe("ItemList JSON-LD lists the seven released tools", () => {
+describe("ItemList JSON-LD lists the eight released tools", () => {
   it("has positions, names, and canonical routes", () => {
     const list = buildHomepageItemListJsonLd();
     expect(list["@type"]).toBe("ItemList");
-    expect(list["numberOfItems"]).toBe(7);
+    expect(list["numberOfItems"]).toBe(8);
     const elements = list["itemListElement"] as Array<Record<string, unknown>>;
-    expect(elements).toHaveLength(7);
+    expect(elements).toHaveLength(8);
     elements.forEach((el, i) => {
       expect(el["@type"]).toBe("ListItem");
       expect(el["position"]).toBe(i + 1);
@@ -140,6 +148,17 @@ describe("ItemList JSON-LD lists the seven released tools", () => {
     const meta = elements[6]?.["item"] as Record<string, unknown>;
     expect(meta["@type"]).toBe("WebPage");
     expect(meta["url"]).toBe("/meta-parser");
+  });
+
+  it("BGMI simulator is a SoftwareApplication with no outcome promises", () => {
+    const raw = JSON.stringify(buildHomepageItemListJsonLd()).toLowerCase();
+    for (const claim of ["guaranteed", "safe", "will qualify", "prediction"]) {
+      expect(raw).not.toContain(claim);
+    }
+    const elements = buildHomepageItemListJsonLd()["itemListElement"] as Array<Record<string, unknown>>;
+    const bgmi = elements[7]?.["item"] as Record<string, unknown>;
+    expect(bgmi["@type"]).toBe("SoftwareApplication");
+    expect(bgmi["url"]).toBe("/bgmi-qualification");
   });
 
   it("homepage wires the ItemList builder", () => {

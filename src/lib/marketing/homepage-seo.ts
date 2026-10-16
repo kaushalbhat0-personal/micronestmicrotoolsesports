@@ -4,14 +4,15 @@ import { freeBadgeBySlug, freeTierBySlug } from "@/config/marketing/free-tiers";
 /**
  * Homepage (toolbox-level) SEO — single source for identity metadata.
  *
- * Toolbox-first: MicroNest is the product; the seven tools are products
+ * Toolbox-first: MicroNest is the product; the eight tools are products
  * inside the toolbox. No single tool dominates homepage identity.
  *
  * Workspace tools derive from the canonical marketing registry
  * (`getAvailableTools()` — never a hardcoded subset). Meta-Parser is public
- * patch intelligence, not a workspace subscription product, so it lives
- * outside that registry; only its canonical public route and display name
- * are referenced here (facts catalog itself is DB-driven via
+ * patch intelligence and the BGMI Qualification Simulator is a public
+ * instant-use microtool — neither is a workspace subscription product, so
+ * both live outside that registry; only their canonical public routes and
+ * display names are referenced here (facts catalog itself is DB-driven via
  * `features/meta-parser/repositories/reads.ts`). This file defines no tool
  * catalog — it composes existing sources for SEO presentation only.
  */
@@ -21,7 +22,7 @@ export const HOMEPAGE_TITLE = "MicroNest — The Toolbox Behind Esports";
 export const HOMEPAGE_DESCRIPTION =
   "MicroNest is the toolbox behind esports — small, focused tools for tournament operations, sponsorships, payouts, rosters, and public patch intelligence. Every workspace tool starts free.";
 
-export type HomepageToolboxKind = "workspace-tool" | "patch-intelligence";
+export type HomepageToolboxKind = "workspace-tool" | "patch-intelligence" | "public-microtool";
 
 export interface HomepageToolboxItem {
   /** Stable 1-based position for ItemList. */
@@ -47,7 +48,22 @@ export const META_PARSER_ITEM = {
   icon: "Newspaper",
 } as const;
 
-/** Seven released toolbox entries: registry workspace tools + Meta-Parser. */
+/**
+ * Public instant-use microtool entry. Name and route only — the calculator
+ * itself is fully client-side with no account, no storage, and no plans,
+ * so it carries no workspace/entitlement/billing semantics by design.
+ */
+export const BGMI_QUALIFICATION_ITEM = {
+  name: "BGMI Qualification Simulator",
+  url: "/bgmi-qualification",
+  kind: "public-microtool",
+  /** Card value proposition — approved positioning, no outcome promises. */
+  description: "Know what your team needs to qualify.",
+  /** Lucide icon key (see homepage icon map). */
+  icon: "Target",
+} as const;
+
+/** Eight released toolbox entries: registry workspace tools + Meta-Parser + BGMI simulator. */
 export function getHomepageToolboxItems(): HomepageToolboxItem[] {
   const workspace = getAvailableTools().map((tool, index) => ({
     position: index + 1,
@@ -58,18 +74,19 @@ export function getHomepageToolboxItems(): HomepageToolboxItem[] {
   return [
     ...workspace,
     { position: workspace.length + 1, ...META_PARSER_ITEM },
+    { position: workspace.length + 2, ...BGMI_QUALIFICATION_ITEM },
   ];
 }
 
 /**
  * Neutral toolbox grouping — organizational only, never a ranking.
  * Slugs only; every display field resolves from the canonical registry
- * (workspace tools) or the Meta-Parser pointer above. No duplicated catalog.
+ * (workspace tools) or the public-tool pointers above. No duplicated catalog.
  */
 export interface ToolboxGroupDef {
   readonly label: string;
   readonly blurb: string;
-  /** Registry slugs plus the `"meta-parser"` public-intelligence key. */
+  /** Registry slugs plus the `"meta-parser"` / `"bgmi-qualification"` public-tool keys. */
   readonly slugs: readonly string[];
 }
 
@@ -88,6 +105,11 @@ export const TOOLBOX_GROUPS: readonly ToolboxGroupDef[] = [
     label: "Understand the game",
     blurb: "Public patch intelligence — facts first, interpretation later.",
     slugs: ["meta-parser"],
+  },
+  {
+    label: "Qualify on points",
+    blurb: "Targets and what-if scenarios — know what your team needs to qualify.",
+    slugs: ["bgmi-qualification"],
   },
 ] as const;
 
@@ -126,6 +148,18 @@ export function resolveToolboxGroups(): ResolvedToolboxGroup[] {
           ctaLabel: "Browse patch facts",
           ctaAriaLabel: "Browse Meta-Parser patch facts",
           accessNote: "Public facts · Free to read",
+        };
+      }
+      if (slug === "bgmi-qualification") {
+        return {
+          name: BGMI_QUALIFICATION_ITEM.name,
+          url: BGMI_QUALIFICATION_ITEM.url,
+          description: BGMI_QUALIFICATION_ITEM.description,
+          kind: BGMI_QUALIFICATION_ITEM.kind,
+          icon: BGMI_QUALIFICATION_ITEM.icon,
+          ctaLabel: "Try it now",
+          ctaAriaLabel: "Try the BGMI Qualification Simulator now — no signup needed",
+          accessNote: "Free microtool · No signup",
         };
       }
       const tool = getMarketingTool(slug);
@@ -171,21 +205,21 @@ function patchIntelligenceNode(item: HomepageToolboxItem): Record<string, unknow
   };
 }
 
-/** ItemList of the seven released tools — positions, names, canonical URLs. */
+/** ItemList of the eight released tools — positions, names, canonical URLs. */
 export function buildHomepageItemListJsonLd(): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "MicroNest toolbox",
-    description: "The seven released MicroNest esports tools.",
-    numberOfItems: 7,
+    description: "The eight released MicroNest esports tools.",
+    numberOfItems: 8,
     itemListElement: getHomepageToolboxItems().map((item) => ({
       "@type": "ListItem",
       position: item.position,
       name: item.name,
       url: item.url,
       item:
-        item.kind === "workspace-tool" ? workspaceToolNode(item) : patchIntelligenceNode(item),
+        item.kind === "patch-intelligence" ? patchIntelligenceNode(item) : workspaceToolNode(item),
     })),
   };
 }

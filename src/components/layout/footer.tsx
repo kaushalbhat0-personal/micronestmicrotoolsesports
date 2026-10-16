@@ -17,7 +17,7 @@ export function Footer() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Tools</p>
             <ul className="mt-3 space-y-2 text-sm">
-              {/* Canonical toolbox entries — registry workspace tools + Meta-Parser. */}
+              {/* Canonical toolbox entries — registry workspace tools + public entries. */}
               {getHomepageToolboxItems().map((item) => (
                 <li key={item.url}>
                   <Link

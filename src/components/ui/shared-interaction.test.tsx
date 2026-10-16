@@ -78,7 +78,8 @@ describe("shared interaction layer", () => {
   });
 
   it("applies the interactive-card treatment only to clickable discovery surfaces", () => {
-    expect(src("src/app/tools/page.tsx").match(/card-interactive/g)).toHaveLength(2);
+    // Six workspace cards (one template occurrence) + Meta-Parser + BGMI cards.
+    expect(src("src/app/tools/page.tsx").match(/card-interactive/g)).toHaveLength(3);
     expect(src("src/app/(dashboard)/dashboard/page.tsx")).toContain("card-interactive");
     // Static/informational surfaces stay static.
     for (const path of [

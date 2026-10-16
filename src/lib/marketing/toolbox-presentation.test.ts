@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { TOOLS } from "@/config/app/tools";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import {
+  BGMI_QUALIFICATION_ENTRY,
   META_PARSER_ENTRY,
   getToolboxEntries,
   getWorkspaceEntries,
@@ -10,15 +11,17 @@ import {
 /**
  * Toolbox presentation boundary (RCCF-TOOLBOX-IA-02).
  *
- * The public toolbox composes six workspace tools plus Meta-Parser without
- * contaminating the workspace/billing registries.
+ * The public toolbox composes six workspace tools plus Meta-Parser plus the
+ * BGMI Qualification Simulator without contaminating the workspace/billing
+ * registries.
  */
 describe("toolbox presentation composer", () => {
-  it("exposes exactly seven entries: six workspace plus one Meta-Parser", () => {
+  it("exposes exactly eight entries: six workspace plus Meta-Parser plus BGMI", () => {
     const entries = getToolboxEntries();
-    expect(entries).toHaveLength(7);
+    expect(entries).toHaveLength(8);
     expect(entries.filter((e) => e.kind === "workspace")).toHaveLength(6);
     expect(entries.filter((e) => e.kind === "patch-intelligence")).toHaveLength(1);
+    expect(entries.filter((e) => e.kind === "public-microtool")).toHaveLength(1);
   });
 
   it("has no duplicate slugs, names, or routes", () => {
@@ -63,10 +66,34 @@ describe("toolbox presentation composer", () => {
     }
   });
 
+  it("presents the BGMI Qualification Simulator as a free public microtool", () => {
+    expect(BGMI_QUALIFICATION_ENTRY.kind).toBe("public-microtool");
+    expect(BGMI_QUALIFICATION_ENTRY.slug).toBe("bgmi-qualification");
+    expect(BGMI_QUALIFICATION_ENTRY.name).toBe("BGMI Qualification Simulator");
+    expect(BGMI_QUALIFICATION_ENTRY.url).toBe("/bgmi-qualification");
+    expect(BGMI_QUALIFICATION_ENTRY.description).toBe("Know what your team needs to qualify.");
+    expect(BGMI_QUALIFICATION_ENTRY.ctaLabel).toBe("Try it now");
+    expect(BGMI_QUALIFICATION_ENTRY.accessNote).toBe("Free microtool · No signup");
+    expect(BGMI_QUALIFICATION_ENTRY.marketingTool).toBeUndefined();
+  });
+
+  it("gives the BGMI simulator no paid-plan semantics", () => {
+    const raw = BGMI_QUALIFICATION_ENTRY as unknown as Record<string, unknown>;
+    for (const key of ["plan", "planSlug", "price", "amount", "internalSlug", "checkout"]) {
+      expect(raw[key]).toBeUndefined();
+    }
+    const serialized = JSON.stringify(BGMI_QUALIFICATION_ENTRY).toLowerCase();
+    for (const phrase of ["start free", "claim", "purchase", "pricing", "workspace", "guaranteed", "safe"]) {
+      expect(serialized).not.toContain(phrase);
+    }
+  });
+
   it("keeps workspace registries at six tools (isolation)", () => {
     expect(TOOLS).toHaveLength(6);
     expect(MARKETING_TOOLS).toHaveLength(6);
     expect(TOOLS.some((t) => t.slug === "meta-parser")).toBe(false);
     expect(MARKETING_TOOLS.some((t) => t.slug === "meta-parser")).toBe(false);
+    expect(TOOLS.some((t) => t.slug === "bgmi-qualification")).toBe(false);
+    expect(MARKETING_TOOLS.some((t) => t.slug === "bgmi-qualification")).toBe(false);
   });
 });

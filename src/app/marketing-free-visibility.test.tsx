@@ -224,7 +224,7 @@ describe("homepage toolbox discovery (canonical, no hardcoded subset)", () => {
     expect(code).not.toContain("Featured");
     // Group labels live in the shared helper (organizational only, not ranked).
     const helper = sourceOf("src/lib/marketing/homepage-seo.ts");
-    for (const label of ["Run the tournament", "Run the business", "Understand the game"]) {
+    for (const label of ["Run the tournament", "Run the business", "Understand the game", "Qualify on points"]) {
       expect(helper).toContain(label);
     }
     expect(sourceOf(HOMEPAGE)).toContain("ToolboxGroups");

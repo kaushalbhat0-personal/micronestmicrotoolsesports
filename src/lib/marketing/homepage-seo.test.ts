@@ -10,23 +10,24 @@ import {
  * Slugs reference the canonical registry; every display field resolves from
  * it (workspace tools) or the Meta-Parser pointer. No duplicated catalog.
  */
-describe("toolbox groups cover the seven released tools exactly once", () => {
-  it("defines three neutral groups with seven slugs total and no duplicates", () => {
+describe("toolbox groups cover the eight released tools exactly once", () => {
+  it("defines four neutral groups with eight slugs total and no duplicates", () => {
     expect(TOOLBOX_GROUPS.map((g) => g.label)).toEqual([
       "Run the tournament",
       "Run the business",
       "Understand the game",
+      "Qualify on points",
     ]);
     const slugs = TOOLBOX_GROUPS.flatMap((g) => [...g.slugs]);
-    expect(slugs).toHaveLength(7);
-    expect(new Set(slugs).size).toBe(7);
+    expect(slugs).toHaveLength(8);
+    expect(new Set(slugs).size).toBe(8);
   });
 
-  it("resolves to seven cards with canonical names, routes, and descriptions", () => {
+  it("resolves to eight cards with canonical names, routes, and descriptions", () => {
     const groups = resolveToolboxGroups();
     const cards = groups.flatMap((g) => g.cards);
-    expect(cards).toHaveLength(7);
-    // Same seven entries as the SEO source — group order is editorial, not ranked.
+    expect(cards).toHaveLength(8);
+    // Same eight entries as the SEO source — group order is editorial, not ranked.
     expect([...cards.map((c) => c.url)].sort()).toEqual(
       [...getHomepageToolboxItems().map((i) => i.url)].sort()
     );
@@ -54,6 +55,16 @@ describe("toolbox groups cover the seven released tools exactly once", () => {
     expect(meta?.ctaLabel).toBe("Browse patch facts");
     expect(meta?.accessNote).toBe("Public facts · Free to read");
     expect(meta?.description).toBe("Read structured patch notes and game changes.");
+  });
+
+  it("BGMI simulator resolves as a free public microtool with a try-it CTA", () => {
+    const cards = resolveToolboxGroups().flatMap((g) => g.cards);
+    const bgmi = cards.find((c) => c.url === "/bgmi-qualification");
+    expect(bgmi?.kind).toBe("public-microtool");
+    expect(bgmi?.name).toBe("BGMI Qualification Simulator");
+    expect(bgmi?.description).toBe("Know what your team needs to qualify.");
+    expect(bgmi?.ctaLabel).toBe("Try it now");
+    expect(bgmi?.accessNote).toBe("Free microtool · No signup");
   });
 
   it("workspace cards reuse registry copy with canonical Free framing", () => {

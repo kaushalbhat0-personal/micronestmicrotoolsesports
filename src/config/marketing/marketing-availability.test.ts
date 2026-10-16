@@ -54,6 +54,8 @@ describe("frontend availability truth — RCCF-CLEANUP-02 (released-only catalog
     expect(items.map((i) => i.name)).toContain("Prize Payout Tracker");
     expect(items.map((i) => i.url)).toContain("/tools/tournament-roster-builder");
     expect(items.map((i) => i.url)).toContain("/meta-parser");
+    expect(items.map((i) => i.url)).toContain("/bgmi-qualification");
+    expect(items.map((i) => i.name)).toContain("BGMI Qualification Simulator");
     for (const slug of REMOVED) expect(footer).not.toContain(slug);
     for (const name of ["Scrim Matchmaker", "VOD Clipper", "Roster Sentinel"]) {
       expect(footer).not.toContain(name);

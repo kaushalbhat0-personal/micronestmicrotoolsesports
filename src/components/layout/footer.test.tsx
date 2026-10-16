@@ -5,10 +5,10 @@ import { Footer } from "./footer";
 
 /**
  * Footer tool discovery — derived from the canonical toolbox source so
- * Meta-Parser is present and removed tools stay absent.
+ * Meta-Parser and the BGMI simulator are present and removed tools stay absent.
  */
 describe("footer toolbox discovery", () => {
-  it("links all seven released tools including Meta-Parser", () => {
+  it("links all eight released tools including Meta-Parser and BGMI", () => {
     const html = renderToString(<Footer />);
     for (const href of [
       "/tools/sponsorship-tracking",
@@ -18,10 +18,12 @@ describe("footer toolbox discovery", () => {
       "/tools/prize-payout-tracker",
       "/tools/tournament-roster-builder",
       "/meta-parser",
+      "/bgmi-qualification",
     ]) {
       expect(html).toContain(`href="${href}"`);
     }
     expect(html).toContain("Meta-Parser");
+    expect(html).toContain("BGMI Qualification Simulator");
   });
 
   it("never links removed or unreleased tools", () => {

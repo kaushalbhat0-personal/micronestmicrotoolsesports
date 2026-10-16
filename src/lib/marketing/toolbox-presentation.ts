@@ -1,25 +1,26 @@
 import { getAvailableTools, type MarketingTool } from "@/config/marketing/tools";
-import { META_PARSER_ITEM } from "./homepage-seo";
+import { BGMI_QUALIFICATION_ITEM, META_PARSER_ITEM } from "./homepage-seo";
 
 /**
  * Public toolbox presentation composer (RCCF-TOOLBOX-IA-02).
  *
  * Presentation-only: composes the six workspace marketing tools with the
- * public Meta-Parser intelligence entry so surfaces like `/tools` and the
- * sitemap can present all seven toolbox entries exactly once.
+ * public Meta-Parser intelligence entry and the public BGMI Qualification
+ * Simulator entry so surfaces like `/tools` and the
+ * sitemap can present all eight toolbox entries exactly once.
  *
  * Workspace isolation is preserved by construction:
  * - `TOOLS`, `MARKETING_TOOLS`, `POLICIES`, `FREE_TIERS`,
  *   `TOOL_PLAN_PREFIX`, entitlement, billing, plans, and checkout are
  *   never touched here — this module only reads the marketing registry
- *   plus the existing homepage Meta-Parser pointer.
- * - The Meta-Parser entry carries no plan/price/entitlement semantics.
+ *   plus the existing public-tool pointers.
+ * - The Meta-Parser and BGMI entries carry no plan/price/entitlement semantics.
  */
 
-export type ToolboxEntryKind = "workspace" | "patch-intelligence";
+export type ToolboxEntryKind = "workspace" | "patch-intelligence" | "public-microtool";
 
 export interface ToolboxEntry {
-  /** Public slug (`meta-parser` or the marketing slug). */
+  /** Public slug (`meta-parser`, `bgmi-qualification`, or the marketing slug). */
   readonly slug: string;
   readonly name: string;
   /** Canonical relative route. */
@@ -32,7 +33,7 @@ export interface ToolboxEntry {
   readonly ctaAriaLabel: string;
   /** Truthful access framing, e.g. "Free plan · …" or "Public facts · Free to read". */
   readonly accessNote: string;
-  /** Workspace registry entry — present only for workspace tools. Never set for Meta-Parser. */
+  /** Workspace registry entry — present only for workspace tools. Never set for public entries. */
   readonly marketingTool?: MarketingTool;
 }
 
@@ -54,6 +55,25 @@ export const META_PARSER_ENTRY: ToolboxEntry = {
   accessNote: "Public facts · Free to read",
 };
 
+/**
+ * Public BGMI Qualification Simulator card content. Route/icon/kind reuse
+ * the canonical homepage pointer; display copy follows the approved
+ * positioning ("Know what your team needs to qualify"). Fully client-side,
+ * no account — "Try it now" matches the anonymous-demo CTA convention.
+ * No plan, price, claim, or workspace semantics by design.
+ */
+export const BGMI_QUALIFICATION_ENTRY: ToolboxEntry = {
+  slug: "bgmi-qualification",
+  name: "BGMI Qualification Simulator",
+  url: BGMI_QUALIFICATION_ITEM.url,
+  kind: "public-microtool",
+  description: "Know what your team needs to qualify.",
+  icon: BGMI_QUALIFICATION_ITEM.icon,
+  ctaLabel: "Try it now",
+  ctaAriaLabel: "Try the BGMI Qualification Simulator now — no signup needed",
+  accessNote: "Free microtool · No signup",
+};
+
 /** Six released workspace tools as presentation entries (order = registry order). */
 export function getWorkspaceEntries(): ToolboxEntry[] {
   return getAvailableTools().map((tool) => ({
@@ -70,7 +90,7 @@ export function getWorkspaceEntries(): ToolboxEntry[] {
   }));
 }
 
-/** Seven public toolbox entries: six workspace tools plus Meta-Parser. */
+/** Eight public toolbox entries: six workspace tools plus Meta-Parser and the BGMI simulator. */
 export function getToolboxEntries(): ToolboxEntry[] {
-  return [...getWorkspaceEntries(), META_PARSER_ENTRY];
+  return [...getWorkspaceEntries(), META_PARSER_ENTRY, BGMI_QUALIFICATION_ENTRY];
 }
