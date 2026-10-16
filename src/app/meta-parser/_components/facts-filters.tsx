@@ -1,17 +1,20 @@
 import * as React from "react";
-import { CHANGE_TYPE_OPTIONS, entityTypeLabel } from "../_lib/facts";
+import { CHANGE_TYPE_FILTER_OPTIONS } from "../_lib/facts";
+import { sectionsForEntityTypes } from "../_lib/presentation-taxonomy";
 
 /**
  * Patch-page filters (server-rendered, no client JS).
  *
- * Plain-language labels over unchanged URL keys: Category → `entity_type`,
- * Change → `change_type`, Search → `entity`. Category options and Search
- * suggestions come from the patch's own published data — never a universal
- * hardcoded list. Submits as a normal GET form, preserving the existing
- * query-string flow and shareable URLs.
+ * Plain-language labels over unchanged URL keys: What changed? →
+ * `entity_type`, Change type → `change_type`, Search → `entity`. Section
+ * options come from the presentation taxonomy applied to the patch's own
+ * published entity types — never a universal hardcoded list. Submits as a
+ * normal GET form, preserving the existing query-string flow and
+ * shareable URLs.
  */
 export function FactsFilters({
   basePath,
+  gameSlug,
   entityType,
   changeType,
   entity,
@@ -21,6 +24,7 @@ export function FactsFilters({
   hasFilters,
 }: {
   basePath: string;
+  gameSlug: string;
   entityType: string | null;
   changeType: string | null;
   entity: string | null;
@@ -29,11 +33,12 @@ export function FactsFilters({
   searchPlaceholder: string;
   hasFilters: boolean;
 }) {
+  const sectionOptions = sectionsForEntityTypes(gameSlug, entityTypes);
   return (
     <form method="get" action={basePath} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
       <div className="flex flex-col gap-1.5">
         <label htmlFor="facts-category" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Category
+          What changed?
         </label>
         <select
           id="facts-category"
@@ -41,15 +46,15 @@ export function FactsFilters({
           defaultValue={entityType ?? ""}
           className="min-h-[44px] rounded-[10px] border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <option value="">All categories</option>
-          {entityTypes.map((type) => (
-            <option key={type} value={type}>{entityTypeLabel(type)}</option>
+          <option value="">All</option>
+          {sectionOptions.map((option) => (
+            <option key={option.sectionKey} value={option.value}>{option.label}</option>
           ))}
         </select>
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="facts-change" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Change
+          Change type
         </label>
         <select
           id="facts-change"
@@ -58,7 +63,7 @@ export function FactsFilters({
           className="min-h-[44px] rounded-[10px] border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <option value="">All changes</option>
-          {CHANGE_TYPE_OPTIONS.map((o) => (
+          {CHANGE_TYPE_FILTER_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>

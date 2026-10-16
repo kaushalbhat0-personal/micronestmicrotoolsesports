@@ -9,7 +9,8 @@ import { createClient } from "@/lib/supabase/server";
 import { AppError } from "@/lib/errors";
 import {
   getPatch,
-  listChanges,
+  listGroupedChanges,
+  type ListGroupedChangesResult,
   listGames,
   listPatchEntityNames,
   listPatchEntityTypes,
@@ -17,13 +18,18 @@ import {
 import {
   entitySearchPlaceholder,
   factsHref,
-  factsRangeLabel,
+  groupsRangeLabel,
   isVersionParam,
   parseFactsQuery,
 } from "../../_lib/facts";
+import {
+  getPresentationSection,
+  getPresentationTaxonomy,
+  sectionOrder,
+} from "../../_lib/presentation-taxonomy";
 import { resolveGameProvenance } from "../../_lib/game-provenance";
-import { ChangeCard } from "../../_components/change-card";
 import { FactsFilters } from "../../_components/facts-filters";
+import { PatchSections, type PatchSectionView } from "../../_components/patch-sections";
 import { Provenance } from "../../_components/provenance";
 
 export const revalidate = 3600;
@@ -113,14 +119,14 @@ export default async function PatchFactsPage({
   };
   const hasFilters = Object.keys(filters).length > 0;
 
-  let result;
+  let result: ListGroupedChangesResult;
   let entityTypes: readonly string[] = [];
   let entityNames: readonly string[] = [];
   try {
     [result, entityTypes, entityNames] = await Promise.all([
-      listChanges(supabase, patch.id, filters, {
-        limit: query.limit,
-        offset: query.offset,
+      listGroupedChanges(supabase, patch.id, filters, {
+        groupLimit: query.groupLimit,
+        groupOffset: query.groupOffset,
       }),
       listPatchEntityTypes(supabase, patch.id),
       listPatchEntityNames(supabase, patch.id),
@@ -130,12 +136,59 @@ export default async function PatchFactsPage({
     // change_type enum, generic entity shape guards); surface them as
     // "no matching filters", never as a crash.
     if (error instanceof AppError && error.code === "VALIDATION_ERROR") {
-      result = { published: true, changes: [], limit: query.limit, offset: query.offset, hasMore: false };
+      result = {
+        published: true,
+        groups: [],
+        groupLimit: query.groupLimit,
+        groupOffset: query.groupOffset,
+        groupTotal: 0,
+        changeTotal: 0,
+        entityTypeTotals: {},
+        hasMore: false,
+      };
     } else {
       throw error;
     }
   }
   if (!result.published) notFound();
+
+  // Group-then-paginate order: the reader returns whole entity groups in
+  // first-stable_key order; the page only applies the presentation taxonomy
+  // (section order, stable within sections) before rendering.
+  const taxonomy = getPresentationTaxonomy(gameSlug);
+  const orderedGroups = [...result.groups].sort(
+    (a, b) => sectionOrder(gameSlug, a.entityType) - sectionOrder(gameSlug, b.entityType)
+  );
+  const sections: PatchSectionView[] = [];
+  for (const section of taxonomy.sections) {
+    const sectionGroups = orderedGroups.filter(
+      (group) => getPresentationSection(gameSlug, group.entityType).key === section.key
+    );
+    if (sectionGroups.length === 0) continue;
+    let sectionChangeCount = 0;
+    let sectionGroupCount = 0;
+    for (const [entityType, totals] of Object.entries(result.entityTypeTotals)) {
+      if (getPresentationSection(gameSlug, entityType).key !== section.key) continue;
+      sectionGroupCount += totals.groups;
+      sectionChangeCount += totals.changes;
+    }
+    const representative = section.entityTypes[0];
+    sections.push({
+      key: section.key,
+      label: section.label,
+      changeCount: sectionChangeCount,
+      groupCount: sectionGroupCount,
+      filterHref:
+        query.entityType || representative === undefined
+          ? null
+          : factsHref(basePath, {
+              entityType: representative,
+              changeType: query.changeType,
+              entity: query.entity,
+            }),
+      groups: sectionGroups,
+    });
+  }
 
   const prevHref =
     query.page > 1
@@ -183,6 +236,7 @@ export default async function PatchFactsPage({
           <section aria-label="Filter changes" className="mt-8 rounded-[16px] border border-border bg-card p-4 sm:p-5">
             <FactsFilters
               basePath={basePath}
+              gameSlug={gameSlug}
               entityType={query.entityType}
               changeType={query.changeType}
               entity={query.entity}
@@ -195,13 +249,11 @@ export default async function PatchFactsPage({
 
           <section aria-label="Patch changes" className="mt-8">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-display text-xl font-normal tracking-tight">
+              <p className="font-display text-xl font-normal tracking-tight">
                 {hasFilters ? "Matching changes" : "All changes in this patch"}
-              </h2>
+              </p>
               <p className="text-sm text-muted-foreground" role="status">
-                {hasFilters
-                  ? `Showing ${formatCount(result.changes.length)} matching ${result.changes.length === 1 ? "change" : "changes"} · Page ${query.page}${result.hasMore ? "+" : ""}`
-                  : `${factsRangeLabel(query.offset, result.changes.length, patch.changeCount)} · Page ${query.page}`}
+                {`${groupsRangeLabel(query.groupOffset, result.groups.length, result.groupTotal, result.changeTotal)} · Page ${query.page}`}
               </p>
             </div>
 
@@ -212,7 +264,7 @@ export default async function PatchFactsPage({
                   description="The patch is published, but its structured change set is empty."
                 />
               </div>
-            ) : result.changes.length === 0 ? (
+            ) : result.groups.length === 0 ? (
               <div className="mt-4">
                 <EmptyState
                   title="No changes match these filters."
@@ -228,17 +280,11 @@ export default async function PatchFactsPage({
                 />
               </div>
             ) : (
-              <ol className="mt-4 space-y-3">
-                {result.changes.map((change) => (
-                  <li key={change.id}>
-                    <ChangeCard change={change} />
-                  </li>
-                ))}
-              </ol>
+              <PatchSections sections={sections} />
             )}
 
-            {(prevHref || nextHref) && result.changes.length > 0 ? (
-              <nav aria-label="Change pages" className="mt-6 flex items-center justify-between gap-3">
+            {(prevHref || nextHref) && result.groups.length > 0 ? (
+              <nav aria-label="Entity group pages" className="mt-6 flex items-center justify-between gap-3">
                 {prevHref ? (
                   <Link
                     href={prevHref as Route}

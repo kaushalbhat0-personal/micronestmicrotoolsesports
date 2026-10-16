@@ -20,19 +20,17 @@ describe("meta-parser user-facing copy", () => {
   const filters = () => src("src/app/meta-parser/_components/facts-filters.tsx");
   const provenance = () => src("src/app/meta-parser/_components/provenance.tsx");
 
-  it("no longer presents Entity type / Change type / Entity as visible labels", () => {
+  it("presents human filter labels over unchanged URL keys (UX-07)", () => {
     expect(filters()).not.toContain("Entity type");
-    expect(filters()).not.toContain("Change type");
     expect(filters()).toContain('htmlFor="facts-category"');
     expect(filters()).toContain('htmlFor="facts-change"');
     expect(filters()).toContain('htmlFor="facts-search"');
-    expect(filters()).toMatch(/>\s*Category\s*</);
-    expect(filters()).toMatch(/>\s*Change\s*</);
+    expect(filters()).toMatch(/>\s*What changed\?\s*</);
+    expect(filters()).toMatch(/>\s*Change type\s*</);
     expect(filters()).toMatch(/>\s*Search\s*</);
     // The page itself delegates to the extracted filter component.
     expect(patchPage()).toContain("<FactsFilters");
     expect(patchPage()).not.toContain("Entity type");
-    expect(patchPage()).not.toContain("Change type");
   });
 
   it("keeps URL query keys unchanged in the filter form", () => {

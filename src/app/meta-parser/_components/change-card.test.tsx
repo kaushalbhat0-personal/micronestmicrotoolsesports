@@ -129,3 +129,59 @@ describe("change card hierarchy", () => {
     cleanup();
   });
 });
+
+describe("change card section context (RCCF-META-PARSER-UX-07)", () => {
+  it("never renders System · System inside a Gameplay section", async () => {
+    const { container, cleanup } = await renderCard({
+      ...CHANGE,
+      entityType: "system",
+      entityName: "General",
+      category: "system",
+      attribute: null,
+    });
+    const withoutSection = container.textContent ?? "";
+    expect(withoutSection).toContain("System · System");
+    cleanup();
+
+    const sectioned = document.createElement("div");
+    document.body.appendChild(sectioned);
+    const root = createRoot(sectioned);
+    await act(async () => {
+      root.render(
+        <ChangeCard
+          change={{
+            ...CHANGE,
+            entityType: "system",
+            entityName: "General",
+            category: "system",
+            attribute: null,
+          }}
+          sectionLabel="Gameplay"
+          hideEntityName
+        />
+      );
+    });
+    const text = sectioned.textContent ?? "";
+    expect(text).not.toContain("System · System");
+    expect(text).not.toContain("System");
+    expect(text).toContain("Gameplay");
+    expect(sectioned.querySelector("h3")).toBeNull();
+    root.unmount();
+    sectioned.remove();
+  });
+
+  it("keeps meaningful categories inside their section", async () => {
+    const sectioned = document.createElement("div");
+    document.body.appendChild(sectioned);
+    const root = createRoot(sectioned);
+    await act(async () => {
+      root.render(<ChangeCard change={CHANGE} sectionLabel="Heroes" hideEntityName />);
+    });
+    const text = sectioned.textContent ?? "";
+    expect(text).toContain("Ability");
+    expect(text).not.toContain("Hero");
+    expect(text).toContain("Rocket Flare damage increased.");
+    root.unmount();
+    sectioned.remove();
+  });
+});

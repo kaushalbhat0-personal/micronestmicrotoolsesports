@@ -9,9 +9,9 @@ import { FactsFilters } from "./facts-filters";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 /**
- * Patch-page filters (RCCF-META-PARSER-UX-03). Plain-language labels over
- * unchanged URL keys, game-specific category options, keyboard-operable
- * native controls, no client JS architecture.
+ * Patch-page filters (RCCF-META-PARSER-UX-07). Human labels ("What changed?",
+ * "Change type") over unchanged URL keys, taxonomy-driven section options,
+ * keyboard-operable native controls, no client JS architecture.
  */
 
 async function renderFilters(overrides: Partial<React.ComponentProps<typeof FactsFilters>> = {}) {
@@ -20,6 +20,7 @@ async function renderFilters(overrides: Partial<React.ComponentProps<typeof Fact
   const root = createRoot(container);
   const props: React.ComponentProps<typeof FactsFilters> = {
     basePath: "/meta-parser/dota-2/7.41",
+    gameSlug: "dota-2",
     entityType: null,
     changeType: null,
     entity: null,
@@ -42,11 +43,11 @@ async function renderFilters(overrides: Partial<React.ComponentProps<typeof Fact
 }
 
 describe("facts filters labels and controls", () => {
-  it("uses plain-language labels associated with their controls", async () => {
+  it("uses human labels associated with their controls", async () => {
     const { container, cleanup } = await renderFilters();
     for (const [text, id] of [
-      ["Category", "facts-category"],
-      ["Change", "facts-change"],
+      ["What changed?", "facts-category"],
+      ["Change type", "facts-change"],
       ["Search", "facts-search"],
     ] as const) {
       expect(container.textContent).toContain(text);
@@ -58,7 +59,6 @@ describe("facts filters labels and controls", () => {
       expect(forLabel?.getAttribute("for")).toBe(id);
     }
     expect(container.textContent).not.toContain("Entity type");
-    expect(container.textContent).not.toContain("Change type");
     cleanup();
   });
 
@@ -70,18 +70,69 @@ describe("facts filters labels and controls", () => {
     cleanup();
   });
 
-  it("offers only the patch's own categories — no universal hardcoded list", async () => {
+  it("offers taxonomy sections for the patch's own entity types — never raw buckets", async () => {
     const { container, cleanup } = await renderFilters();
     const options = Array.from(container.querySelectorAll("#facts-category option")).map(
       (o) => o.textContent
     );
-    expect(options).toEqual(["All categories", "Hero", "Item", "System"]);
+    expect(options).toEqual(["All", "Heroes", "Items", "Gameplay"]);
+    expect(options).not.toContain("System");
     expect(options).not.toContain("Champion");
     expect(options).not.toContain("Agent");
+    const values = Array.from(container.querySelectorAll("#facts-category option")).map(
+      (o) => o.getAttribute("value")
+    );
+    // URL values stay internal vocabulary.
+    expect(values).toEqual(["", "hero", "item", "system"]);
     cleanup();
   });
 
-  it("keeps the normal Category select for single-category patches (F4)", async () => {
+  it("maps valorant and lol patches to their own sections", async () => {
+    const valorant = await renderFilters({
+      basePath: "/meta-parser/valorant/10.08",
+      gameSlug: "valorant",
+      entityTypes: ["agent", "weapon", "map", "system"],
+    });
+    expect(
+      Array.from(valorant.container.querySelectorAll("#facts-category option")).map(
+        (o) => o.textContent
+      )
+    ).toEqual(["All", "Agents", "Weapons", "Maps", "Gameplay"]);
+    valorant.cleanup();
+    const lol = await renderFilters({
+      basePath: "/meta-parser/lol/14.10",
+      gameSlug: "lol",
+      entityTypes: ["champion", "item", "system"],
+    });
+    expect(
+      Array.from(lol.container.querySelectorAll("#facts-category option")).map((o) => o.textContent)
+    ).toEqual(["All", "Champions", "Items", "Gameplay"]);
+    lol.cleanup();
+  });
+
+  it("labels change types in human plurals over unchanged stored values", async () => {
+    const { container, cleanup } = await renderFilters();
+    const options = Array.from(container.querySelectorAll("#facts-change option")).map(
+      (o) => o.textContent
+    );
+    expect(options).toEqual([
+      "All changes",
+      "Buffs",
+      "Nerfs",
+      "Adjustments",
+      "Reworks",
+      "New",
+      "Bug fixes",
+      "Neutral",
+    ]);
+    const values = Array.from(container.querySelectorAll("#facts-change option")).map((o) =>
+      o.getAttribute("value")
+    );
+    expect(values).toEqual(["", "buff", "nerf", "adjustment", "rework", "new", "bugfix", "neutral"]);
+    cleanup();
+  });
+
+  it("keeps the normal section select for single-category patches (F4)", async () => {
     const { container, cleanup } = await renderFilters({ entityTypes: ["hero"] });
     const select = container.querySelector("#facts-category");
     expect(select?.tagName).toBe("SELECT");
@@ -89,7 +140,7 @@ describe("facts filters labels and controls", () => {
     const options = Array.from(container.querySelectorAll("#facts-category option")).map(
       (o) => o.textContent
     );
-    expect(options).toEqual(["All categories", "Hero"]);
+    expect(options).toEqual(["All", "Heroes"]);
     cleanup();
   });
 

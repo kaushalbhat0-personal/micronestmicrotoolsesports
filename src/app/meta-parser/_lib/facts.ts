@@ -1,7 +1,9 @@
 import type { BadgeVariant } from "@/components/ui/badge";
 import {
+  META_PARSER_GROUPED_GROUPS_PER_PAGE,
   META_PARSER_READ_DEFAULT_LIMIT,
   isGenericPatchVersion,
+  type PublishedChangeCounts,
 } from "@/features/meta-parser/repositories/reads";
 
 /**
@@ -10,10 +12,16 @@ import {
  * Pure functions only — no data access, no Supabase, no writer imports.
  * Server Components use these to translate URL search params into
  * `repositories/reads.ts` arguments and back into shareable links.
- * Pagination mirrors the reader: fixed default page size, offset pages.
+ * Pagination is group-atomic: a page holds N entity groups, never N rows.
  */
 
 export const FACTS_PAGE_SIZE = META_PARSER_READ_DEFAULT_LIMIT;
+
+/**
+ * Entity groups per grouped-facts page. A page represents N entity groups
+ * (not change rows) so groups stay atomic and counts stay patch-global.
+ */
+export const GROUPED_FACTS_PAGE_SIZE = META_PARSER_GROUPED_GROUPS_PER_PAGE;
 
 /**
  * URL-shape guard for `[version]` segments. Generic transport guard only
@@ -29,8 +37,9 @@ export interface FactsQuery {
   readonly changeType: string | null;
   readonly entity: string | null;
   readonly page: number;
-  readonly limit: number;
-  readonly offset: number;
+  /** Entity groups per page (group-atomic pagination, not rows). */
+  readonly groupLimit: number;
+  readonly groupOffset: number;
 }
 
 function firstParam(value: string | string[] | undefined): string | null {
@@ -49,14 +58,14 @@ export function parseFactsQuery(searchParams: {
 }): FactsQuery {
   const rawPage = Number(firstParam(searchParams["page"]) ?? "");
   const page = Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1;
-  const limit = FACTS_PAGE_SIZE;
+  const groupLimit = GROUPED_FACTS_PAGE_SIZE;
   return {
     entityType: firstParam(searchParams["entity_type"]),
     changeType: firstParam(searchParams["change_type"]),
     entity: firstParam(searchParams["entity"]),
     page,
-    limit,
-    offset: (page - 1) * limit,
+    groupLimit,
+    groupOffset: (page - 1) * groupLimit,
   };
 }
 
@@ -86,6 +95,57 @@ export function factsRangeLabel(offset: number, shown: number, total: number): s
   const from = offset + 1;
   const to = offset + shown;
   return `${from.toLocaleString("en-US")}–${to.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`;
+}
+
+/**
+ * Human-readable grouped-page label, e.g. "1–15 of 132 entities · 1,726
+ * changes". Group totals and the filtered change total come from the
+ * grouped reader — never invented.
+ */
+export function groupsRangeLabel(
+  groupOffset: number,
+  groupsShown: number,
+  groupTotal: number,
+  changeTotal: number
+): string {
+  const entities = groupTotal === 1 ? "entity" : "entities";
+  const changes = changeTotal === 1 ? "change" : "changes";
+  if (groupTotal === 0) return `0 entities · ${changeTotal.toLocaleString("en-US")} ${changes}`;
+  const from = groupOffset + 1;
+  const to = groupOffset + groupsShown;
+  return `${from.toLocaleString("en-US")}–${to.toLocaleString("en-US")} of ${groupTotal.toLocaleString("en-US")} ${entities} · ${changeTotal.toLocaleString("en-US")} ${changes}`;
+}
+
+const COUNT_NOUNS: ReadonlyArray<{ key: keyof PublishedChangeCounts; one: string; many: string }> = [
+  { key: "buff", one: "Buff", many: "Buffs" },
+  { key: "nerf", one: "Nerf", many: "Nerfs" },
+  { key: "adjustment", one: "Adjustment", many: "Adjustments" },
+  { key: "rework", one: "Rework", many: "Reworks" },
+  { key: "new", one: "New", many: "New" },
+  { key: "bugfix", one: "Bug fix", many: "Bug fixes" },
+  { key: "neutral", one: "Neutral", many: "Neutral" },
+];
+
+/**
+ * "6 changes" / "1 change" for an entity-group header. Counts fold stored
+ * classifications only.
+ */
+export function formatGroupTotal(total: number): string {
+  return `${total.toLocaleString("en-US")} ${total === 1 ? "change" : "changes"}`;
+}
+
+/**
+ * "2 Buffs · 1 Nerf · 3 Adjustments" for an entity-group header. Zero-count
+ * types are omitted; nonzero types keep a fixed declared order. Labels say
+ * "Adjustments" — never "Neutral changes" or "Balanced changes".
+ */
+export function formatGroupCounts(counts: PublishedChangeCounts): string {
+  const parts: string[] = [];
+  for (const noun of COUNT_NOUNS) {
+    const n = counts[noun.key];
+    if (n > 0) parts.push(`${n.toLocaleString("en-US")} ${n === 1 ? noun.one : noun.many}`);
+  }
+  return parts.join(" · ");
 }
 
 /** Single presentation map for change-type enum → label. No second classification. */
@@ -201,5 +261,20 @@ export const CHANGE_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }
   { value: "rework", label: "Rework" },
   { value: "new", label: "New" },
   { value: "bugfix", label: "Bug fix" },
+  { value: "neutral", label: "Neutral" },
+];
+
+/**
+ * Human-facing Change-type filter labels over the same stored values
+ * (RCCF-META-PARSER-UX-07). Badges keep singular labels; the filter uses
+ * plurals. `neutral` is retained exactly as the stored classification.
+ */
+export const CHANGE_TYPE_FILTER_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "buff", label: "Buffs" },
+  { value: "nerf", label: "Nerfs" },
+  { value: "adjustment", label: "Adjustments" },
+  { value: "rework", label: "Reworks" },
+  { value: "new", label: "New" },
+  { value: "bugfix", label: "Bug fixes" },
   { value: "neutral", label: "Neutral" },
 ];

@@ -14,15 +14,27 @@ import {
  * what changed (attribute/category context), useful context (description),
  * exact fact (old → new transition). Factual content is rendered verbatim —
  * only the hierarchy and labels are presentation.
+ *
+ * Grouped rendering (RCCF-META-PARSER-UX-07) passes `sectionLabel` (e.g.
+ * "Gameplay") and `hideEntityName`: the section already conveys the entity
+ * kind, so the technical kind half is dropped — and when the category merely
+ * restates the entity kind (system/system), the human section label stands
+ * in. `System · System` can therefore never render inside a section.
  */
-export function ChangeCard({ change }: { change: PublishedChange }) {
-  const secondaryKind = [categoryLabel(change.category), entityTypeLabel(change.entityType)]
-    .filter((part) => part !== "")
-    .join(" · ");
+export function ChangeCard({
+  change,
+  sectionLabel = null,
+  hideEntityName = false,
+}: {
+  change: PublishedChange;
+  sectionLabel?: string | null;
+  hideEntityName?: boolean;
+}) {
+  const secondaryKind = sectionContextKind(change, sectionLabel);
   return (
     <article className="rounded-[16px] border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-medium">{change.entityName}</h3>
+        {hideEntityName ? null : <h3 className="font-medium">{change.entityName}</h3>}
         <Badge variant={changeTypeBadgeVariant(change.changeType)}>
           {changeTypeLabel(change.changeType)}
         </Badge>
@@ -41,6 +53,27 @@ export function ChangeCard({ change }: { change: PublishedChange }) {
       <ChangeTransition change={change} />
     </article>
   );
+}
+
+/**
+ * Context line for a change. Without a section, the legacy technical pairing
+ * (category · entity kind) renders. Inside a section, the entity-kind half is
+ * redundant (the section heading states it); when the category label merely
+ * duplicates the entity-kind label, the human section label stands in so a
+ * bare technical bucket name never faces the user. Generic string logic —
+ * no game branches.
+ */
+export function sectionContextKind(
+  change: Pick<PublishedChange, "category" | "entityType">,
+  sectionLabel: string | null | undefined
+): string {
+  const category = categoryLabel(change.category);
+  const kind = entityTypeLabel(change.entityType);
+  if (sectionLabel === null || sectionLabel === undefined || sectionLabel === "") {
+    return [category, kind].filter((part) => part !== "").join(" · ");
+  }
+  if (category !== "" && category.toLowerCase() === kind.toLowerCase()) return sectionLabel;
+  return category;
 }
 
 function ChangeTransition({ change }: { change: PublishedChange }) {

@@ -29,6 +29,15 @@ export const META_PARSER_STAGING_STATUS = "ingested" as const;
 export const META_PARSER_READ_DEFAULT_LIMIT = 50;
 export const META_PARSER_READ_MAX_LIMIT = 100;
 
+/**
+ * Entity groups per grouped-facts page (RCCF-META-PARSER-UX-07). A page
+ * represents N entity groups — never N change rows — so groups stay atomic
+ * and per-group counts remain patch-global and truthful.
+ */
+export const META_PARSER_GROUPED_GROUPS_PER_PAGE = 15;
+/** Upper bound for grouped pagination (groups, not rows). */
+export const META_PARSER_GROUPED_MAX_GROUPS = 50;
+
 const GAME_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
@@ -158,6 +167,66 @@ export interface ListChangesResult {
   readonly limit: number;
   readonly offset: number;
   /** True when another page exists. Computed without an exact count. */
+  readonly hasMore: boolean;
+}
+
+/**
+ * Stored-classification counts for one entity group. Pure folds over the
+ * stored `change_type` values — never re-derived from polarity, text, or
+ * confidence. `adjustment` is a heterogeneous bucket (genuine tweaks,
+ * unknown polarity, contradictory signals); the UI reports it as
+ * "Adjustments" and nothing more specific.
+ */
+export interface PublishedChangeCounts {
+  readonly total: number;
+  readonly buff: number;
+  readonly nerf: number;
+  readonly adjustment: number;
+  readonly rework: number;
+  readonly new: number;
+  readonly bugfix: number;
+  readonly neutral: number;
+}
+
+/**
+ * One entity group: every published change sharing the canonical
+ * `(entity_type, entity_normalized)` key, in `stable_key` order.
+ * Display name comes from the first row (deterministic); `category` and
+ * `entityKey` never split groups.
+ */
+export interface PublishedEntityGroup {
+  readonly entityType: string;
+  readonly entityName: string;
+  readonly entityNormalized: string;
+  readonly changes: readonly PublishedChange[];
+  readonly counts: PublishedChangeCounts;
+}
+
+export interface ListGroupedChangesPagination {
+  readonly groupLimit?: number;
+  readonly groupOffset?: number;
+}
+
+export interface ListGroupedChangesResult {
+  /** False when the patch is missing, staging, or provisional: no rows leak. */
+  readonly published: boolean;
+  /** The requested page slice of whole entity groups (never split). */
+  readonly groups: readonly PublishedEntityGroup[];
+  readonly groupLimit: number;
+  readonly groupOffset: number;
+  /** Total entity groups in the filtered set (for pagination). */
+  readonly groupTotal: number;
+  /** Total changes in the filtered set (for status labels). */
+  readonly changeTotal: number;
+  /**
+   * Patch-global per-entity-type totals over the filtered set, so section
+   * headers stay truthful across group pages. Generic stored values only —
+   * section mapping stays in the presentation taxonomy.
+   */
+  readonly entityTypeTotals: Readonly<
+    Record<string, { readonly groups: number; readonly changes: number }>
+  >;
+  /** True when another group page exists. */
   readonly hasMore: boolean;
 }
 
@@ -478,5 +547,161 @@ export async function listChanges(
     limit,
     offset,
     hasMore,
+  };
+}
+
+function emptyChangeCounts(): Record<keyof PublishedChangeCounts, number> {
+  return {
+    total: 0,
+    buff: 0,
+    nerf: 0,
+    adjustment: 0,
+    rework: 0,
+    new: 0,
+    bugfix: 0,
+    neutral: 0,
+  };
+}
+
+/**
+ * Pure entity-group fold (RCCF-META-PARSER-UX-07). Groups by the canonical
+ * `(entity_type, entity_normalized)` key in input order — callers pass
+ * `stable_key`-ordered rows so groups emerge in first-stable_key order with
+ * rows ordered within. Display names, categories, and entity keys never
+ * affect grouping. Counts fold stored `change_type` values only.
+ */
+export function groupPublishedChanges(
+  changes: readonly PublishedChange[]
+): PublishedEntityGroup[] {
+  interface MutableGroup {
+    entityType: string;
+    entityName: string;
+    entityNormalized: string;
+    changes: PublishedChange[];
+    counts: Record<keyof PublishedChangeCounts, number>;
+  }
+  const groups: MutableGroup[] = [];
+  const indexByKey = new Map<string, number>();
+  for (const change of changes) {
+    const key = `${change.entityType}|\u0000|${change.entityNormalized}`;
+    let index = indexByKey.get(key);
+    if (index === undefined) {
+      index = groups.length;
+      indexByKey.set(key, index);
+      groups.push({
+        entityType: change.entityType,
+        entityName: change.entityName,
+        entityNormalized: change.entityNormalized,
+        changes: [],
+        counts: emptyChangeCounts(),
+      });
+    }
+    const group = groups[index] as MutableGroup;
+    group.changes.push(change);
+    group.counts.total += 1;
+    if (
+      change.changeType === "buff" ||
+      change.changeType === "nerf" ||
+      change.changeType === "adjustment" ||
+      change.changeType === "rework" ||
+      change.changeType === "new" ||
+      change.changeType === "bugfix" ||
+      change.changeType === "neutral"
+    ) {
+      group.counts[change.changeType] += 1;
+    }
+  }
+  return groups.map((group) => ({
+    entityType: group.entityType,
+    entityName: group.entityName,
+    entityNormalized: group.entityNormalized,
+    changes: [...group.changes],
+    counts: { ...group.counts },
+  }));
+}
+
+function clampGroupedPagination(pagination: ListGroupedChangesPagination): {
+  groupLimit: number;
+  groupOffset: number;
+} {
+  const rawLimit = pagination.groupLimit ?? META_PARSER_GROUPED_GROUPS_PER_PAGE;
+  const groupLimit = !Number.isInteger(rawLimit)
+    ? META_PARSER_GROUPED_GROUPS_PER_PAGE
+    : Math.min(Math.max(rawLimit, 1), META_PARSER_GROUPED_MAX_GROUPS);
+  const rawOffset = pagination.groupOffset ?? 0;
+  const groupOffset = !Number.isInteger(rawOffset) || rawOffset < 0 ? 0 : rawOffset;
+  return { groupLimit, groupOffset };
+}
+
+/** Rows per bounded fetch chunk (PostgREST caps single responses). */
+const GROUPED_FETCH_CHUNK = 1000;
+
+/**
+ * Grouped entity changes for a patch (RCCF-META-PARSER-UX-07).
+ *
+ * FILTER → FETCH FILTERED PUBLISHED ROWS → GROUP → SLICE GROUPS. The fetch
+ * is bounded server-side (chunked `stable_key`-ordered range reads over the
+ * filtered set — one query pattern, never per-entity N+1); only the
+ * requested page of whole groups leaves the server, so the browser never
+ * receives the full patch dataset and no entity ever spans two pages.
+ *
+ * Same publication gate and filter semantics as `listChanges`.
+ */
+export async function listGroupedChanges(
+  supabase: SupabaseClient,
+  patchId: string,
+  filters: ListChangesFilters = {},
+  pagination: ListGroupedChangesPagination = {}
+): Promise<ListGroupedChangesResult> {
+  assertPatchId(patchId);
+  const { entityType, changeType, entityNormalized } = assertFilters(filters);
+  const { groupLimit, groupOffset } = clampGroupedPagination(pagination);
+
+  if (!(await isPatchPublished(supabase, patchId))) {
+    return {
+      published: false,
+      groups: [],
+      groupLimit,
+      groupOffset,
+      groupTotal: 0,
+      changeTotal: 0,
+      entityTypeTotals: {},
+      hasMore: false,
+    };
+  }
+
+  const changes: PublishedChange[] = [];
+  for (;;) {
+    let query = supabase.from("meta_parser_changes").select(CHANGE_COLUMNS).eq("patch_id", patchId);
+    if (entityType !== null) query = query.eq("entity_type", entityType);
+    if (changeType !== null) query = query.eq("change_type", changeType);
+    if (entityNormalized !== null) query = query.eq("entity_normalized", entityNormalized);
+    const { data, error } = await query
+      .order("stable_key", { ascending: true })
+      .range(changes.length, changes.length + GROUPED_FETCH_CHUNK - 1);
+    if (error) throw new Error(`Failed to list grouped changes: ${error.message}`);
+    const rows = (data ?? []) as Array<Parameters<typeof toPublishedChange>[0]>;
+    for (const row of rows) changes.push(toPublishedChange(row));
+    if (rows.length < GROUPED_FETCH_CHUNK) break;
+  }
+
+  const allGroups = groupPublishedChanges(changes);
+  const page = allGroups.slice(groupOffset, groupOffset + groupLimit);
+  const entityTypeTotals: Record<string, { groups: number; changes: number }> = {};
+  for (const group of allGroups) {
+    const entry = entityTypeTotals[group.entityType] ?? { groups: 0, changes: 0 };
+    entry.groups += 1;
+    entry.changes += group.counts.total;
+    entityTypeTotals[group.entityType] = entry;
+  }
+  return {
+    published: true,
+    groups: page,
+    groupLimit,
+    groupOffset,
+    groupTotal: allGroups.length,
+    changeTotal: changes.length,
+    entityTypeTotals,
+    hasMore: groupOffset + page.length < allGroups.length,
   };
 }

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  CHANGE_TYPE_FILTER_OPTIONS,
   CHANGE_TYPE_OPTIONS,
   ENTITY_TYPE_LABELS,
+  GROUPED_FACTS_PAGE_SIZE,
   categoryLabel,
   changeTypeBadgeVariant,
   changeTypeLabel,
@@ -9,20 +11,28 @@ import {
   entityTypeLabel,
   factsHref,
   factsRangeLabel,
+  formatGroupCounts,
+  formatGroupTotal,
+  groupsRangeLabel,
   humanizeAttribute,
   isVersionParam,
   parseFactsQuery,
 } from "./facts";
+import { META_PARSER_GROUPED_GROUPS_PER_PAGE } from "@/features/meta-parser/repositories/reads";
 
 describe("facts query parsing", () => {
-  it("defaults to page 1 with the reader page size and zero offset", async () => {
+  it("defaults to group page 1 with the grouped page size and zero group offset", async () => {
     const { META_PARSER_READ_DEFAULT_LIMIT } = await import(
       "@/features/meta-parser/repositories/reads"
     );
+    // Row pagination is retired from the grouped UI; the reader default
+    // stays available for other consumers.
+    expect(META_PARSER_READ_DEFAULT_LIMIT).toBe(50);
     const query = parseFactsQuery({});
     expect(query.page).toBe(1);
-    expect(query.limit).toBe(META_PARSER_READ_DEFAULT_LIMIT);
-    expect(query.offset).toBe(0);
+    expect(query.groupLimit).toBe(META_PARSER_GROUPED_GROUPS_PER_PAGE);
+    expect(query.groupLimit).toBe(GROUPED_FACTS_PAGE_SIZE);
+    expect(query.groupOffset).toBe(0);
     expect(query.entityType).toBeNull();
     expect(query.changeType).toBeNull();
     expect(query.entity).toBeNull();
@@ -36,7 +46,7 @@ describe("facts query parsing", () => {
       entity: " Clockwerk ",
     });
     expect(query.page).toBe(3);
-    expect(query.offset).toBe(query.limit * 2);
+    expect(query.groupOffset).toBe(query.groupLimit * 2);
     expect(query.entityType).toBe("hero");
     expect(query.changeType).toBe("buff");
     // Trimmed here; repository normalizes case/format server-side.
@@ -175,5 +185,85 @@ describe("plain-language presentation (RCCF-META-PARSER-UX-03)", () => {
         page: 2,
       })
     ).toBe("/meta-parser/dota-2/7.41?entity_type=hero&change_type=nerf&entity=clockwerk&page=2");
+  });
+});
+
+describe("grouped presentation (RCCF-META-PARSER-UX-07)", () => {
+  it("pins 15 entity groups per page", () => {
+    expect(GROUPED_FACTS_PAGE_SIZE).toBe(15);
+  });
+
+  it("keeps filter values closed over stored classifications with human labels", () => {
+    expect(CHANGE_TYPE_FILTER_OPTIONS.map((o) => o.value)).toEqual([
+      "buff",
+      "nerf",
+      "adjustment",
+      "rework",
+      "new",
+      "bugfix",
+      "neutral",
+    ]);
+    expect(CHANGE_TYPE_FILTER_OPTIONS.map((o) => o.label)).toEqual([
+      "Buffs",
+      "Nerfs",
+      "Adjustments",
+      "Reworks",
+      "New",
+      "Bug fixes",
+      "Neutral",
+    ]);
+  });
+
+  it("formats group totals with singular/plural handling", () => {
+    expect(formatGroupTotal(6)).toBe("6 changes");
+    expect(formatGroupTotal(1)).toBe("1 change");
+    expect(formatGroupTotal(1726)).toBe("1,726 changes");
+  });
+
+  it("formats count breakdowns from stored classifications only, omitting zeros", () => {
+    expect(
+      formatGroupCounts({
+        total: 6,
+        buff: 2,
+        nerf: 1,
+        adjustment: 3,
+        rework: 0,
+        new: 0,
+        bugfix: 0,
+        neutral: 0,
+      })
+    ).toBe("2 Buffs · 1 Nerf · 3 Adjustments");
+    expect(
+      formatGroupCounts({
+        total: 1,
+        buff: 0,
+        nerf: 0,
+        adjustment: 0,
+        rework: 1,
+        new: 0,
+        bugfix: 0,
+        neutral: 0,
+      })
+    ).toBe("1 Rework");
+    // Never editorializes adjustment as neutral/balanced.
+    const text = formatGroupCounts({
+      total: 2,
+      buff: 0,
+      nerf: 0,
+      adjustment: 2,
+      rework: 0,
+      new: 0,
+      bugfix: 0,
+      neutral: 0,
+    });
+    expect(text).toBe("2 Adjustments");
+    expect(text).not.toContain("Neutral changes");
+    expect(text).not.toContain("Balanced");
+  });
+
+  it("formats grouped range labels without inventing totals", () => {
+    expect(groupsRangeLabel(0, 15, 132, 1726)).toBe("1–15 of 132 entities · 1,726 changes");
+    expect(groupsRangeLabel(0, 1, 1, 1)).toBe("1–1 of 1 entity · 1 change");
+    expect(groupsRangeLabel(0, 0, 0, 0)).toBe("0 entities · 0 changes");
   });
 });
