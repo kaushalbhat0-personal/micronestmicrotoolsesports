@@ -55,6 +55,13 @@ describe("share encode/decode", () => {
     expect(decodeShareState(four).error).toBe("scenarios");
   });
 
+  it("falls back to the known preset for unknown preset ids (never trusts them)", () => {
+    const raw = Buffer.from(JSON.stringify({ ...baseState(), preset: "totally-made-up" }), "utf-8").toString("base64url");
+    const dec = decodeShareState(raw);
+    expect(dec.ok).toBe(true);
+    expect(dec.state?.preset).toBe("krafton-2026");
+  });
+
   it("caps scenarios at 3 on encode", () => {
     const s = {
       ...baseState(),
