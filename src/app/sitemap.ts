@@ -15,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "",
     "/tools",
     ...MARKETING_TOOLS.map((t) => `/tools/${t.slug}`),
+    "/bgmi-qualification",
     ...(await listPublishedMetaParserPaths()),
     "/pricing",
     "/guides",
