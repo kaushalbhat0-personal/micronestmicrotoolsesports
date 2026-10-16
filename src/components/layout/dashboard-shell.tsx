@@ -106,9 +106,15 @@ interface DashboardShellProps {
   workspaceToolsBySlug?: Record<string, { entitled: WorkspaceTool[]; available: WorkspaceTool[] }>;
   /** Verified Primary Workspace org id for the current user (preference only, never authorization). */
   primaryOrgId?: string | null;
+  /**
+   * Platform-admin discovery flag — presentation only, never authorization.
+   * Set server-side by the dashboard layout; controls visibility of the
+   * "Platform Console" navigation entry. /admin stays server-gated.
+   */
+  isPlatformAdmin?: boolean;
 }
 
-export function DashboardShell({ children, organizations = [], workspaceToolsBySlug, primaryOrgId }: DashboardShellProps) {
+export function DashboardShell({ children, organizations = [], workspaceToolsBySlug, primaryOrgId, isPlatformAdmin = false }: DashboardShellProps) {
   const params = useParams() as { orgSlug?: string } | null;
   const pathname = usePathname();
   const orgSlug = params?.orgSlug;
@@ -300,6 +306,16 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
           </div>
           <div className="flex-1 overflow-y-auto px-3 pb-4">{navContent}</div>
           <div className="border-t border-border p-3 space-y-1">
+            {isPlatformAdmin ? (
+              <Link
+                href={"/admin" as Route}
+                aria-label="Open Platform Console"
+                className="flex items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate">Platform Console</span>
+              </Link>
+            ) : null}
             <Link
               href={"/" as Route}
               aria-label="Go to MicroNest homepage"
@@ -347,6 +363,17 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
                   {navContent}
                 </div>
                 <div className="border-t border-border pt-4 mt-4 space-y-1">
+                  {isPlatformAdmin ? (
+                    <Link
+                      href={"/admin" as Route}
+                      aria-label="Open Platform Console"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <ShieldCheck className="h-4 w-4 shrink-0" />
+                      <span className="flex-1 truncate">Platform Console</span>
+                    </Link>
+                  ) : null}
                   <Link
                     href={"/" as Route}
                     aria-label="Go to MicroNest homepage"

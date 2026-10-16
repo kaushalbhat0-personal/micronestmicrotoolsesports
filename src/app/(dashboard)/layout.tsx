@@ -8,6 +8,7 @@ import { getAccessibleToolSlugs } from "@/lib/auth/require-entitlement";
 import { toWorkspaceTools } from "@/server/services/workspace-tools";
 import { createClient } from "@/lib/supabase/server";
 import { getPrimaryOrganizationForUser } from "@/server/services/primary-workspace-service";
+import { isSuperAdmin } from "@/lib/auth/require-super-admin";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -58,8 +59,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
     primaryOrgId = null;
   }
 
+  // Platform-admin discovery flag — presentation only, never authorization.
+  // Computed server-side via is_super_admin() RPC; /admin still enforces
+  // requireSuperAdmin() on layout, page, and service layers.
+  const isPlatformAdmin = await isSuperAdmin();
+
   return (
-    <DashboardShell organizations={organizations} workspaceToolsBySlug={serialized} primaryOrgId={primaryOrgId}>
+    <DashboardShell organizations={organizations} workspaceToolsBySlug={serialized} primaryOrgId={primaryOrgId} isPlatformAdmin={isPlatformAdmin}>
       {children}
     </DashboardShell>
   );
