@@ -47,7 +47,7 @@ export function MatchRowActions({ orgSlug, matchId, status }: { orgSlug: string;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="outline" size="sm" className="min-h-[44px]" disabled={pending} onClick={duplicate} aria-label="Duplicate and run again">
+      <Button variant="outline" size="sm" className="min-h-[44px]" disabled={pending} loading={pending} onClick={duplicate} aria-label="Duplicate and run again">
         Run again
       </Button>
       <Button variant="ghost" size="sm" className="min-h-[44px]" disabled={pending} onClick={() => setConfirmDelete(true)} aria-label="Delete draft record">
@@ -68,7 +68,7 @@ export function MatchRowActions({ orgSlug, matchId, status }: { orgSlug: string;
             <Button variant="outline" onClick={() => setConfirmDelete(false)} className="min-h-[44px]">
               Keep
             </Button>
-            <Button variant="destructive" onClick={remove} className="min-h-[44px]" aria-label="Confirm delete">
+            <Button variant="destructive" onClick={remove} loading={pending} className="min-h-[44px]" aria-label="Confirm delete">
               Delete
             </Button>
           </div>

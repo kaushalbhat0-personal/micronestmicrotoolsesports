@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/styles/globals.css";
+import { NavigationProgress } from "@/components/ui/navigation-progress";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         {children}
+        <NavigationProgress />
         <Analytics />
         <SpeedInsights />
       </body>

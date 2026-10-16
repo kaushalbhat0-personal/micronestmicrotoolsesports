@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   CHANGE_TYPE_OPTIONS,
   ENTITY_TYPE_LABELS,
+  categoryLabel,
   changeTypeBadgeVariant,
   changeTypeLabel,
+  entitySearchPlaceholder,
   entityTypeLabel,
   factsHref,
   factsRangeLabel,
+  humanizeAttribute,
   isVersionParam,
   parseFactsQuery,
 } from "./facts";
@@ -119,5 +122,58 @@ describe("version param guard", () => {
     for (const v of ["", "seven", "../etc", "7,41", "7 41", "a/b", ".", "-"]) {
       expect(isVersionParam(v), v).toBe(false);
     }
+  });
+});
+
+describe("plain-language presentation (RCCF-META-PARSER-UX-03)", () => {
+  it("humanizes categories without changing stored values", () => {
+    expect(categoryLabel("ability")).toBe("Ability");
+    expect(categoryLabel("talents")).toBe("Talents");
+    expect(categoryLabel("system")).toBe("System");
+    expect(categoryLabel("mystery-bucket")).toBe("Mystery Bucket");
+  });
+
+  it("humanizes machine-normalized attributes for display only (F1)", () => {
+    expect(humanizeAttribute("unseeing_shield_base_barrier_magic_block")).toBe(
+      "Unseeing Shield Base Barrier Magic Block"
+    );
+    expect(humanizeAttribute("respawn_time")).toBe("Respawn Time");
+    // Already-readable values pass through with title casing.
+    expect(humanizeAttribute("damage")).toBe("Damage");
+    expect(humanizeAttribute("Cooldown")).toBe("Cooldown");
+    // Numeric and punctuated content stays intact.
+    expect(humanizeAttribute("50")).toBe("50");
+    expect(humanizeAttribute("attack-speed")).toBe("Attack Speed");
+    expect(humanizeAttribute("")).toBe("");
+  });
+
+  it("builds game-aware search placeholders from known categories", () => {
+    expect(entitySearchPlaceholder(["hero", "item", "system"])).toBe("Search heroes…");
+    expect(entitySearchPlaceholder(["champion", "item", "system"])).toBe("Search champions…");
+    expect(entitySearchPlaceholder(["agent", "weapon", "map", "system"])).toBe("Search agents…");
+    expect(entitySearchPlaceholder(["weapon", "system"])).toBe("Search weapons…");
+    expect(entitySearchPlaceholder([])).toBe("Search names…");
+    expect(entitySearchPlaceholder(["unknown-thing"])).toBe("Search names…");
+  });
+
+  it("keeps URL query keys stable (entity_type, change_type, entity, page)", () => {
+    const query = parseFactsQuery({
+      entity_type: "hero",
+      change_type: "buff",
+      entity: "clockwerk",
+      page: "2",
+    });
+    expect(query.entityType).toBe("hero");
+    expect(query.changeType).toBe("buff");
+    expect(query.entity).toBe("clockwerk");
+    expect(query.page).toBe(2);
+    expect(
+      factsHref("/meta-parser/dota-2/7.41", {
+        entityType: "hero",
+        changeType: "nerf",
+        entity: "clockwerk",
+        page: 2,
+      })
+    ).toBe("/meta-parser/dota-2/7.41?entity_type=hero&change_type=nerf&entity=clockwerk&page=2");
   });
 });

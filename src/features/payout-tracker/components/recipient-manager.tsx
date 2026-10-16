@@ -193,6 +193,7 @@ export function RecipientManager({
                           variant={r.status === "paid" ? "outline" : "default"}
                           size="sm"
                           disabled={busyId === r.id}
+                          loading={busyId === r.id}
                           onClick={() => onToggle(r)}
                           className="min-h-[44px]"
                         >
@@ -213,6 +214,7 @@ export function RecipientManager({
                         variant="ghost"
                         size="sm"
                         disabled={busyId === r.id}
+                        loading={busyId === r.id}
                         onClick={() => onRemove(r)}
                         aria-label={`Remove ${r.recipient_name}`}
                         className="min-h-[44px]"
@@ -258,7 +260,7 @@ export function RecipientManager({
                           />
                         </div>
                         <div>
-                          <Button type="button" size="sm" disabled={busyId === r.id} onClick={() => onSaveEdit(r)} className="min-h-[44px]">
+                          <Button type="button" size="sm" disabled={busyId === r.id} loading={busyId === r.id} onClick={() => onSaveEdit(r)} className="min-h-[44px]">
                             Save changes
                           </Button>
                         </div>
@@ -297,7 +299,7 @@ export function RecipientManager({
               <Input id="new-recipient-proof" value={newProof} onChange={(e) => setNewProof(e.target.value)} maxLength={500} placeholder="https://…" inputMode="url" autoComplete="off" />
             </div>
             <div className="sm:col-span-2">
-              <Button type="submit" variant="outline" size="sm" disabled={busyId === "new"} className="min-h-[44px]">
+              <Button type="submit" variant="outline" size="sm" disabled={busyId === "new"} loading={busyId === "new"} className="min-h-[44px]">
                 Add recipient
               </Button>
             </div>

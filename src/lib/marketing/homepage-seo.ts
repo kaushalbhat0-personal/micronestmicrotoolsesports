@@ -37,7 +37,7 @@ export interface HomepageToolboxItem {
  * versions, change counts) stays catalog-driven on `/meta-parser` and must
  * never be hardcoded here.
  */
-const META_PARSER_ITEM = {
+export const META_PARSER_ITEM = {
   name: "Meta-Parser — Patch Notes Intelligence",
   url: "/meta-parser",
   kind: "patch-intelligence",

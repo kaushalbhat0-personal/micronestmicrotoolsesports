@@ -11,6 +11,21 @@ import { FREE_TIERS } from "@/config/marketing/free-tiers";
 
 type BillingPeriod = "monthly" | "yearly";
 
+/**
+ * All Access coverage copy (RCCF-TOOLBOX-IA-02). No prices, slugs, or
+ * entitlement semantics here — presentation wording only. Must name every
+ * released paid tool and state the Roster Builder relationship so the copy
+ * never implies Payout Tracker or Roster Builder are excluded.
+ */
+export const ALL_ACCESS_COVERAGE_BULLET =
+  "Sponsorship Tracking + Prize Pool Splitter + Draft & Ban + Tie-Breaker Resolver + Prize Payout Tracker";
+
+export const ALL_ACCESS_ROSTER_NOTE =
+  "Tournament Roster & Slot Builder is free for everyone — no plan needed, not part of any paid bundle";
+
+export const ALL_ACCESS_SCOPE_NOTE =
+  "Includes all currently available paid esports tools. All Access covers only the tools available at the time of purchase — future tools are not automatically included.";
+
 function formatINR(amountMinor: number): string {
   const amount = amountMinor / 100;
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
@@ -161,7 +176,7 @@ export function PricingClient({ plans }: PricingClientProps) {
                 </div>
                 <CardTitle className="mt-3 text-base">{meta.name}</CardTitle>
                 <CardDescription className="leading-relaxed">{meta.positioning}</CardDescription>
-                {isAllAccess && <p className="mt-2 text-xs text-muted-foreground">Includes all currently available paid esports tools. All Access covers only the tools available at the time of purchase — future tools are not automatically included.</p>}
+                {isAllAccess && <p className="mt-2 text-xs text-muted-foreground">{ALL_ACCESS_SCOPE_NOTE}</p>}
               </CardHeader>
               <CardContent className="flex flex-1 flex-col">
                 {plan ? (
@@ -206,11 +221,19 @@ export function PricingClient({ plans }: PricingClientProps) {
                           <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Shareable official results</li>
                         </ul>
                       )}
+                      {key === "prize-payout-tracker" && (
+                        <ul className="space-y-1.5">
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Public payout list with paid / pending status</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Deadline and progress the public can see</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Workspace-scoped access</li>
+                        </ul>
+                      )}
                       {key === "all-access" && (
                         <ul className="space-y-1.5">
-                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Sponsorship Tracking + Prize Pool Splitter + Draft & Ban + Tie-Breaker Resolver</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> {ALL_ACCESS_COVERAGE_BULLET}</li>
                           <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Single plan, single workspace access</li>
                           <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> Manual renewal · No AutoPay</li>
+                          <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> {ALL_ACCESS_ROSTER_NOTE}</li>
                         </ul>
                       )}
                     </div>

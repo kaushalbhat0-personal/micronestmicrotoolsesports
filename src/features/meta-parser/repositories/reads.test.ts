@@ -7,6 +7,8 @@ import {
   getPatch,
   listChanges,
   listGames,
+  listPatchEntityNames,
+  listPatchEntityTypes,
   listPatches,
 } from "./reads";
 
@@ -429,6 +431,45 @@ describe("facts read repository changes", () => {
   it("validates patch id input", async () => {
     const { client } = makeClient();
     await expect(listChanges(client as never, "")).rejects.toThrow();
+  });
+
+  it("lists distinct published entity types for the Category filter", async () => {
+    const { client } = makeClient();
+    expect(await listPatchEntityTypes(client as never, "patch-741")).toEqual([
+      "hero",
+      "item",
+      "system",
+    ]);
+  });
+
+  it("hides filter values for staging, provisional, or missing patches", async () => {
+    const { client } = makeClient();
+    // patch-739 has changes but is staging (ingested) — invisible.
+    expect(await listPatchEntityTypes(client as never, "patch-739")).toEqual([]);
+    expect(await listPatchEntityNames(client as never, "patch-739")).toEqual([]);
+    // patch-738 is provisional-hash — invisible.
+    expect(await listPatchEntityTypes(client as never, "patch-738")).toEqual([]);
+    expect(await listPatchEntityNames(client as never, "patch-missing")).toEqual([]);
+  });
+
+  it("lists distinct published entity names for Search suggestions", async () => {
+    const { client } = makeClient();
+    expect(await listPatchEntityNames(client as never, "patch-741")).toEqual([
+      "alchemist",
+      "blink dagger",
+      "general",
+      "zeta",
+    ]);
+  });
+
+  it("caps entity-name suggestions and validates patch id input", async () => {
+    const { client } = makeClient();
+    expect(await listPatchEntityNames(client as never, "patch-741", 2)).toEqual([
+      "alchemist",
+      "blink dagger",
+    ]);
+    await expect(listPatchEntityTypes(client as never, "")).rejects.toThrow();
+    await expect(listPatchEntityNames(client as never, "")).rejects.toThrow();
   });
 });
 

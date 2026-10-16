@@ -82,6 +82,7 @@ export function GamePresetPicker({ orgSlug, canCreate }: { orgSlug: string; canC
                       size="sm"
                       className="min-h-[44px] shrink-0"
                       disabled={!canCreate || pendingId !== null}
+                      loading={pendingId === preset.id}
                       onClick={() => applyPreset(preset.id)}
                       aria-label={`Use ${preset.label} preset`}
                     >

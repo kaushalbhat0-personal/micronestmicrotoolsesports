@@ -82,13 +82,13 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
           <p className="break-words text-lg font-semibold">{turnAnnouncement}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" className="min-h-[44px]" disabled={!view.canUndo || pendingOp} onClick={() => runOp(() => undoDraftActionAction({ orgSlug, matchId: match.id, expectedActionCount: match.actions.length }))} aria-label="Undo last action">
+          <Button variant="outline" size="sm" className="min-h-[44px]" disabled={!view.canUndo || pendingOp} loading={pendingOp} onClick={() => runOp(() => undoDraftActionAction({ orgSlug, matchId: match.id, expectedActionCount: match.actions.length }))} aria-label="Undo last action">
             <Undo2 className="h-4 w-4" aria-hidden /> Undo
           </Button>
-          <Button variant="outline" size="sm" className="min-h-[44px]" disabled={match.actions.length === 0 || pendingOp} onClick={() => setConfirmReset(true)}>
+          <Button variant="outline" size="sm" className="min-h-[44px]" disabled={match.actions.length === 0 || pendingOp} loading={pendingOp} onClick={() => setConfirmReset(true)}>
             <RotateCcw className="h-4 w-4" aria-hidden /> Reset
           </Button>
-          <Button size="sm" className="min-h-[44px]" disabled={!view.isComplete || pendingOp} onClick={() => runOp(() => finalizeDraftMatchAction({ orgSlug, matchId: match.id }))}>
+          <Button size="sm" className="min-h-[44px]" disabled={!view.isComplete || pendingOp} loading={pendingOp} onClick={() => runOp(() => finalizeDraftMatchAction({ orgSlug, matchId: match.id }))}>
             <Check className="h-4 w-4" aria-hidden /> Finalize record
           </Button>
         </div>
@@ -121,6 +121,7 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
             <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Draft pool">
               {view.available.map((item) => {
                 const taken = item.status !== "available";
+                const itemPending = pendingItem === item.name;
                 return (
                   <li key={item.name}>
                     <button
@@ -141,10 +142,13 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
                         )
                       }
                       aria-disabled={taken}
-                      aria-label={taken ? `${item.name}, ${item.status} by team ${item.byTeam}` : `Select ${item.name} for ${turnName}`}
+                      aria-label={itemPending ? `Recording ${item.name}…` : taken ? `${item.name}, ${item.status} by team ${item.byTeam}` : `Select ${item.name} for ${turnName}`}
                       className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-[12px] border border-input bg-card px-3 py-2 text-sm font-medium transition-colors hover:border-border-strong disabled:cursor-default disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <span className="truncate">{item.name}</span>
+                      {itemPending && (
+                        <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                      )}
                       {item.status === "banned" && <Ban className="h-4 w-4 shrink-0 text-destructive" aria-hidden />}
                       {item.status === "picked" && <Check className="h-4 w-4 shrink-0 text-success" aria-hidden />}
                     </button>
@@ -194,7 +198,7 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
                     className="font-mono"
                   />
                 </div>
-                <Button type="submit" className="min-h-[44px] sm:self-end" disabled={!sideInput.trim() || pendingOp || pendingItem !== null}>
+                <Button type="submit" className="min-h-[44px] sm:self-end" disabled={!sideInput.trim() || pendingOp || pendingItem !== null} loading={pendingOp || pendingItem !== null}>
                   <Check className="h-4 w-4" aria-hidden /> Record side
                 </Button>
               </form>
@@ -266,6 +270,7 @@ export function DraftWorkspace({ orgSlug, match }: { orgSlug: string; match: Dra
             <Button
               variant="destructive"
               className="min-h-[44px]"
+              loading={pendingOp}
               onClick={async () => {
                 setConfirmReset(false);
                 await runOp(() => resetDraftActionsAction({ orgSlug, matchId: match.id }));

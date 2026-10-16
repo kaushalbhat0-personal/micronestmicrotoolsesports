@@ -103,8 +103,7 @@ export default async function GameFactsPage({ params }: { params: Promise<{ game
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   {formatDate(latest.header.sourcePublishedAt)} ·{" "}
-                  {latest.header.changeCount.toLocaleString("en-US")} changes · Revision{" "}
-                  {latest.header.revision}
+                  {latest.header.changeCount.toLocaleString("en-US")} changes
                 </p>
               </div>
               <Link

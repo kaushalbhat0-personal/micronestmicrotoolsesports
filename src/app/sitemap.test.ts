@@ -11,19 +11,25 @@ const RELEASED_TOOL_URLS = [
 ];
 const REMOVED_TOOL_URLS = ["/tools/scrim-matchmaker", "/tools/vod-clipper", "/tools/roster-sentinel"];
 
-describe("sitemap — RCCF-CLEANUP-02 (released tools only)", () => {
-  it("contains exactly the six released tool URLs", () => {
-    const urls = sitemap().map((e) => new URL(e.url, "http://localhost:3000").pathname);
+describe("sitemap — RCCF-CLEANUP-02 (released tools only) + RCCF-TOOLBOX-IA-02 (meta-parser)", () => {
+  it("contains exactly the six released tool URLs", async () => {
+    const urls = (await sitemap()).map((e) => new URL(e.url, "http://localhost:3000").pathname);
     for (const path of RELEASED_TOOL_URLS) expect(urls).toContain(path);
   });
 
-  it("contains none of the removed unbuilt tool URLs", () => {
-    const urls = sitemap().map((e) => new URL(e.url, "http://localhost:3000").pathname);
+  it("contains none of the removed unbuilt tool URLs", async () => {
+    const urls = (await sitemap()).map((e) => new URL(e.url, "http://localhost:3000").pathname);
     for (const path of REMOVED_TOOL_URLS) expect(urls).not.toContain(path);
   });
 
-  it("still exposes the collection, pricing, and legal surfaces", () => {
-    const urls = sitemap().map((e) => new URL(e.url, "http://localhost:3000").pathname);
+  it("still exposes the collection, pricing, and legal surfaces", async () => {
+    const urls = (await sitemap()).map((e) => new URL(e.url, "http://localhost:3000").pathname);
     for (const path of ["/", "/tools", "/pricing", "/contact"]) expect(urls).toContain(path);
+  });
+
+  it("exposes the Meta-Parser index without query-string URLs", async () => {
+    const urls = (await sitemap()).map((e) => new URL(e.url, "http://localhost:3000").pathname);
+    expect(urls).toContain("/meta-parser");
+    for (const url of urls) expect(url).not.toContain("?");
   });
 });

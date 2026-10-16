@@ -131,6 +131,48 @@ export function entityTypeLabel(entityType: string): string {
   return words.length > 0 ? words.join(" ") : entityType;
 }
 
+/**
+ * Humanize a change category for display (talents → Talents). Stored values
+ * are untouched — presentation only, same humanizer as entity types.
+ */
+export function categoryLabel(category: string): string {
+  return entityTypeLabel(category);
+}
+
+/**
+ * Humanize a machine-normalized attribute for display
+ * (respawn_time → Respawn Time). Formatting only — never semantic
+ * reinterpretation. Stored/database values, stable keys, filtering, and
+ * parser output are untouched; only the user-facing rendering changes.
+ */
+export function humanizeAttribute(attribute: string): string {
+  return entityTypeLabel(attribute);
+}
+
+const ENTITY_SEARCH_NOUNS: ReadonlyArray<{ type: string; plural: string }> = [
+  { type: "hero", plural: "heroes" },
+  { type: "champion", plural: "champions" },
+  { type: "agent", plural: "agents" },
+  { type: "operator", plural: "operators" },
+  { type: "legend", plural: "legends" },
+  { type: "character", plural: "characters" },
+  { type: "weapon", plural: "weapons" },
+  { type: "item", plural: "items" },
+  { type: "map", plural: "maps" },
+  { type: "ability", plural: "abilities" },
+];
+
+/**
+ * Game-aware Search placeholder from the patch's known categories, e.g.
+ * "Search heroes…". Falls back to "Search names…" when nothing matches.
+ * Pure presentation — no data access, no hardcoded universal list.
+ */
+export function entitySearchPlaceholder(entityTypes: readonly string[]): string {
+  const known = new Set(entityTypes);
+  const match = ENTITY_SEARCH_NOUNS.find((noun) => known.has(noun.type));
+  return match ? `Search ${match.plural}…` : "Search names…";
+}
+
 /** Badge styling per change type. The text label is always rendered alongside — never color-only. */
 export function changeTypeBadgeVariant(changeType: string): BadgeVariant {
   switch (changeType) {

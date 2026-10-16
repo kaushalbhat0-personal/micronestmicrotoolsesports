@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { Route } from "next";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -7,12 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import type { ToolAccent } from "@/config/marketing/tools";
 import { freeBadgeByMarketingSlug, freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
-import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, ArrowRight, ReceiptText } from "lucide-react";
+import { META_PARSER_ENTRY } from "@/lib/marketing/toolbox-presentation";
+import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, ArrowRight, ReceiptText, ClipboardList, Newspaper } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Esports Tools — MicroNest Collection",
   description:
-    "Explore MicroNest's subscription software for esports: Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, and Prize Payout Tracker, available now — every tool can be started free.",
+    "Explore MicroNest's focused esports toolbox: Sponsorship Tracking, Prize Pool Splitter, Draft & Ban, Tie-Breaker Resolver, Prize Payout Tracker, and Tournament Roster & Slot Builder — plus public Meta-Parser patch intelligence. Every workspace tool can be started free; patch facts are free to read.",
   alternates: { canonical: "/tools" },
   openGraph: {
     title: "Esports Tools — MicroNest",
@@ -36,6 +38,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Swords,
   Scale,
   ReceiptText,
+  ClipboardList,
+  Newspaper,
 };
 
 function accentClass(accent: ToolAccent): string {
@@ -82,7 +86,7 @@ export default function ToolsPage() {
                   key={tool.slug}
                   className={`group flex flex-col nest-reveal nest-reveal-delay-${Math.min(idx, 4)} ${
                     isAvailable
-                      ? "border-primary/15 transition-transform duration-[180ms] hover:scale-[1.01] hover:border-border-strong hover:shadow-sm"
+                      ? "border-primary/15 card-interactive"
                       : "bg-surface-muted/40"
                   }`}
                   style={{ animationDelay: `${idx * 60}ms` } as React.CSSProperties}
@@ -116,6 +120,40 @@ export default function ToolsPage() {
                 </Card>
               );
             })}
+            {(() => {
+              const MetaIcon = iconMap[META_PARSER_ENTRY.icon] ?? Newspaper;
+              return (
+                <Card
+                  key={META_PARSER_ENTRY.slug}
+                  className="group flex flex-col border-success/20 bg-success-soft/40 card-interactive"
+                >
+                  <CardHeader className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-surface-muted border border-border transition-transform duration-[180ms] group-hover:translate-y-[-1px]">
+                        <MetaIcon className="h-5 w-5 text-muted-foreground" />
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <Badge variant="info">Public</Badge>
+                        <Badge variant="outline">Free to read</Badge>
+                      </span>
+                    </div>
+                    <CardTitle className="text-base mt-3">{META_PARSER_ENTRY.name}</CardTitle>
+                    <CardDescription>{META_PARSER_ENTRY.description}</CardDescription>
+                    <p className="mt-2 text-sm"><span className="text-muted-foreground">{META_PARSER_ENTRY.accessNote}</span></p>
+                    <p className="font-mono text-[11px] tracking-wide text-muted-foreground mt-2">Public patch intelligence</p>
+                  </CardHeader>
+                  <CardContent>
+                    <Link
+                      href={META_PARSER_ENTRY.url as Route}
+                      aria-label={META_PARSER_ENTRY.ctaAriaLabel}
+                      className="inline-flex h-9 items-center rounded-full border border-border bg-card px-4 text-sm font-medium hover:bg-muted min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]"
+                    >
+                      {META_PARSER_ENTRY.ctaLabel} <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </div>
 
           <div className="mt-10 flex flex-wrap items-center gap-3">

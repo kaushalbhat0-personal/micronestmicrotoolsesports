@@ -15,9 +15,12 @@ import { ShapeCrop } from "@/components/marketing/shape-crop";
 import { ProductFragment } from "@/components/marketing/product-fragment";
 import { createClient } from "@/lib/supabase/server";
 import { listActivePlans } from "@/server/repositories/plans";
-import { buildOffers, TOOL_PLAN_PREFIX } from "@/lib/marketing/tool-offers";
+import { buildOffers, TOOL_PLAN_PREFIX, PLANLESS_FREE_TOOLS, buildFreeToolOffers } from "@/lib/marketing/tool-offers";
 
-async function getOffersForTool(slug: string): Promise<ReturnType<typeof buildOffers>> {
+async function getOffersForTool(slug: string): Promise<ReturnType<typeof buildOffers> | ReturnType<typeof buildFreeToolOffers>> {
+  // Released free tools with no paid plan (e.g. Roster Builder) are
+  // available now — never PreOrder / coming-soon semantics, never a fake plan.
+  if (PLANLESS_FREE_TOOLS.has(slug)) return buildFreeToolOffers();
   const prefix = TOOL_PLAN_PREFIX[slug];
   if (!prefix) return buildOffers(null, "coming-soon");
   try {

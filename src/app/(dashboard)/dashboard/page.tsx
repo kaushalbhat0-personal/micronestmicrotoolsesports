@@ -122,7 +122,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
             return (
               <Card
                 key={t.slug}
-                className={`nest-reveal nest-reveal-delay-${Math.min(idx, 4)} transition-transform duration-[180ms] hover:scale-[1.01] hover:border-border-strong hover:shadow-sm`}
+                className={`nest-reveal nest-reveal-delay-${Math.min(idx, 4)} card-interactive`}
                 style={{ animationDelay: `${idx * 60}ms` } as React.CSSProperties}
               >
                 <CardHeader>

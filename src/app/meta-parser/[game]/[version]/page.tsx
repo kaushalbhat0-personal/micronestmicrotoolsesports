@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { createClient } from "@/lib/supabase/server";
 import { AppError } from "@/lib/errors";
@@ -12,19 +11,19 @@ import {
   getPatch,
   listChanges,
   listGames,
-  type PublishedChange,
+  listPatchEntityNames,
+  listPatchEntityTypes,
 } from "@/features/meta-parser/repositories/reads";
 import {
-  CHANGE_TYPE_OPTIONS,
-  changeTypeBadgeVariant,
-  changeTypeLabel,
-  entityTypeLabel,
+  entitySearchPlaceholder,
   factsHref,
   factsRangeLabel,
   isVersionParam,
   parseFactsQuery,
 } from "../../_lib/facts";
 import { resolveGameProvenance } from "../../_lib/game-provenance";
+import { ChangeCard } from "../../_components/change-card";
+import { FactsFilters } from "../../_components/facts-filters";
 import { Provenance } from "../../_components/provenance";
 
 export const revalidate = 3600;
@@ -79,42 +78,6 @@ export async function generateMetadata({
   };
 }
 
-function Transition({ change }: { change: PublishedChange }) {
-  const numeric =
-    change.oldNumeric !== null &&
-    change.oldNumeric !== undefined &&
-    change.newNumeric !== null &&
-    change.newNumeric !== undefined;
-  const textual =
-    !numeric &&
-    change.oldText !== null &&
-    change.oldText !== undefined &&
-    change.oldText !== "" &&
-    change.newText !== null &&
-    change.newText !== undefined &&
-    change.newText !== "";
-  if (numeric) {
-    const unit = change.unit ? ` ${change.unit}` : "";
-    return (
-      <p className="mt-2 font-mono text-[13px] text-foreground" aria-label={`Changed from ${change.oldNumeric} to ${change.newNumeric}`}>
-        <span className="text-muted-foreground line-through decoration-destructive/60">{String(change.oldNumeric)}{unit}</span>
-        <span aria-hidden> → </span>
-        <span className="font-semibold">{String(change.newNumeric)}{unit}</span>
-      </p>
-    );
-  }
-  if (textual) {
-    return (
-      <p className="mt-2 text-[13px] text-foreground">
-        <span className="text-muted-foreground">{change.oldText}</span>
-        <span aria-hidden> → </span>
-        <span className="font-medium">{change.newText}</span>
-      </p>
-    );
-  }
-  return null;
-}
-
 type SearchParams = { [key: string]: string | string[] | undefined };
 
 /**
@@ -151,11 +114,17 @@ export default async function PatchFactsPage({
   const hasFilters = Object.keys(filters).length > 0;
 
   let result;
+  let entityTypes: readonly string[] = [];
+  let entityNames: readonly string[] = [];
   try {
-    result = await listChanges(supabase, patch.id, filters, {
-      limit: query.limit,
-      offset: query.offset,
-    });
+    [result, entityTypes, entityNames] = await Promise.all([
+      listChanges(supabase, patch.id, filters, {
+        limit: query.limit,
+        offset: query.offset,
+      }),
+      listPatchEntityTypes(supabase, patch.id),
+      listPatchEntityNames(supabase, patch.id),
+    ]);
   } catch (error) {
     // Invalid filter values are rejected by the repository (closed
     // change_type enum, generic entity shape guards); surface them as
@@ -208,78 +177,26 @@ export default async function PatchFactsPage({
           </h1>
           <p className="mt-2 text-muted-foreground">
             {formatDate(patch.sourcePublishedAt)} · {formatCount(patch.changeCount)}{" "}
-            {patch.changeCount === 1 ? "change" : "changes"} · Revision {patch.revision}
+            {patch.changeCount === 1 ? "change" : "changes"}
           </p>
 
           <section aria-label="Filter changes" className="mt-8 rounded-[16px] border border-border bg-card p-4 sm:p-5">
-            <form method="get" action={basePath} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="facts-entity-type" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Entity type
-                </label>
-                <input
-                  id="facts-entity-type"
-                  name="entity_type"
-                  type="search"
-                  defaultValue={query.entityType ?? ""}
-                  placeholder="e.g. hero, champion, weapon"
-                  autoComplete="off"
-                  className="min-h-[44px] rounded-[10px] border border-border bg-background px-3 text-sm placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="facts-change-type" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Change type
-                </label>
-                <select
-                  id="facts-change-type"
-                  name="change_type"
-                  defaultValue={query.changeType ?? ""}
-                  className="min-h-[44px] rounded-[10px] border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="">All changes</option>
-                  {CHANGE_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="facts-entity" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Entity
-                </label>
-                <input
-                  id="facts-entity"
-                  name="entity"
-                  type="search"
-                  defaultValue={query.entity ?? ""}
-                  placeholder="Search entity name"
-                  autoComplete="off"
-                  className="min-h-[44px] rounded-[10px] border border-border bg-background px-3 text-sm placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <button
-                  type="submit"
-                  className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none"
-                >
-                  Apply filters
-                </button>
-                {hasFilters ? (
-                  <Link
-                    href={basePath as Route}
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-border bg-card px-5 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    Clear
-                  </Link>
-                ) : null}
-              </div>
-            </form>
+            <FactsFilters
+              basePath={basePath}
+              entityType={query.entityType}
+              changeType={query.changeType}
+              entity={query.entity}
+              entityTypes={entityTypes}
+              entityNames={entityNames}
+              searchPlaceholder={entitySearchPlaceholder(entityTypes)}
+              hasFilters={hasFilters}
+            />
           </section>
 
           <section aria-label="Patch changes" className="mt-8">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="font-display text-xl font-normal tracking-tight">
-                {hasFilters ? "Matching changes" : "All changes"}
+                {hasFilters ? "Matching changes" : "All changes in this patch"}
               </h2>
               <p className="text-sm text-muted-foreground" role="status">
                 {hasFilters
@@ -299,7 +216,7 @@ export default async function PatchFactsPage({
               <div className="mt-4">
                 <EmptyState
                   title="No changes match these filters."
-                  description="Try removing a filter or clearing the entity search."
+                  description="Try removing a filter or clearing the search."
                   action={
                     <Link
                       href={basePath as Route}
@@ -314,23 +231,7 @@ export default async function PatchFactsPage({
               <ol className="mt-4 space-y-3">
                 {result.changes.map((change) => (
                   <li key={change.id}>
-                    <article className="rounded-[16px] border border-border bg-card p-4 sm:p-5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-medium">{change.entityName}</h3>
-                        <Badge variant={changeTypeBadgeVariant(change.changeType)}>
-                          {changeTypeLabel(change.changeType)}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {entityTypeLabel(change.entityType)}
-                          {change.category ? ` · ${change.category}` : ""}
-                          {change.attribute ? ` · ${change.attribute}` : ""}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                        {change.description}
-                      </p>
-                      <Transition change={change} />
-                    </article>
+                    <ChangeCard change={change} />
                   </li>
                 ))}
               </ol>
@@ -375,6 +276,7 @@ export default async function PatchFactsPage({
               patchVersion={patch.patchVersion}
               gameName={game.name}
               provenance={resolveGameProvenance(game)}
+              revision={patch.revision}
             />
           </div>
         </section>

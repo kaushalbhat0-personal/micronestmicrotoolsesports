@@ -373,6 +373,75 @@ export async function getPatch(
 }
 
 /**
+ * Publication gate shared by patch-scoped change readers: staging, failed,
+ * provisional-hash, or missing patches are never readable.
+ */
+async function isPatchPublished(supabase: SupabaseClient, patchId: string): Promise<boolean> {
+  const { data: gate, error: gateError } = await supabase
+    .from("meta_parser_patches")
+    .select("id")
+    .eq("id", patchId)
+    .eq("status", META_PARSER_PUBLISHED_STATUS)
+    .neq("content_hash", "")
+    .maybeSingle();
+  if (gateError) throw new Error(`Failed to verify patch publication: ${gateError.message}`);
+  if (!gate) return false;
+  return true;
+}
+
+/**
+ * Distinct entity types recorded for a published patch (Category filter UI).
+ * Sorted ascending; empty when the patch is missing, staging, or
+ * provisional. Same anon RLS client and gate as `listChanges` — no new
+ * data layer, no service-role access.
+ */
+export async function listPatchEntityTypes(
+  supabase: SupabaseClient,
+  patchId: string
+): Promise<readonly string[]> {
+  assertPatchId(patchId);
+  if (!(await isPatchPublished(supabase, patchId))) return [];
+  const { data, error } = await supabase
+    .from("meta_parser_changes")
+    .select("entity_type")
+    .eq("patch_id", patchId)
+    .order("entity_type", { ascending: true });
+  if (error) throw new Error(`Failed to list patch entity types: ${error.message}`);
+  const values = ((data ?? []) as Array<{ entity_type: unknown }>)
+    .map((row) => row.entity_type)
+    .filter((value): value is string => typeof value === "string" && value !== "");
+  return [...new Set(values)].sort();
+}
+
+/** Cap for entity-name suggestions (Search datalist). Bounded by design. */
+export const META_PARSER_ENTITY_SUGGESTION_LIMIT = 200;
+
+/**
+ * Distinct entity names recorded for a published patch (Search suggestions).
+ * Alphabetical, capped, empty when unpublished. Suggestions only — the
+ * free-form `entity` filter itself is unchanged.
+ */
+export async function listPatchEntityNames(
+  supabase: SupabaseClient,
+  patchId: string,
+  limit: number = META_PARSER_ENTITY_SUGGESTION_LIMIT
+): Promise<readonly string[]> {
+  assertPatchId(patchId);
+  if (!(await isPatchPublished(supabase, patchId))) return [];
+  const { data, error } = await supabase
+    .from("meta_parser_changes")
+    .select("entity_name")
+    .eq("patch_id", patchId)
+    .order("entity_name", { ascending: true })
+    .range(0, 1999);
+  if (error) throw new Error(`Failed to list patch entity names: ${error.message}`);
+  const values = ((data ?? []) as Array<{ entity_name: unknown }>)
+    .map((row) => row.entity_name)
+    .filter((value): value is string => typeof value === "string" && value !== "");
+  return [...new Set(values)].slice(0, Math.max(1, limit));
+}
+
+/**
  * Paginated changes for a patch. The patch gate runs first: staging,
  * failed, provisional, or missing patches yield `published: false` with no
  * rows — partial change sets can never leak through this path.
@@ -388,15 +457,9 @@ export async function listChanges(
   const { entityType, changeType, entityNormalized } = assertFilters(filters);
   const { limit, offset } = clampPagination(pagination);
 
-  const { data: gate, error: gateError } = await supabase
-    .from("meta_parser_patches")
-    .select("id")
-    .eq("id", patchId)
-    .eq("status", META_PARSER_PUBLISHED_STATUS)
-    .neq("content_hash", "")
-    .maybeSingle();
-  if (gateError) throw new Error(`Failed to verify patch publication: ${gateError.message}`);
-  if (!gate) return { published: false, changes: [], limit, offset, hasMore: false };
+  if (!(await isPatchPublished(supabase, patchId))) {
+    return { published: false, changes: [], limit, offset, hasMore: false };
+  }
 
   let query = supabase.from("meta_parser_changes").select(CHANGE_COLUMNS).eq("patch_id", patchId);
   if (entityType !== null) query = query.eq("entity_type", entityType);

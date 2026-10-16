@@ -131,12 +131,12 @@ export default async function MetaParserPage() {
             )}
           </section>
 
-          <section aria-label="Coverage note" className="mt-10 rounded-[16px] border border-border bg-card p-5 text-sm leading-relaxed text-muted-foreground">
-            <h2 className="text-sm font-semibold text-foreground">Current coverage</h2>
+          <section aria-label="What we cover" className="mt-10 rounded-[16px] border border-border bg-card p-5 text-sm leading-relaxed text-muted-foreground">
+            <h2 className="text-sm font-semibold text-foreground">What we cover</h2>
             <p className="mt-2">
               {coverage.length === 0
                 ? "No patch catalogue is published yet."
-                : `The public dataset currently covers ${coverage.join("; ")}. Additional games will appear here when their catalogues are published — nothing on this page implies broader coverage than exists.`}
+                : `Public patch facts currently cover ${coverage.join("; ")}. Additional games will appear here when their catalogues are published — nothing on this page implies broader coverage than exists.`}
             </p>
             {overviews.length > 0 ? (
               <ul className="mt-2 space-y-1">

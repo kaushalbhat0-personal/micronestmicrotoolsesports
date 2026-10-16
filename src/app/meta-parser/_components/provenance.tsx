@@ -1,3 +1,4 @@
+import * as React from "react";
 import { ExternalLink } from "lucide-react";
 import type { ResolvedGameProvenance } from "../_lib/game-provenance";
 
@@ -13,12 +14,18 @@ export function Provenance({
   patchVersion,
   gameName,
   provenance,
+  revision = null,
   compact = false,
 }: {
   sourceUrl: string;
   patchVersion: string;
   gameName: string;
   provenance: ResolvedGameProvenance;
+  /**
+   * Re-publication count. Secondary source detail only — never a primary
+   * product fact. Null hides it entirely.
+   */
+  revision?: number | null;
   compact?: boolean;
 }) {
   return (
@@ -32,7 +39,7 @@ export function Provenance({
     >
       {!compact && <h2 className="text-sm font-semibold text-foreground">Sources</h2>}
       <p className={compact ? undefined : "mt-2"}>
-        Canonical patch source:{" "}
+        Official patch notes:{" "}
         <a
           href={sourceUrl}
           target="_blank"
@@ -45,7 +52,7 @@ export function Provenance({
       </p>
       {provenance.datasetLabel !== null ? (
         <p className="mt-1">
-          Structured dataset:{" "}
+          Data:{" "}
           {provenance.datasetUrl !== null ? (
             <a
               href={provenance.datasetUrl}
@@ -61,6 +68,9 @@ export function Provenance({
           )}{" "}
           {provenance.license !== null ? `(${provenance.license}).` : `for ${gameName}.`}
         </p>
+      ) : null}
+      {typeof revision === "number" && !compact ? (
+        <p className="mt-2 text-xs">Source details · update {revision}</p>
       ) : null}
     </section>
   );

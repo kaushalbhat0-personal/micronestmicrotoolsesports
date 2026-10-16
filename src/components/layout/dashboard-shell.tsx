@@ -32,7 +32,6 @@ import {
   LogOut,
 } from "lucide-react";
 import type { Route } from "next";
-import { NavigationProgress } from "@/components/ui/navigation-progress";
 import type { WorkspaceTool } from "@/server/services/workspace-tools";
 import { LogoMark } from "@/components/shared/logo";
 import { signOutAction } from "@/lib/auth/actions";
@@ -289,7 +288,8 @@ export function DashboardShell({ children, organizations = [], workspaceToolsByS
       >
         Skip to main content
       </a>
-      <NavigationProgress />
+      {/* Global NavigationProgress is mounted once in src/app/layout.tsx to cover
+          public, auth, dashboard, and billing routes with a single listener. */}
       <aside className="hidden w-[272px] shrink-0 border-r border-border bg-card lg:flex lg:flex-col">
         <div className="sticky top-0 flex h-full flex-col">
           <div className="flex h-[56px] items-center border-b border-border px-4">

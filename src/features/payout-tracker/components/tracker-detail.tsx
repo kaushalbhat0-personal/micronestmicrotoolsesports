@@ -161,7 +161,7 @@ export function TrackerDetail({
           {isLive ? (
             <div className="flex flex-wrap items-center gap-2 rounded-[12px] border border-border bg-surface-muted/40 p-3">
               <PayoutShareLinkButton shareToken={tracker.share_token} />
-              <Button type="button" variant="ghost" size="sm" disabled={busy === "revoke"} onClick={onRevoke} className="min-h-[44px]">
+              <Button type="button" variant="ghost" size="sm" disabled={busy === "revoke"} loading={busy === "revoke"} onClick={onRevoke} className="min-h-[44px]">
                 Revoke link
               </Button>
               <span className="text-xs text-muted-foreground">Revoking invalidates the old URL immediately.</span>
@@ -201,7 +201,7 @@ export function TrackerDetail({
               <Input id="detail-deadline" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
             </div>
             <div className="sm:col-span-2">
-              <Button type="submit" variant="outline" size="sm" disabled={busy === "meta"} className="min-h-[44px]">
+              <Button type="submit" variant="outline" size="sm" disabled={busy === "meta"} loading={busy === "meta"} className="min-h-[44px]">
                 Save event details
               </Button>
             </div>
@@ -235,7 +235,7 @@ export function TrackerDetail({
           <CardDescription>Deleting removes recipients and invalidates the public page. Monthly publish quota stays consumed.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button type="button" variant="destructive" size="sm" disabled={busy === "delete"} onClick={onDelete} className="min-h-[44px]">
+          <Button type="button" variant="destructive" size="sm" disabled={busy === "delete"} loading={busy === "delete"} onClick={onDelete} className="min-h-[44px]">
             Delete tracker
           </Button>
         </CardContent>

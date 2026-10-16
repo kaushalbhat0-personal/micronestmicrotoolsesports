@@ -166,7 +166,9 @@ html {
   }
 }
 .nest-reveal {
-  animation: nest-reveal var(--motion-reveal, 260ms) ease-out both;
+  /* backwards (not both): the end state equals natural styles, so retained
+     fill must not override later hover transforms on the same element. */
+  animation: nest-reveal var(--motion-reveal, 260ms) ease-out backwards;
 }
 .nest-reveal-delay-0 { animation-delay: 0ms; }
 .nest-reveal-delay-1 { animation-delay: 60ms; }
@@ -199,6 +201,85 @@ html {
 }
 .nest-piece {
   animation: nest-piece-in 2000ms cubic-bezier(0.22, 1, 0.36, 1) infinite both;
+}
+
+/* Panel enter/exit — Radix sheet/select (nav motion, ~220ms).
+   Plain keyframes (no animation dependency): Radix keeps panels mounted
+   across open/closed states, so both directions play. Covered by the
+   global prefers-reduced-motion rule below. */
+@keyframes nest-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes nest-sheet-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+@keyframes nest-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes nest-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.nest-sheet-overlay[data-state="open"] {
+  animation: nest-fade-in var(--motion-nav, 220ms) ease-out both;
+}
+.nest-sheet-overlay[data-state="closed"] {
+  animation: nest-fade-out var(--motion-nav, 220ms) ease-out both;
+}
+.nest-sheet-content[data-state="open"] {
+  animation: nest-sheet-in var(--motion-nav, 220ms) ease-out both;
+}
+.nest-sheet-content[data-state="closed"] {
+  animation: nest-sheet-out var(--motion-nav, 220ms) ease-out both;
+}
+.nest-select-content[data-state="open"] {
+  animation: nest-fade-in var(--motion-micro, 180ms) ease-out both;
+}
+.nest-select-content[data-state="closed"] {
+  animation: nest-fade-out var(--motion-micro, 180ms) ease-out both;
+}
+
+/* Interactive card — opt-in treatment for genuinely clickable cards only.
+   Static/informational cards must not use this. Subtle lift + border +
+   shadow on hover, settle on press; no layout shift (transform only).
+   Covered by the global prefers-reduced-motion rule below. */
+@utility card-interactive {
+  transition:
+    transform var(--motion-micro, 180ms) ease-out,
+    border-color var(--motion-micro, 180ms) ease-out,
+    box-shadow var(--motion-micro, 180ms) ease-out,
+    background-color var(--motion-micro, 180ms) ease-out;
+  &:hover {
+    transform: translateY(-1px);
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-sm);
+  }
+  &:active {
+    transform: translateY(0);
+  }
 }
 
 /* Motion — utilities + reduced motion */

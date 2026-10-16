@@ -26,3 +26,20 @@ export const TOOL_PLAN_PREFIX: Record<string, string> = {
   "tie-breaker": "tie-breaker",
   "prize-payout-tracker": "prize-payout-tracker",
 };
+
+/**
+ * Marketing slugs for released tools that are free with no paid plan
+ * (RCCF-TOOLBOX-IA-02). These must never fall through to PreOrder /
+ * coming-soon offer semantics — they are available now, just plan-less.
+ * This set carries no billing meaning: no plan is created, no entitlement
+ * is granted, and checkout is never involved.
+ */
+export const PLANLESS_FREE_TOOLS: ReadonlySet<string> = new Set(["tournament-roster-builder"]);
+
+/** Offer shape for an available, plan-less free tool: no offers, in stock. */
+export function buildFreeToolOffers(): {
+  offers: null;
+  availability: string;
+} {
+  return { offers: null, availability: "https://schema.org/InStock" };
+}

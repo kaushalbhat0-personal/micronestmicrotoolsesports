@@ -85,13 +85,13 @@ describe("roster-builder foundation — registry + free policy", () => {
     }
   });
 
-  it("sitemap exposes the public marketing route automatically", () => {
-    const urls = sitemap().map((e) => new URL(e.url, "http://localhost:3000").pathname);
+  it("sitemap exposes the public marketing route automatically", async () => {
+    const urls = (await sitemap()).map((e) => new URL(e.url, "http://localhost:3000").pathname);
     expect(urls).toContain("/tools/tournament-roster-builder");
   });
 
-  it("no dashboard or share route leaks into the public sitemap", () => {
-    const urls = sitemap().map((e) => new URL(e.url, "http://localhost:3000").pathname);
+  it("no dashboard or share route leaks into the public sitemap", async () => {
+    const urls = (await sitemap()).map((e) => new URL(e.url, "http://localhost:3000").pathname);
     for (const url of urls) {
       expect(url.startsWith("/dashboard")).toBe(false);
       expect(url.startsWith("/share")).toBe(false);
