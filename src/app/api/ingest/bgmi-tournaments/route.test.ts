@@ -106,4 +106,38 @@ describe("GET /api/ingest/bgmi-tournaments", () => {
     expect(body.attempted).toBe(2);
     expect(body.failed).toBe(1);
   });
+
+  it("dispatches bmps-2026 last-chance through the shared pipeline (BMPS Phase 1)", async () => {
+    vi.mocked(assertCronAuth).mockImplementation(() => undefined);
+    vi.mocked(ingestTournamentStage).mockResolvedValue({
+      tournamentSlug: "bmps-2026",
+      stageSlug: "last-chance",
+      outcome: "unchanged",
+      teamsCount: 16,
+      matchesCompleted: 12,
+      matchesTotal: 12,
+      sourceRevision: 721389,
+      warnings: [],
+    });
+    const response = await GET(
+      new Request("https://example.com/api/ingest/bgmi-tournaments?tournament=bmps-2026&stage=last-chance", {
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      })
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { ok: boolean; outcomes: Array<{ tournamentSlug: string; stageSlug: string }> };
+    expect(body.ok).toBe(true);
+    expect(body.outcomes[0]).toMatchObject({ tournamentSlug: "bmps-2026", stageSlug: "last-chance" });
+  });
+
+  it("rejects unregistered stage keys before ingestion (semi-finals is Phase 2)", async () => {
+    vi.mocked(assertCronAuth).mockImplementation(() => undefined);
+    const response = await GET(
+      new Request("https://example.com/api/ingest/bgmi-tournaments?tournament=bmps-2026&stage=semi-finals", {
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(vi.mocked(ingestTournamentStage)).not.toHaveBeenCalled();
+  });
 });

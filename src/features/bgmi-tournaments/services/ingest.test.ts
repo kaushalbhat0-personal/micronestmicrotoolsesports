@@ -148,4 +148,36 @@ describe("ingestTournamentStage", () => {
     expect(unknown.outcome).toBe("failed");
     expect(store.published).toHaveLength(0);
   });
+
+  it("rejects stages outside the tournament entry without writing (BMPS Phase 1)", async () => {
+    const store = createFakeStore();
+    // playoffs is a valid stage key but bmps-2026 only supports grand-finals + last-chance.
+    const report = await ingestTournamentStage({
+      store,
+      tournamentSlug: "bmps-2026",
+      stageKey: "playoffs",
+      snapshot: snapshot(),
+      runId: "bmps-phase-gate",
+    });
+    expect(report.outcome).toBe("failed");
+    expect(report.error).toContain("Stage not supported");
+    expect(store.published).toHaveLength(0);
+    expect(store.runs.some((r) => r.runId === "bmps-phase-gate" && r.status === "failed")).toBe(true);
+  });
+
+  it("accepts last-chance for bmps-2026 at the catalog gate", async () => {
+    const store = createFakeStore();
+    const report = await ingestTournamentStage({
+      store,
+      tournamentSlug: "bmps-2026",
+      stageKey: "last-chance",
+      snapshot: snapshot(),
+      runId: "bmps-lc-gate",
+    });
+    // The shared bmsd-shaped fixture has no Last Chance section, so parsing
+    // fails — but the failure must come from the parser, proving the catalog
+    // gate (tournament + stage) passed.
+    expect(report.outcome).toBe("failed");
+    expect(report.error).toContain("Stage section not found: Last Chance");
+  });
 });

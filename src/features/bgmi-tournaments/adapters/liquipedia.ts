@@ -29,12 +29,15 @@ export const LIQUIPEDIA_ADAPTER_VERSION = "1.0.0";
 export const LIQUIPEDIA_PARSER_VERSION = "1.0.0";
 
 /** Stages the adapter knows how to parse (bounded contract). */
-export const SUPPORTED_STAGE_KEYS = ["playoffs", "grand-finals"] as const;
+export const SUPPORTED_STAGE_KEYS = ["playoffs", "grand-finals", "last-chance"] as const;
 export type SupportedStageKey = (typeof SUPPORTED_STAGE_KEYS)[number];
 
 const STAGE_HEADINGS: Record<SupportedStageKey, { readonly heading: string; readonly name: string }> = {
   playoffs: { heading: "Playoffs", name: "Playoffs" },
   "grand-finals": { heading: "Grand Finals", name: "Grand Finals" },
+  // Phase 1 (BMPS-02): Last Chance only. Semi Finals is deliberately NOT
+  // registered — group-rotation parsing/validation is Phase 2 work.
+  "last-chance": { heading: "Last Chance", name: "Last Chance" },
 };
 
 export interface LiquipediaSourceSnapshot {
@@ -550,6 +553,16 @@ export const TOURNAMENT_CATALOG: readonly TournamentCatalogEntry[] = [
     seasonYear: 2026,
     sourcePage: "BGMI Masters Series/Season 5",
     stages: ["grand-finals", "playoffs"],
+  },
+  {
+    // Phase 1 (BMPS-02): Grand Finals + Last Chance only. Semi Finals,
+    // Qualifiers, and Survival Stage are excluded pending rotation support.
+    slug: "bmps-2026",
+    name: "BGMI Pro Series 2026",
+    shortName: "BMPS 2026",
+    seasonYear: 2026,
+    sourcePage: "Battlegrounds Mobile India Pro Series/2026",
+    stages: ["grand-finals", "last-chance"],
   },
 ];
 
