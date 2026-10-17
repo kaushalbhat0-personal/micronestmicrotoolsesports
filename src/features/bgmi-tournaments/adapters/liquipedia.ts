@@ -12,8 +12,10 @@
  * - Scoring params on `{{Match}}`: `p_kill`, `p1..p8`.
  * - Per-map schedule: `|mapN={{Map|date=…|finished=…|map=…|vod=…}}`.
  * - Per-team cells: `|opponentN={{TeamOpponent|<name>|startingpoints=N
- *   |placement=N|mK={{MS|<placement>|<finishes>}}}}`; `{{MS|-}}` means the
- *   team sat out that map (group rotation).
+ *   |placement=N|mK={{MS|<placement>|<finishes>}}}}`; `{{MS|-}}` and
+ *   `{{MS|-|}}` both mean the team sat out that map (group rotation).
+ *   No other `MS` spelling is a sat-out — anything else unparseable
+ *   fails the run closed.
  * - Smash Rule finals carry `|matchpoint=N` on `{{Match}}`.
  *
  * Anything outside this contract fails closed: the stage is rejected with
@@ -29,15 +31,47 @@ export const LIQUIPEDIA_ADAPTER_VERSION = "1.0.0";
 export const LIQUIPEDIA_PARSER_VERSION = "1.0.0";
 
 /** Stages the adapter knows how to parse (bounded contract). */
-export const SUPPORTED_STAGE_KEYS = ["playoffs", "grand-finals", "last-chance"] as const;
+export const SUPPORTED_STAGE_KEYS = ["playoffs", "grand-finals", "last-chance", "semi-finals"] as const;
 export type SupportedStageKey = (typeof SUPPORTED_STAGE_KEYS)[number];
+
+/**
+ * Rotation-aware stages (BMPS-03): completed matches may list a strict
+ * subset of bracket teams (K participants with placements exactly 1..K)
+ * and every team must finish with an equal maps-played count.
+ *
+ * Explicit opt-in only — every other stage keeps the standard
+ * full-participation contract (completed match = every bracket team
+ * plays, placements exactly 1..N).
+ */
+export const ROTATION_STAGE_KEYS = ["semi-finals"] as const;
+export type RotationStageKey = (typeof ROTATION_STAGE_KEYS)[number];
+
+/**
+ * True only for explicitly registered rotation contexts
+ * (tournament + stage). Nothing else weakens validation.
+ */
+export function isRotationStage(tournamentSlug: string, stageSlug: string): boolean {
+  if (tournamentSlug !== "bmps-2026") return false;
+  return (ROTATION_STAGE_KEYS as readonly string[]).includes(stageSlug);
+}
+
+/**
+ * Expected completed-map count per team for rotation stages that declare
+ * one (audit-established). Enforced in ADDITION to the generic
+ * all-teams-equal invariant — never instead of it.
+ */
+export const ROTATION_STAGE_EXPECTED_MAPS: Readonly<Record<string, number>> = {
+  "bmps-2026/semi-finals": 16,
+};
 
 const STAGE_HEADINGS: Record<SupportedStageKey, { readonly heading: string; readonly name: string }> = {
   playoffs: { heading: "Playoffs", name: "Playoffs" },
   "grand-finals": { heading: "Grand Finals", name: "Grand Finals" },
-  // Phase 1 (BMPS-02): Last Chance only. Semi Finals is deliberately NOT
-  // registered — group-rotation parsing/validation is Phase 2 work.
+  // Phase 1 (BMPS-02) registered Last Chance only; Phase 2 (BMPS-03) adds
+  // Semi Finals group-rotation parsing/validation. Qualifiers and Survival
+  // Stage remain out of scope and are NOT registered.
   "last-chance": { heading: "Last Chance", name: "Last Chance" },
+  "semi-finals": { heading: "Semi Finals", name: "Semi Finals" },
 };
 
 export interface LiquipediaSourceSnapshot {
@@ -320,6 +354,17 @@ export function parseMapDate(raw: string | undefined): string | null {
   return instant.toISOString();
 }
 
+/**
+ * Strict sat-out spellings: `{{MS|-}}` (single dash) and `{{MS|-|}}`
+ * (dash + empty second param) — both observed on the live BMPS 2026 Semi
+ * Finals source, sometimes mixed in one bracket. Anything else —
+ * including `{{MS|-|5}}`, `{{MS|5|-}}`, or bare `{{MS}}` — is NOT a
+ * sat-out and fails closed downstream.
+ */
+export function isSatOutMsCell(raw: string): boolean {
+  return /\{\{\s*MS\s*\|\s*-\s*(\|\s*)?\}\}/.test(raw);
+}
+
 function parseMsCell(raw: string): { placement: number; finishes: number } | null {
   const blocks = findTemplates(raw, "MS");
   const block = blocks[0];
@@ -363,7 +408,7 @@ function parseTeamOpponent(raw: string): ParsedTeamCell {
     const matchNumber = Number.parseInt(m[1] ?? "0", 10);
     if (!Number.isInteger(matchNumber) || matchNumber < 1 || matchNumber > 64) continue;
     const cell = parseMsCell(value);
-    if (cell === null && value.trim() !== "" && !/\{\{\s*MS\s*\|[^}]*-\s*\}\}/.test(value)) {
+    if (cell === null && value.trim() !== "" && !isSatOutMsCell(value)) {
       throw integrationError(`Unparseable MS cell for team ${teamName} match ${matchNumber}`);
     }
     results.set(matchNumber, cell);
@@ -555,14 +600,15 @@ export const TOURNAMENT_CATALOG: readonly TournamentCatalogEntry[] = [
     stages: ["grand-finals", "playoffs"],
   },
   {
-    // Phase 1 (BMPS-02): Grand Finals + Last Chance only. Semi Finals,
-    // Qualifiers, and Survival Stage are excluded pending rotation support.
+    // Phase 2 (BMPS-03): Grand Finals + Last Chance + Semi Finals.
+    // Qualifiers (multi-bracket promotion/relegation) and Survival Stage
+    // remain excluded — structurally unrepresentable / out of scope.
     slug: "bmps-2026",
     name: "BGMI Pro Series 2026",
     shortName: "BMPS 2026",
     seasonYear: 2026,
     sourcePage: "Battlegrounds Mobile India Pro Series/2026",
-    stages: ["grand-finals", "last-chance"],
+    stages: ["grand-finals", "last-chance", "semi-finals"],
   },
 ];
 

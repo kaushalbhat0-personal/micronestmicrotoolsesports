@@ -7,8 +7,17 @@
  *
  * Checks:
  * - source scoring table is the canonical 2026 table (no silent rescoring)
- * - completed matches: every listed team played, placements form a strict
- *   1..N permutation (no duplicates, no gaps), finishes within bounds
+ * - completed matches (standard stages): every listed team played,
+ *   placements form a strict 1..N permutation (no duplicates, no gaps),
+ *   finishes within bounds
+ * - completed matches (rotation stages, e.g. bmps-2026/semi-finals ONLY):
+ *   K participants with 1 <= K <= N, placements form the complete 1..K
+ *   permutation (max(placement) === K alone is NOT sufficient), finishes
+ *   within bounds; every team has an equal completed-maps count (and the
+ *   stage's expected maps-per-team when configured) — otherwise the run
+ *   fails closed before publication so unequal participation is never
+ *   silently ranked
+ * - per-result arithmetic: placement + finish points = match total
  * - per-result arithmetic: placement + finish points = match total
  * - stage: starting points non-negative, every match team has an entry,
  *   every entry team appears in the bracket
@@ -19,6 +28,7 @@
 
 import { integrationError } from "@/lib/errors";
 import type { BgmiStageDataset } from "../types";
+import { ROTATION_STAGE_EXPECTED_MAPS, isRotationStage } from "../adapters/liquipedia";
 import { isCanonicalTable2026, matchTotal } from "./points";
 
 export interface StageValidationWarning {
@@ -85,14 +95,61 @@ export function validateStageDataset(dataset: BgmiStageDataset): { warnings: Sta
       }
     }
     if (match.status === "completed") {
-      if (match.results.length !== dataset.teams.length) {
-        fail(
-          `completed match ${match.matchNumber} has ${match.results.length} results for ${dataset.teams.length} teams`
-        );
+      if (isRotationStage(dataset.tournament.slug, dataset.stage.slug)) {
+        // Rotation context ONLY: K participants (1 <= K <= N) whose
+        // placements form the COMPLETE 1..K permutation. Checking only
+        // max(placement) === K would admit duplicates/gaps — rejected here.
+        if (match.results.length > dataset.teams.length) {
+          fail(
+            `completed match ${match.matchNumber} has ${match.results.length} results for ${dataset.teams.length} teams`
+          );
+        }
+        const placements = match.results.map((r) => r.placement).sort((a, b) => a - b);
+        for (let i = 0; i < placements.length; i += 1) {
+          if (placements[i] !== i + 1) fail(`completed match ${match.matchNumber}: placements are not a 1..K permutation`);
+        }
+      } else {
+        if (match.results.length !== dataset.teams.length) {
+          fail(
+            `completed match ${match.matchNumber} has ${match.results.length} results for ${dataset.teams.length} teams`
+          );
+        }
+        const placements = match.results.map((r) => r.placement).sort((a, b) => a - b);
+        for (let i = 0; i < placements.length; i += 1) {
+          if (placements[i] !== i + 1) fail(`completed match ${match.matchNumber}: placements are not a 1..N permutation`);
+        }
       }
-      const placements = match.results.map((r) => r.placement).sort((a, b) => a - b);
-      for (let i = 0; i < placements.length; i += 1) {
-        if (placements[i] !== i + 1) fail(`completed match ${match.matchNumber}: placements are not a 1..N permutation`);
+    }
+  }
+
+  // Rotation invariant: a standings calculation must never silently rank
+  // teams that played different numbers of maps. Fail closed before
+  // publication when participation is unequal. Standard stages skip this
+  // entirely (full participation is already enforced per match above).
+  if (isRotationStage(dataset.tournament.slug, dataset.stage.slug)) {
+    const completedMatches = dataset.matches.filter((m) => m.status === "completed");
+    const appearances = new Map<string, number>();
+    for (const team of dataset.teams) appearances.set(team.canonicalName, 0);
+    for (const match of completedMatches) {
+      for (const result of match.results) {
+        appearances.set(result.teamCanonical, (appearances.get(result.teamCanonical) ?? 0) + 1);
+      }
+    }
+    const distinctCounts = new Set(appearances.values());
+    if (distinctCounts.size > 1) {
+      const breakdown = [...appearances.entries()].sort((a, b) => a[1] - b[1]);
+      const least = breakdown[0];
+      const most = breakdown[breakdown.length - 1];
+      fail(
+        `rotation stage has unequal maps played per team (${least?.[0]}: ${least?.[1]}, ${most?.[0]}: ${most?.[1]}); refusing to publish`
+      );
+    }
+    const expectedKey = `${dataset.tournament.slug}/${dataset.stage.slug}`;
+    const expectedMaps = ROTATION_STAGE_EXPECTED_MAPS[expectedKey];
+    if (expectedMaps !== undefined && completedMatches.length > 0) {
+      const actual = [...distinctCounts][0] ?? 0;
+      if (actual !== expectedMaps) {
+        fail(`rotation stage expects ${expectedMaps} maps per team, found ${actual}; refusing to publish`);
       }
     }
   }

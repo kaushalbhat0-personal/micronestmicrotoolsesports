@@ -130,10 +130,33 @@ describe("GET /api/ingest/bgmi-tournaments", () => {
     expect(body.outcomes[0]).toMatchObject({ tournamentSlug: "bmps-2026", stageSlug: "last-chance" });
   });
 
-  it("rejects unregistered stage keys before ingestion (semi-finals is Phase 2)", async () => {
+  it("dispatches bmps-2026 semi-finals through the shared pipeline (BMPS Phase 2)", async () => {
     vi.mocked(assertCronAuth).mockImplementation(() => undefined);
+    vi.mocked(ingestTournamentStage).mockResolvedValue({
+      tournamentSlug: "bmps-2026",
+      stageSlug: "semi-finals",
+      outcome: "unchanged",
+      teamsCount: 24,
+      matchesCompleted: 24,
+      matchesTotal: 24,
+      sourceRevision: 721389,
+      warnings: [],
+    });
     const response = await GET(
       new Request("https://example.com/api/ingest/bgmi-tournaments?tournament=bmps-2026&stage=semi-finals", {
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      })
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { ok: boolean; outcomes: Array<{ tournamentSlug: string; stageSlug: string }> };
+    expect(body.ok).toBe(true);
+    expect(body.outcomes[0]).toMatchObject({ tournamentSlug: "bmps-2026", stageSlug: "semi-finals" });
+  });
+
+  it("rejects unregistered stage keys before ingestion (qualifiers stay out of scope)", async () => {
+    vi.mocked(assertCronAuth).mockImplementation(() => undefined);
+    const response = await GET(
+      new Request("https://example.com/api/ingest/bgmi-tournaments?tournament=bmps-2026&stage=qualifiers", {
         headers: { authorization: `Bearer ${CRON_SECRET}` },
       })
     );

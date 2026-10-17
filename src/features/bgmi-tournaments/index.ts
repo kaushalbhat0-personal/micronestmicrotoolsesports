@@ -15,6 +15,8 @@ export type { StageIngestOptions, StageIngestReport } from "./services/ingest";
 export {
   LIQUIPEDIA_ADAPTER_VERSION,
   LIQUIPEDIA_PARSER_VERSION,
+  ROTATION_STAGE_EXPECTED_MAPS,
+  ROTATION_STAGE_KEYS,
   SUPPORTED_STAGE_KEYS,
   TOURNAMENT_CATALOG,
   assertCanonicalScoring,
@@ -24,6 +26,8 @@ export {
   fetchTournamentSource,
   findTemplates,
   getCatalogEntry,
+  isRotationStage,
+  isSatOutMsCell,
   normalizeTeamKey,
   parseInfoboxLeague,
   parseMapDate,
@@ -33,7 +37,7 @@ export {
   splitParams,
   toSourceUrl,
 } from "./adapters/liquipedia";
-export type { LiquipediaSourceSnapshot, ParsedMapCell, ParsedMatchBlock, ParsedTeamCell, SupportedStageKey, TournamentCatalogEntry } from "./adapters/liquipedia";
+export type { LiquipediaSourceSnapshot, ParsedMapCell, ParsedMatchBlock, ParsedTeamCell, RotationStageKey, SupportedStageKey, TournamentCatalogEntry } from "./adapters/liquipedia";
 export { LIQUIPEDIA_API_HOST, LIQUIPEDIA_API_PATH_PREFIX } from "./adapters/safe-fetch";
 export { createSupabaseBgmiStore } from "./repositories/store";
 export type { BgmiStore } from "./repositories/store";
