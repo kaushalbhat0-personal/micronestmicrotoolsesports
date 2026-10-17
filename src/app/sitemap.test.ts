@@ -32,4 +32,10 @@ describe("sitemap — RCCF-CLEANUP-02 (released tools only) + RCCF-TOOLBOX-IA-02
     expect(urls).toContain("/meta-parser");
     for (const url of urls) expect(url).not.toContain("?");
   });
+
+  it("exposes the BGMI Tournament Hub and qualification simulator", async () => {
+    const urls = (await sitemap()).map((e) => new URL(e.url, "http://localhost:3000").pathname);
+    expect(urls).toContain("/bgmi-qualification");
+    expect(urls).toContain("/bgmi-tournaments");
+  });
 });

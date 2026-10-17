@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Newspaper,
   Target,
+  Trophy,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { resolveToolboxGroups } from "@/lib/marketing/homepage-seo";
@@ -22,10 +23,11 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ClipboardList,
   Newspaper,
   Target,
+  Trophy,
 };
 
 /**
- * ToolboxGroups — the eight released tools in four neutral editorial groups.
+ * ToolboxGroups — the nine released tools in four neutral editorial groups.
  * Groups are organizational only (never ranked, never featured): identical card
  * chrome, no dominant group. All display data resolves from the canonical
  * registry via `resolveToolboxGroups()` — no duplicated catalog.

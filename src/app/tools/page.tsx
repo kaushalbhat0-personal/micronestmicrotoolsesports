@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import type { ToolAccent } from "@/config/marketing/tools";
 import { freeBadgeByMarketingSlug, freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
-import { META_PARSER_ENTRY, BGMI_QUALIFICATION_ENTRY } from "@/lib/marketing/toolbox-presentation";
-import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, ArrowRight, ReceiptText, ClipboardList, Newspaper, Target } from "lucide-react";
+import { META_PARSER_ENTRY, BGMI_QUALIFICATION_ENTRY, BGMI_TOURNAMENTS_ENTRY } from "@/lib/marketing/toolbox-presentation";
+import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, ArrowRight, ReceiptText, ClipboardList, Newspaper, Target, Trophy } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Esports Tools — MicroNest Collection",
@@ -41,6 +41,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ClipboardList,
   Newspaper,
   Target,
+  Trophy,
 };
 
 function accentClass(accent: ToolAccent): string {
@@ -184,6 +185,40 @@ export default function ToolsPage() {
                       className="inline-flex h-9 items-center rounded-full border border-border bg-card px-4 text-sm font-medium hover:bg-muted min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]"
                     >
                       {BGMI_QUALIFICATION_ENTRY.ctaLabel} <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+            {(() => {
+              const HubIcon = iconMap[BGMI_TOURNAMENTS_ENTRY.icon] ?? Trophy;
+              return (
+                <Card
+                  key={BGMI_TOURNAMENTS_ENTRY.slug}
+                  className="group flex flex-col border-success/20 bg-success-soft/40 card-interactive"
+                >
+                  <CardHeader className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-surface-muted border border-border transition-transform duration-[180ms] group-hover:translate-y-[-1px]">
+                        <HubIcon className="h-5 w-5 text-muted-foreground" />
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <Badge variant="info">Public</Badge>
+                        <Badge variant="outline">Free to read</Badge>
+                      </span>
+                    </div>
+                    <CardTitle className="text-base mt-3">{BGMI_TOURNAMENTS_ENTRY.name}</CardTitle>
+                    <CardDescription>{BGMI_TOURNAMENTS_ENTRY.description}</CardDescription>
+                    <p className="mt-2 text-sm"><span className="text-muted-foreground">{BGMI_TOURNAMENTS_ENTRY.accessNote}</span></p>
+                    <p className="font-mono text-[11px] tracking-wide text-muted-foreground mt-2">Standings · Results · History</p>
+                  </CardHeader>
+                  <CardContent>
+                    <Link
+                      href={BGMI_TOURNAMENTS_ENTRY.url as Route}
+                      aria-label={BGMI_TOURNAMENTS_ENTRY.ctaAriaLabel}
+                      className="inline-flex h-9 items-center rounded-full border border-border bg-card px-4 text-sm font-medium hover:bg-muted min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-[180ms]"
+                    >
+                      {BGMI_TOURNAMENTS_ENTRY.ctaLabel} <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </CardContent>
                 </Card>

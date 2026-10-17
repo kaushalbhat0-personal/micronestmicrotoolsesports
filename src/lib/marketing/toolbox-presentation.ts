@@ -1,26 +1,29 @@
 import { getAvailableTools, type MarketingTool } from "@/config/marketing/tools";
-import { BGMI_QUALIFICATION_ITEM, META_PARSER_ITEM } from "./homepage-seo";
+import { BGMI_QUALIFICATION_ITEM, BGMI_TOURNAMENTS_ITEM, META_PARSER_ITEM } from "./homepage-seo";
 
 /**
- * Public toolbox presentation composer (RCCF-TOOLBOX-IA-02).
+ * Public toolbox presentation composer (RCCF-TOOLBOX-IA-02 +
+ * RCCF-BGMI-TOURNAMENTS-02).
  *
  * Presentation-only: composes the six workspace marketing tools with the
- * public Meta-Parser intelligence entry and the public BGMI Qualification
- * Simulator entry so surfaces like `/tools` and the
- * sitemap can present all eight toolbox entries exactly once.
+ * public Meta-Parser intelligence entry, the public BGMI Qualification
+ * Simulator entry, and the public BGMI Tournament Hub entry so surfaces
+ * like `/tools` and the sitemap can present all nine toolbox entries
+ * exactly once.
  *
  * Workspace isolation is preserved by construction:
  * - `TOOLS`, `MARKETING_TOOLS`, `POLICIES`, `FREE_TIERS`,
  *   `TOOL_PLAN_PREFIX`, entitlement, billing, plans, and checkout are
  *   never touched here — this module only reads the marketing registry
  *   plus the existing public-tool pointers.
- * - The Meta-Parser and BGMI entries carry no plan/price/entitlement semantics.
+ * - The Meta-Parser, BGMI simulator, and Tournament Hub entries carry no
+ *   plan/price/entitlement semantics.
  */
 
-export type ToolboxEntryKind = "workspace" | "patch-intelligence" | "public-microtool";
+export type ToolboxEntryKind = "workspace" | "patch-intelligence" | "public-microtool" | "tournament-hub";
 
 export interface ToolboxEntry {
-  /** Public slug (`meta-parser`, `bgmi-qualification`, or the marketing slug). */
+  /** Public slug (`meta-parser`, `bgmi-qualification`, `bgmi-tournaments`, or the marketing slug). */
   readonly slug: string;
   readonly name: string;
   /** Canonical relative route. */
@@ -74,6 +77,24 @@ export const BGMI_QUALIFICATION_ENTRY: ToolboxEntry = {
   accessNote: "Free microtool · No signup",
 };
 
+/**
+ * Public BGMI Tournament Hub card content. Route/icon/kind reuse the
+ * canonical homepage pointer; display copy follows the hub positioning
+ * ("See standings, match results, and history"). Public informational
+ * product — no plan, price, claim, or workspace semantics by design.
+ */
+export const BGMI_TOURNAMENTS_ENTRY: ToolboxEntry = {
+  slug: "bgmi-tournaments",
+  name: "BGMI Tournament Hub",
+  url: BGMI_TOURNAMENTS_ITEM.url,
+  kind: "tournament-hub",
+  description: "See standings, match results, and history.",
+  icon: BGMI_TOURNAMENTS_ITEM.icon,
+  ctaLabel: "Browse standings",
+  ctaAriaLabel: "Browse BGMI tournament standings and results — free to read",
+  accessNote: "Public standings · Free to read",
+};
+
 /** Six released workspace tools as presentation entries (order = registry order). */
 export function getWorkspaceEntries(): ToolboxEntry[] {
   return getAvailableTools().map((tool) => ({
@@ -90,7 +111,7 @@ export function getWorkspaceEntries(): ToolboxEntry[] {
   }));
 }
 
-/** Eight public toolbox entries: six workspace tools plus Meta-Parser and the BGMI simulator. */
+/** Nine public toolbox entries: six workspace tools plus Meta-Parser, the BGMI simulator, and the Tournament Hub. */
 export function getToolboxEntries(): ToolboxEntry[] {
-  return [...getWorkspaceEntries(), META_PARSER_ENTRY, BGMI_QUALIFICATION_ENTRY];
+  return [...getWorkspaceEntries(), META_PARSER_ENTRY, BGMI_QUALIFICATION_ENTRY, BGMI_TOURNAMENTS_ENTRY];
 }

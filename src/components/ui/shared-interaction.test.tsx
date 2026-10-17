@@ -78,15 +78,19 @@ describe("shared interaction layer", () => {
   });
 
   it("applies the interactive-card treatment only to clickable discovery surfaces", () => {
-    // Six workspace cards (one template occurrence) + Meta-Parser + BGMI cards.
-    expect(src("src/app/tools/page.tsx").match(/card-interactive/g)).toHaveLength(3);
+    // Six workspace cards (one template occurrence) + Meta-Parser + BGMI simulator + Tournament Hub cards.
+    expect(src("src/app/tools/page.tsx").match(/card-interactive/g)).toHaveLength(4);
     expect(src("src/app/(dashboard)/dashboard/page.tsx")).toContain("card-interactive");
-    // Static/informational surfaces stay static.
+    // Static/informational surfaces stay static — including the hub's own
+    // standings pages (data tables are read, not clicked-through cards).
     for (const path of [
       "src/app/pricing/pricing-client.tsx",
       "src/app/meta-parser/page.tsx",
       "src/app/meta-parser/[game]/page.tsx",
       "src/app/meta-parser/[game]/[version]/page.tsx",
+      "src/app/bgmi-tournaments/page.tsx",
+      "src/app/bgmi-tournaments/[tournament]/page.tsx",
+      "src/app/bgmi-tournaments/[tournament]/[stage]/page.tsx",
       "src/components/marketing/homepage/toolbox-groups.tsx",
     ]) {
       expect(src(path), `${path} must stay static`).not.toContain("card-interactive");

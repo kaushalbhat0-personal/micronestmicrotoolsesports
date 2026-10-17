@@ -171,6 +171,31 @@ describe("QualificationCalculator UX", () => {
     expect(container.innerHTML).toContain("Share on WhatsApp");
   });
 
+  it("scoring caption is user-friendly with provenance in a disclosure", () => {
+    mount();
+    const text = container.textContent ?? "";
+    expect(text).toContain("1st = 10 pts · 2nd = 6 pts · 3rd = 5 pts · 4th = 4 pts · 5th = 3 pts · 6th = 2 pts · 7th–8th = 1 pt · +1 per finish");
+    expect(text).toContain("How is this scoring determined?");
+    expect(text).toContain("Based on the BMSD 2026 official competition rulebook.");
+    // Technical provenance identifiers must not dominate the primary UI.
+    expect(text).not.toContain("v1.0.0");
+    expect(text).not.toContain("§14");
+  });
+
+  it("prefilled current points from the Tournament Hub show a confirmation caveat", () => {
+    act(() => {
+      root = createRoot(container);
+      root.render(<QualificationCalculator prefillCurrent={210} prefillUpdatedAt="6 Sept, 14:30" />);
+    });
+    const current = byLabel("Current points") as HTMLInputElement;
+    expect(current.value).toBe("210");
+    const text = container.textContent ?? "";
+    expect(text).toContain("Prefilled from Tournament Hub standings");
+    expect(text).toContain("Confirm the latest tournament result before planning");
+    // Only current points are prefilled — no automatic verdict.
+    expect(text).not.toContain("You need");
+  });
+
   it("rejects negative input with an inline error", () => {
     mount();
     act(() => {

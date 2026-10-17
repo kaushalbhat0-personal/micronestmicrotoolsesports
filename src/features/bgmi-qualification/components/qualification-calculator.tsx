@@ -27,12 +27,20 @@ import {
 } from "../services/scoring";
 import { gapMessage, outOfReachMessage, rateMessage, verdictLabel } from "../services/copy";
 import { formatPoints } from "../services/format";
-import type { QualificationScenario, QualificationShareState } from "../types";
+import type { QualificationScenario, QualificationShareState, ScoringPreset } from "../types";
 import { ScenarioEditor, SavedScenarioRow, type ScenarioDraft } from "./scenario-editor";
 import { ShareBlock } from "./share-block";
 
 export interface QualificationCalculatorProps {
   readonly initialState?: QualificationShareState | null;
+  /**
+   * Prefilled current points arriving from a Tournament Hub team row
+   * (`/bgmi-qualification?current=N`). Only the current-points field is
+   * ever prefilled — target, matches, and scenarios stay empty.
+   */
+  readonly prefillCurrent?: number | null;
+  /** ISO timestamp the hub standings were last updated (caveat display). */
+  readonly prefillUpdatedAt?: string | null;
 }
 
 function parseIntOrNull(text: string): number | null {
@@ -47,13 +55,57 @@ function parseRateOrNull(text: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+function ordinalPlace(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
+/**
+ * Friendly one-line scoring summary derived from preset data
+ * (consecutive equal placements collapse into a range, e.g. 7th–8th).
+ * Provenance (rulebook/version) is deliberately NOT part of this string —
+ * it lives in the "How is this scoring determined?" disclosure below.
+ */
+function scoringSummary(preset: ScoringPreset): string {
+  const parts: string[] = [];
+  const pts = preset.placementPoints;
+  let runStart = 0;
+  for (let i = 1; i <= pts.length; i++) {
+    if (i === pts.length || pts[i] !== pts[runStart]) {
+      const value = pts[runStart];
+      if (value !== undefined && value > 0) {
+        const range =
+          runStart === i - 1
+            ? ordinalPlace(runStart + 1)
+            : `${ordinalPlace(runStart + 1)}–${ordinalPlace(i)}`;
+        parts.push(`${range} = ${value} ${value === 1 ? "pt" : "pts"}`);
+      }
+      runStart = i;
+    }
+  }
+  parts.push(`+${preset.finishPointValue} per finish`);
+  return parts.join(" · ");
+}
+
 /**
  * BGMI Qualification Simulator — fully client-side, ephemeral.
  * Answers "what do we need to qualify?" from four local inputs.
  * No account, no persistence, no network. Share links carry state.
  */
-export function QualificationCalculator({ initialState = null }: QualificationCalculatorProps) {
-  const [currentText, setCurrentText] = React.useState(initialState ? String(initialState.current) : "");
+export function QualificationCalculator({ initialState = null, prefillCurrent = null, prefillUpdatedAt = null }: QualificationCalculatorProps) {
+  const prefilledCurrentText =
+    initialState !== null ? String(initialState.current) : prefillCurrent !== null ? String(prefillCurrent) : "";
+  const [currentText, setCurrentText] = React.useState(initialState ? String(initialState.current) : prefilledCurrentText);
   const [targetText, setTargetText] = React.useState(initialState ? String(initialState.target) : "");
   const [matchesText, setMatchesText] = React.useState(initialState ? String(initialState.matches) : "");
   const [presetId, setPresetId] = React.useState(initialState?.preset ?? QUALIFICATION_PRESETS[0]?.id ?? "krafton-2026");
@@ -109,6 +161,13 @@ export function QualificationCalculator({ initialState = null }: QualificationCa
 
   return (
     <div className="space-y-5">
+      {prefillCurrent !== null && initialState === null ? (
+        <p role="note" className="rounded-[12px] border border-border bg-card px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+          Prefilled from Tournament Hub standings
+          {prefillUpdatedAt ? ` (last updated ${prefillUpdatedAt})` : ""}. Confirm the latest tournament
+          result before planning — targets move as rivals score.
+        </p>
+      ) : null}
       {/* Inputs */}
       <Card>
         <CardHeader>
@@ -169,7 +228,14 @@ export function QualificationCalculator({ initialState = null }: QualificationCa
                 <option key={p.id} value={p.id}>{p.label}</option>
               ))}
             </select>
-            <p className="text-xs text-muted-foreground">{preset.sourceLabel}. 1st–8th earn {preset.placementPoints.slice(0, 8).join(" / ")} pts · every finish 1 pt. Tiebreaks: most WWCDs, then placement, then finishes, then the last match.</p>
+            <p className="text-xs text-muted-foreground">{scoringSummary(preset)}</p>
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer font-medium text-foreground">How is this scoring determined?</summary>
+              <p className="mt-1">
+                Based on the BMSD 2026 official competition rulebook. Scoring can vary by event, so check your
+                tournament rules before using this preset.
+              </p>
+            </details>
           </div>
         </CardContent>
       </Card>

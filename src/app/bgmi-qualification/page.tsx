@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { QualificationCalculator } from "@/features/bgmi-qualification/components/qualification-calculator";
+import { isValidPoints } from "@/features/bgmi-qualification/services/scoring";
 
 export const metadata: Metadata = {
   title: "BGMI Qualification Calculator — Know What Your Team Needs to Qualify | MicroNest",
@@ -22,12 +23,45 @@ export const metadata: Metadata = {
   },
 };
 
+function parsePrefillCurrent(value: string | string[] | undefined): number | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw) return null;
+  const parsed = Number(raw);
+  return isValidPoints(parsed) ? parsed : null;
+}
+
+function parsePrefillUpdated(value: string | string[] | undefined): string | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw) return null;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+  });
+}
+
 /**
  * Public BGMI Qualification Simulator — instant-use microtool.
  * Fully client-side and ephemeral: no account, no persistence, no live
  * data. The answer (gap + required rate) renders above the fold.
+ *
+ * Accepts `?current=N` (optionally `&updated=ISO`) from Tournament Hub
+ * team rows: only current points are prefilled, and a caveat banner
+ * reminds planners to confirm the latest result.
  */
-export default function BgmiQualificationPage() {
+export default async function BgmiQualificationPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ current?: string | string[]; updated?: string | string[] }>;
+}) {
+  const params = (await searchParams) ?? {};
+  const prefillCurrent = parsePrefillCurrent(params.current);
+  const prefillUpdatedAt = prefillCurrent !== null ? parsePrefillUpdated(params.updated) : null;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
@@ -43,7 +77,7 @@ export default function BgmiQualificationPage() {
               instantly, with no signup. Existing tools show what happened; this shows what needs to happen next.
             </p>
           </div>
-          <QualificationCalculator />
+          <QualificationCalculator prefillCurrent={prefillCurrent} prefillUpdatedAt={prefillUpdatedAt} />
         </div>
       </main>
       <Footer />

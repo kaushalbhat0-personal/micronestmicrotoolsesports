@@ -4,17 +4,18 @@ import { freeBadgeBySlug, freeTierBySlug } from "@/config/marketing/free-tiers";
 /**
  * Homepage (toolbox-level) SEO — single source for identity metadata.
  *
- * Toolbox-first: MicroNest is the product; the eight tools are products
+ * Toolbox-first: MicroNest is the product; the nine tools are products
  * inside the toolbox. No single tool dominates homepage identity.
  *
  * Workspace tools derive from the canonical marketing registry
  * (`getAvailableTools()` — never a hardcoded subset). Meta-Parser is public
- * patch intelligence and the BGMI Qualification Simulator is a public
- * instant-use microtool — neither is a workspace subscription product, so
- * both live outside that registry; only their canonical public routes and
- * display names are referenced here (facts catalog itself is DB-driven via
- * `features/meta-parser/repositories/reads.ts`). This file defines no tool
- * catalog — it composes existing sources for SEO presentation only.
+ * patch intelligence, the BGMI Qualification Simulator is a public
+ * instant-use microtool, and the BGMI Tournament Hub is a public
+ * informational product — none is a workspace subscription product, so
+ * all three live outside that registry; only their canonical public routes
+ * and display names are referenced here (facts/standings catalogs are
+ * DB-driven). This file defines no tool catalog — it composes existing
+ * sources for SEO presentation only.
  */
 
 export const HOMEPAGE_TITLE = "MicroNest — The Toolbox Behind Esports";
@@ -22,7 +23,7 @@ export const HOMEPAGE_TITLE = "MicroNest — The Toolbox Behind Esports";
 export const HOMEPAGE_DESCRIPTION =
   "MicroNest is the toolbox behind esports — small, focused tools for tournament operations, sponsorships, payouts, rosters, and public patch intelligence. Every workspace tool starts free.";
 
-export type HomepageToolboxKind = "workspace-tool" | "patch-intelligence" | "public-microtool";
+export type HomepageToolboxKind = "workspace-tool" | "patch-intelligence" | "public-microtool" | "tournament-hub";
 
 export interface HomepageToolboxItem {
   /** Stable 1-based position for ItemList. */
@@ -63,7 +64,23 @@ export const BGMI_QUALIFICATION_ITEM = {
   icon: "Target",
 } as const;
 
-/** Eight released toolbox entries: registry workspace tools + Meta-Parser + BGMI simulator. */
+/**
+ * Public tournament-information entry. Name and route only — standings,
+ * results, and history stay catalog-driven (DB via
+ * `features/bgmi-tournaments/repositories/reads.ts`) and must never be
+ * hardcoded here.
+ */
+export const BGMI_TOURNAMENTS_ITEM = {
+  name: "BGMI Tournament Hub",
+  url: "/bgmi-tournaments",
+  kind: "tournament-hub",
+  /** Card value proposition — positioning copy, no capability claims. */
+  description: "See standings, match results, and history.",
+  /** Lucide icon key (see homepage icon map). */
+  icon: "Trophy",
+} as const;
+
+/** Nine released toolbox entries: registry workspace tools + Meta-Parser + BGMI simulator + Tournament Hub. */
 export function getHomepageToolboxItems(): HomepageToolboxItem[] {
   const workspace = getAvailableTools().map((tool, index) => ({
     position: index + 1,
@@ -75,6 +92,7 @@ export function getHomepageToolboxItems(): HomepageToolboxItem[] {
     ...workspace,
     { position: workspace.length + 1, ...META_PARSER_ITEM },
     { position: workspace.length + 2, ...BGMI_QUALIFICATION_ITEM },
+    { position: workspace.length + 3, ...BGMI_TOURNAMENTS_ITEM },
   ];
 }
 
@@ -86,7 +104,7 @@ export function getHomepageToolboxItems(): HomepageToolboxItem[] {
 export interface ToolboxGroupDef {
   readonly label: string;
   readonly blurb: string;
-  /** Registry slugs plus the `"meta-parser"` / `"bgmi-qualification"` public-tool keys. */
+  /** Registry slugs plus the `"meta-parser"` / `"bgmi-qualification"` / `"bgmi-tournaments"` public-tool keys. */
   readonly slugs: readonly string[];
 }
 
@@ -108,8 +126,8 @@ export const TOOLBOX_GROUPS: readonly ToolboxGroupDef[] = [
   },
   {
     label: "Qualify on points",
-    blurb: "Targets and what-if scenarios — know what your team needs to qualify.",
-    slugs: ["bgmi-qualification"],
+    blurb: "Standings, targets and what-if scenarios — where teams stand and what they need to qualify.",
+    slugs: ["bgmi-qualification", "bgmi-tournaments"],
   },
 ] as const;
 
@@ -162,6 +180,18 @@ export function resolveToolboxGroups(): ResolvedToolboxGroup[] {
           accessNote: "Free microtool · No signup",
         };
       }
+      if (slug === "bgmi-tournaments") {
+        return {
+          name: BGMI_TOURNAMENTS_ITEM.name,
+          url: BGMI_TOURNAMENTS_ITEM.url,
+          description: BGMI_TOURNAMENTS_ITEM.description,
+          kind: BGMI_TOURNAMENTS_ITEM.kind,
+          icon: BGMI_TOURNAMENTS_ITEM.icon,
+          ctaLabel: "Browse standings",
+          ctaAriaLabel: "Browse BGMI tournament standings and results — free to read",
+          accessNote: "Public standings · Free to read",
+        };
+      }
       const tool = getMarketingTool(slug);
       if (!tool || !tool.internalSlug) throw new Error(`Unknown toolbox group slug: ${slug}`);
       const badge = freeBadgeBySlug(tool.internalSlug) ?? "Free plan";
@@ -205,22 +235,37 @@ function patchIntelligenceNode(item: HomepageToolboxItem): Record<string, unknow
   };
 }
 
-/** ItemList of the eight released tools — positions, names, canonical URLs. */
+/** ItemList of the nine released tools — positions, names, canonical URLs. */
 export function buildHomepageItemListJsonLd(): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "MicroNest toolbox",
-    description: "The eight released MicroNest esports tools.",
-    numberOfItems: 8,
+    description: "The nine released MicroNest esports tools.",
+    numberOfItems: 9,
     itemListElement: getHomepageToolboxItems().map((item) => ({
       "@type": "ListItem",
       position: item.position,
       name: item.name,
       url: item.url,
       item:
-        item.kind === "patch-intelligence" ? patchIntelligenceNode(item) : workspaceToolNode(item),
+        item.kind === "workspace-tool" || item.kind === "public-microtool"
+          ? workspaceToolNode(item)
+          : item.kind === "tournament-hub"
+            ? tournamentHubNode(item)
+            : patchIntelligenceNode(item),
     })),
+  };
+}
+
+function tournamentHubNode(item: HomepageToolboxItem): Record<string, unknown> {
+  // The Tournament Hub is public informational pages — WebPage, not
+  // installed software. No capability claims beyond standings/results.
+  return {
+    "@type": "WebPage",
+    name: item.name,
+    url: item.url,
+    description: "Public BGMI tournament standings and match results — updated after completed matches.",
   };
 }
 

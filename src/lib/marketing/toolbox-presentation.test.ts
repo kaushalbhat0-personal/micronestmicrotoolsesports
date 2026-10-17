@@ -3,25 +3,27 @@ import { TOOLS } from "@/config/app/tools";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
 import {
   BGMI_QUALIFICATION_ENTRY,
+  BGMI_TOURNAMENTS_ENTRY,
   META_PARSER_ENTRY,
   getToolboxEntries,
   getWorkspaceEntries,
 } from "./toolbox-presentation";
 
 /**
- * Toolbox presentation boundary (RCCF-TOOLBOX-IA-02).
+ * Toolbox presentation boundary (RCCF-TOOLBOX-IA-02 + RCCF-BGMI-TOURNAMENTS-02).
  *
  * The public toolbox composes six workspace tools plus Meta-Parser plus the
- * BGMI Qualification Simulator without contaminating the workspace/billing
- * registries.
+ * BGMI Qualification Simulator plus the BGMI Tournament Hub without
+ * contaminating the workspace/billing registries.
  */
 describe("toolbox presentation composer", () => {
-  it("exposes exactly eight entries: six workspace plus Meta-Parser plus BGMI", () => {
+  it("exposes exactly nine entries: six workspace plus Meta-Parser plus BGMI plus Hub", () => {
     const entries = getToolboxEntries();
-    expect(entries).toHaveLength(8);
+    expect(entries).toHaveLength(9);
     expect(entries.filter((e) => e.kind === "workspace")).toHaveLength(6);
     expect(entries.filter((e) => e.kind === "patch-intelligence")).toHaveLength(1);
     expect(entries.filter((e) => e.kind === "public-microtool")).toHaveLength(1);
+    expect(entries.filter((e) => e.kind === "tournament-hub")).toHaveLength(1);
   });
 
   it("has no duplicate slugs, names, or routes", () => {
@@ -88,6 +90,25 @@ describe("toolbox presentation composer", () => {
     }
   });
 
+  it("presents the BGMI Tournament Hub as public standings with no paid-plan semantics", () => {
+    expect(BGMI_TOURNAMENTS_ENTRY.kind).toBe("tournament-hub");
+    expect(BGMI_TOURNAMENTS_ENTRY.slug).toBe("bgmi-tournaments");
+    expect(BGMI_TOURNAMENTS_ENTRY.name).toBe("BGMI Tournament Hub");
+    expect(BGMI_TOURNAMENTS_ENTRY.url).toBe("/bgmi-tournaments");
+    expect(BGMI_TOURNAMENTS_ENTRY.description).toBe("See standings, match results, and history.");
+    expect(BGMI_TOURNAMENTS_ENTRY.ctaLabel).toBe("Browse standings");
+    expect(BGMI_TOURNAMENTS_ENTRY.accessNote).toBe("Public standings · Free to read");
+    expect(BGMI_TOURNAMENTS_ENTRY.marketingTool).toBeUndefined();
+    const raw = BGMI_TOURNAMENTS_ENTRY as unknown as Record<string, unknown>;
+    for (const key of ["plan", "planSlug", "price", "amount", "internalSlug", "checkout"]) {
+      expect(raw[key]).toBeUndefined();
+    }
+    const serialized = JSON.stringify(BGMI_TOURNAMENTS_ENTRY).toLowerCase();
+    for (const phrase of ["start free", "claim", "purchase", "pricing", "workspace", "guaranteed", "live", "real-time"]) {
+      expect(serialized).not.toContain(phrase);
+    }
+  });
+
   it("keeps workspace registries at six tools (isolation)", () => {
     expect(TOOLS).toHaveLength(6);
     expect(MARKETING_TOOLS).toHaveLength(6);
@@ -95,5 +116,7 @@ describe("toolbox presentation composer", () => {
     expect(MARKETING_TOOLS.some((t) => t.slug === "meta-parser")).toBe(false);
     expect(TOOLS.some((t) => t.slug === "bgmi-qualification")).toBe(false);
     expect(MARKETING_TOOLS.some((t) => t.slug === "bgmi-qualification")).toBe(false);
+    expect(TOOLS.some((t) => t.slug === "bgmi-tournaments")).toBe(false);
+    expect(MARKETING_TOOLS.some((t) => t.slug === "bgmi-tournaments")).toBe(false);
   });
 });

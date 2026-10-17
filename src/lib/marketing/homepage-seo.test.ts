@@ -10,8 +10,8 @@ import {
  * Slugs reference the canonical registry; every display field resolves from
  * it (workspace tools) or the Meta-Parser pointer. No duplicated catalog.
  */
-describe("toolbox groups cover the eight released tools exactly once", () => {
-  it("defines four neutral groups with eight slugs total and no duplicates", () => {
+describe("toolbox groups cover the nine released tools exactly once", () => {
+  it("defines four neutral groups with nine slugs total and no duplicates", () => {
     expect(TOOLBOX_GROUPS.map((g) => g.label)).toEqual([
       "Run the tournament",
       "Run the business",
@@ -19,15 +19,15 @@ describe("toolbox groups cover the eight released tools exactly once", () => {
       "Qualify on points",
     ]);
     const slugs = TOOLBOX_GROUPS.flatMap((g) => [...g.slugs]);
-    expect(slugs).toHaveLength(8);
-    expect(new Set(slugs).size).toBe(8);
+    expect(slugs).toHaveLength(9);
+    expect(new Set(slugs).size).toBe(9);
   });
 
-  it("resolves to eight cards with canonical names, routes, and descriptions", () => {
+  it("resolves to nine cards with canonical names, routes, and descriptions", () => {
     const groups = resolveToolboxGroups();
     const cards = groups.flatMap((g) => g.cards);
-    expect(cards).toHaveLength(8);
-    // Same eight entries as the SEO source — group order is editorial, not ranked.
+    expect(cards).toHaveLength(9);
+    // Same nine entries as the SEO source — group order is editorial, not ranked.
     expect([...cards.map((c) => c.url)].sort()).toEqual(
       [...getHomepageToolboxItems().map((i) => i.url)].sort()
     );
@@ -65,6 +65,16 @@ describe("toolbox groups cover the eight released tools exactly once", () => {
     expect(bgmi?.description).toBe("Know what your team needs to qualify.");
     expect(bgmi?.ctaLabel).toBe("Try it now");
     expect(bgmi?.accessNote).toBe("Free microtool · No signup");
+  });
+
+  it("BGMI Tournament Hub resolves as public standings with a browse CTA", () => {
+    const cards = resolveToolboxGroups().flatMap((g) => g.cards);
+    const hub = cards.find((c) => c.url === "/bgmi-tournaments");
+    expect(hub?.kind).toBe("tournament-hub");
+    expect(hub?.name).toBe("BGMI Tournament Hub");
+    expect(hub?.description).toBe("See standings, match results, and history.");
+    expect(hub?.ctaLabel).toBe("Browse standings");
+    expect(hub?.accessNote).toBe("Public standings · Free to read");
   });
 
   it("workspace cards reuse registry copy with canonical Free framing", () => {

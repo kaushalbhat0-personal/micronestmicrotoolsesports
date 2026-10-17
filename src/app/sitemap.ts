@@ -4,6 +4,7 @@ import { GUIDES } from "@/config/content/guides";
 import { GLOSSARY } from "@/config/content/glossary";
 import { USE_CASES } from "@/config/content/use-cases";
 import { listPublishedMetaParserPaths } from "@/lib/marketing/meta-parser-sitemap";
+import { listPublishedBgmiTournamentPaths } from "@/lib/marketing/bgmi-tournaments-sitemap";
 
 export const revalidate = 3600;
 
@@ -16,6 +17,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/tools",
     ...MARKETING_TOOLS.map((t) => `/tools/${t.slug}`),
     "/bgmi-qualification",
+    "/bgmi-tournaments",
+    ...(await listPublishedBgmiTournamentPaths()).filter((p) => p !== "/bgmi-tournaments"),
     ...(await listPublishedMetaParserPaths()),
     "/pricing",
     "/guides",
@@ -35,7 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return publicPaths.map((path) => ({
     url: `${base}${path}`,
     lastModified: now,
-    changeFrequency: path === "" || path === "/tools" || path === "/meta-parser" ? "weekly" : "monthly",
-    priority: path === "" ? 1 : path.startsWith("/tools/") ? 0.8 : path === "/tools" ? 0.9 : path.startsWith("/meta-parser") ? 0.8 : 0.5,
+    changeFrequency: path === "" || path === "/tools" || path === "/meta-parser" || path === "/bgmi-tournaments" ? "weekly" : "monthly",
+    priority: path === "" ? 1 : path.startsWith("/tools/") ? 0.8 : path === "/tools" ? 0.9 : path.startsWith("/meta-parser") || path.startsWith("/bgmi-tournaments") || path === "/bgmi-qualification" ? 0.8 : 0.5,
   }));
 }

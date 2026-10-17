@@ -1,0 +1,38 @@
+# BGMI Tournament Hub ingestion — daily standings refresh.
+# Source freshness is measured in hours, not minutes: one daily run plus
+# manual dispatch while a tournament is actively running. No Vercel Cron,
+# no five-minute polling.
+name: bgmi-tournaments-ingest
+
+on:
+  schedule:
+    # Daily 08:00 UTC — one hour after meta-parser-ingest (07:00 UTC).
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+    inputs:
+      tournament:
+        description: "Catalogued tournament slug (empty = bmsd-2026)"
+        required: false
+        default: "bmsd-2026"
+      stages:
+        description: "Comma-separated stages, e.g. playoffs,grand-finals (empty = grand-finals)"
+        required: false
+        default: "grand-finals"
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger BGMI Tournament Hub ingestion
+        run: |
+          TOURNAMENT="${{ inputs.tournament }}"
+          if [ -z "$TOURNAMENT" ]; then TOURNAMENT="bmsd-2026"; fi
+          STAGES="${{ inputs.stages }}"
+          if [ -z "$STAGES" ]; then STAGES="grand-finals"; fi
+          curl --fail --show-error --max-time 300 \
+            -X POST "$APP_URL/api/ingest/bgmi-tournaments?tournament=$TOURNAMENT&stages=$STAGES" \
+            -H "Authorization: Bearer $CRON_SECRET"
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

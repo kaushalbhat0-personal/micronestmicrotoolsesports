@@ -17,7 +17,7 @@ import {
  * Homepage UI is intentionally unchanged in this stage — only `<title>`,
  * meta/OG/Twitter, and JSON-LD are toolbox-first. These tests pin the
  * structured-data contract: valid Organization/WebSite, an ItemList of
- * exactly the eight released tools with canonical routes, truthful
+ * exactly the nine released tools with canonical routes, truthful
  * SoftwareApplication fields only, and no hidden-FAQ markup.
  */
 
@@ -36,13 +36,14 @@ const EXPECTED_ROUTES = [
   "/tools/tournament-roster-builder",
   "/meta-parser",
   "/bgmi-qualification",
+  "/bgmi-tournaments",
 ];
 
 describe("homepage toolbox items derive from existing sources (no duplicated registry)", () => {
-  it("contains exactly eight released tools in stable positions", () => {
+  it("contains exactly nine released tools in stable positions", () => {
     const items = getHomepageToolboxItems();
-    expect(items).toHaveLength(8);
-    expect(items.map((i) => i.position)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(items).toHaveLength(9);
+    expect(items.map((i) => i.position)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(items.map((i) => i.url)).toEqual(EXPECTED_ROUTES);
   });
 
@@ -64,11 +65,18 @@ describe("homepage toolbox items derive from existing sources (no duplicated reg
     expect(last?.kind).toBe("patch-intelligence");
   });
 
-  it("BGMI simulator closes the list as a free public microtool, not workspace SaaS", () => {
+  it("BGMI simulator sits at position eight as a free public microtool, not workspace SaaS", () => {
     const last = getHomepageToolboxItems()[7];
     expect(last?.name).toBe("BGMI Qualification Simulator");
     expect(last?.url).toBe("/bgmi-qualification");
     expect(last?.kind).toBe("public-microtool");
+  });
+
+  it("BGMI Tournament Hub closes the list as public tournament information, not workspace SaaS", () => {
+    const last = getHomepageToolboxItems()[8];
+    expect(last?.name).toBe("BGMI Tournament Hub");
+    expect(last?.url).toBe("/bgmi-tournaments");
+    expect(last?.kind).toBe("tournament-hub");
   });
 
   it("never includes removed or unreleased tools", () => {
@@ -114,13 +122,13 @@ describe("WebSite JSON-LD represents the toolbox site", () => {
   });
 });
 
-describe("ItemList JSON-LD lists the eight released tools", () => {
+describe("ItemList JSON-LD lists the nine released tools", () => {
   it("has positions, names, and canonical routes", () => {
     const list = buildHomepageItemListJsonLd();
     expect(list["@type"]).toBe("ItemList");
-    expect(list["numberOfItems"]).toBe(8);
+    expect(list["numberOfItems"]).toBe(9);
     const elements = list["itemListElement"] as Array<Record<string, unknown>>;
-    expect(elements).toHaveLength(8);
+    expect(elements).toHaveLength(9);
     elements.forEach((el, i) => {
       expect(el["@type"]).toBe("ListItem");
       expect(el["position"]).toBe(i + 1);
@@ -161,6 +169,17 @@ describe("ItemList JSON-LD lists the eight released tools", () => {
     expect(bgmi["url"]).toBe("/bgmi-qualification");
   });
 
+  it("BGMI Tournament Hub is a WebPage with standings framing, never predictions", () => {
+    const raw = JSON.stringify(buildHomepageItemListJsonLd()).toLowerCase();
+    for (const claim of ["guaranteed", "will qualify", "prediction", "live standings", "real-time"]) {
+      expect(raw).not.toContain(claim);
+    }
+    const elements = buildHomepageItemListJsonLd()["itemListElement"] as Array<Record<string, unknown>>;
+    const hub = elements[8]?.["item"] as Record<string, unknown>;
+    expect(hub["@type"]).toBe("WebPage");
+    expect(hub["url"]).toBe("/bgmi-tournaments");
+  });
+
   it("homepage wires the ItemList builder", () => {
     expect(sourceOf(HOMEPAGE)).toContain("buildHomepageItemListJsonLd");
   });
@@ -181,7 +200,7 @@ describe("no FAQ JSON-LD without visible FAQ content", () => {
 });
 
 describe("homepage UI reflects the toolbox IA", () => {
-  it("composes the eight toolbox sections with no sponsorship remnants", () => {
+  it("composes the nine toolbox sections with no sponsorship remnants", () => {
     const code = sourceOf(HOMEPAGE);
     for (const marker of [
       "ToolboxHero",
