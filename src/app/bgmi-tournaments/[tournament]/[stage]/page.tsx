@@ -6,7 +6,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
-import { getStageDetail } from "@/features/bgmi-tournaments";
+import { getStageDetail, stageMessaging } from "@/features/bgmi-tournaments";
 
 export const revalidate = 3600;
 
@@ -74,6 +74,13 @@ export default async function BgmiStagePage({
   const completedMatches = matches.filter((m) => m.status === "completed");
   const scheduledMatches = matches.filter((m) => m.status !== "completed");
   const lastUpdated = stage.publishedAt ?? tournament.sourceLastUpdatedAt;
+  const messaging = stageMessaging({
+    status: stage.status,
+    smashRule: stage.smashRule,
+    matchPointThreshold: stage.matchPointThreshold,
+    completedMatches: completedMatches.length,
+    totalMatches: matches.length,
+  });
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -102,17 +109,17 @@ export default async function BgmiStagePage({
           <p className="mt-2 text-sm text-muted-foreground">
             {stage.formatNote ?? `${standings.length} teams`} · Updated after completed matches
           </p>
-          {stage.smashRule ? (
+          {messaging.smashCallout ? (
             <p className="mt-3 rounded-[12px] border border-border bg-card px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-              This stage ended with a Smash Rule (match-point) format
-              {stage.matchPointThreshold ? ` — the match-point threshold was ${stage.matchPointThreshold} points` : ""}.
-              The table below shows the points race; final positions were decided by the match-point rule, not by points
-              alone.
+              {messaging.smashCallout}
             </p>
           ) : null}
 
           <section aria-label="Standings" className="mt-8">
-            <h2 className="font-display text-xl font-normal tracking-tight">Standings</h2>
+            <h2 className="font-display text-xl font-normal tracking-tight">{messaging.standingsHeading}</h2>
+            {messaging.standingsNote ? (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{messaging.standingsNote}</p>
+            ) : null}
             {standings.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">Standings will appear here after the first completed match.</p>
             ) : (

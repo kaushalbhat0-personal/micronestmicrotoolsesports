@@ -8,6 +8,8 @@ export * from "./types";
 export { BGMI_FINISH_POINT_VALUE_2026, BGMI_MAX_PLACEMENT, BGMI_POINTS_TABLE_2026 } from "./services/points";
 export { matchTotal, placementPointsFor, stageTotal, isCanonicalTable2026 } from "./services/points";
 export { deriveStandings, stageTotalsFrom } from "./services/standings";
+export { stageMessaging } from "./services/stage-copy";
+export type { StageMessaging, StageMessagingInput } from "./services/stage-copy";
 export { validateStageDataset } from "./services/validate";
 export type { StageValidationWarning } from "./services/validate";
 export { ingestTournamentStage } from "./services/ingest";
