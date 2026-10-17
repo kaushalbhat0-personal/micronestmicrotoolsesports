@@ -276,9 +276,12 @@ describe("Semi Finals sat-out spellings (BMPS-03)", () => {
     }
   });
 
-  it("keeps BMPS date spellings as null metadata without failing", () => {
+  it("parses BMPS hyphenated date spellings into IST instants", () => {
     const dataset = parseStageDataset(SPELLING_EXCERPT, semiFinalsOptions());
-    expect(dataset.matches.every((m) => m.scheduledAt === null)).toBe(true);
+    const byNumber = new Map(dataset.matches.map((m) => [m.matchNumber, m]));
+    // 2026-06-09 16:00 IST = 10:30 UTC; 16:40 IST = 11:10 UTC.
+    expect(byNumber.get(1)?.scheduledAt).toBe("2026-06-09T10:30:00.000Z");
+    expect(byNumber.get(2)?.scheduledAt).toBe("2026-06-09T11:10:00.000Z");
   });
 });
 

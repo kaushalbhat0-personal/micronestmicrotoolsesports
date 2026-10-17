@@ -235,6 +235,16 @@ describe("Showdown partial Grand Finals stage (Showdown-02)", () => {
       );
     }
     expect(scheduled.flatMap((m) => m.results)).toHaveLength(0);
+    // Showdown dialect dates (spaced hyphen) must populate scheduledAt.
+    const byNumber = new Map(dataset.matches.map((m) => [m.matchNumber, m]));
+    expect(byNumber.get(1)?.scheduledAt).toBe("2026-10-16T08:15:00.000Z");
+    expect(byNumber.get(2)?.scheduledAt).toBe("2026-10-16T09:05:00.000Z");
+    expect(byNumber.get(7)?.scheduledAt).toBe("2026-10-17T08:15:00.000Z");
+    expect(byNumber.get(13)?.scheduledAt).toBe("2026-10-18T08:15:00.000Z");
+    for (const match of completed) {
+      expect(match.scheduledAt).not.toBeNull();
+    }
+    expect(dataset.matches.every((m) => m.scheduledAt !== null)).toBe(true);
     expect(dataset.stage.status).toBe("ongoing");
     expect(dataset.tournament.status).toBe("ongoing");
     expect(dataset.stage.smashRule).toBe(false);

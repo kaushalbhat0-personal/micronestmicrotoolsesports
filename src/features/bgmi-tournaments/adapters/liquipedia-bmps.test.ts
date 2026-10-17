@@ -105,10 +105,13 @@ describe("BMPS Phase 1 parser syntax (BMPS-02)", () => {
     expect(dataset.scoring).toEqual({ placementPoints: [10, 6, 5, 4, 3, 2, 1, 1], finishPointValue: 1 });
   });
 
-  it("records unparseable BMPS date spellings as null rather than failing", () => {
-    // Current parser expects `YYYY-MM-DD HH:MM`; BMPS uses `YYYY-MM-DD - HH:MM`.
-    // Dates are optional metadata — the stage must still parse (Phase 2 fixes the spelling).
+  it("parses BMPS hyphenated date spellings into IST instants", () => {
+    // BMPS uses `YYYY-MM-DD - HH:MM`; the parser accepts this alongside the
+    // BMSD `YYYY-MM-DD HH:MM` dialect (both IST → UTC).
     const dataset = parseStageDataset(BMPS_GF_SYNTAX, baseOptions("grand-finals"));
-    expect(dataset.matches.every((m) => m.scheduledAt === null)).toBe(true);
+    const byNumber = new Map(dataset.matches.map((m) => [m.matchNumber, m]));
+    // 2026-06-19 16:15 IST = 10:45 UTC; 17:00 IST = 11:30 UTC.
+    expect(byNumber.get(1)?.scheduledAt).toBe("2026-06-19T10:45:00.000Z");
+    expect(byNumber.get(2)?.scheduledAt).toBe("2026-06-19T11:30:00.000Z");
   });
 });

@@ -103,13 +103,21 @@ describe("Liquipedia adapter — match parsing", () => {
     expect(parsed.teams).toHaveLength(3);
   });
 
-  it("parses map dates as IST instants and finished flags", () => {
+  it("parses map dates as IST instants in both source dialects and stays fail-closed", () => {
     const parsed = grandFinalsMatch();
     expect(parsed.maps.get(1)).toMatchObject({ mapName: "Rondo", finished: true });
     expect(parsed.maps.get(3)).toMatchObject({ mapName: "Miramar", finished: false });
-    // 2026-09-04 16:00 IST = 10:30 UTC
+    // 2026-09-04 16:00 IST = 10:30 UTC (BMSD dialect: no hyphen).
     expect(parsed.maps.get(1)?.scheduledAt).toBe("2026-09-04T10:30:00.000Z");
+    // Showdown dialect: spaced hyphen separator, same IST conversion.
+    // 2026-10-16 13:45 IST = 08:15 UTC.
+    expect(parseMapDate("2026-10-16 - 13:45 {{Abbr/IST}}")).toBe("2026-10-16T08:15:00.000Z");
+    expect(parseMapDate("2026-09-04 16:00 {{Abbr/IST}}")).toBe("2026-09-04T10:30:00.000Z");
     expect(parseMapDate("not a date")).toBeNull();
+    expect(parseMapDate("garbage")).toBeNull();
+    expect(parseMapDate("2026-10-16")).toBeNull();
+    expect(parseMapDate("2026/10/16 13:45")).toBeNull();
+    expect(parseMapDate("2026-10-16 - invalid")).toBeNull();
   });
 
   it("handles MS cells, sat-out maps, starting points, and placement hints", () => {

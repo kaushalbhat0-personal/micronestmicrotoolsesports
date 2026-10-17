@@ -375,10 +375,10 @@ function parseStrictInt(raw: string | undefined): number | null {
   return Number.parseInt(trimmed, 10);
 }
 
-/** "2026-09-04 16:00 {{Abbr/IST}}" → ISO instant (IST = +05:30). Null when unparseable. */
+/** "2026-09-04 16:00 {{Abbr/IST}}" and "2026-10-16 - 13:45 {{Abbr/IST}}" → ISO instant (IST = +05:30). Null when unparseable. */
 export function parseMapDate(raw: string | undefined): string | null {
   if (!raw) return null;
-  const match = /(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/.exec(raw);
+  const match = /(\d{4})-(\d{2})-(\d{2})\s+(?:-\s+)?(\d{2}):(\d{2})/.exec(raw);
   if (!match) return null;
   const [, y, mo, d, h, mi] = match;
   const instant = new Date(`${y}-${mo}-${d}T${h}:${mi}:00+05:30`);
