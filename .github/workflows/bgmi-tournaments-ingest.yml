@@ -11,25 +11,35 @@ on:
   workflow_dispatch:
     inputs:
       tournament:
-        description: "Catalogued tournament slug (empty = bmsd-2026)"
+        description: "Catalogued tournament slug (empty = each scheduled matrix pair)"
         required: false
-        default: "bmsd-2026"
+        default: ""
       stages:
-        description: "Comma-separated stages, e.g. playoffs,grand-finals (empty = grand-finals)"
+        description: "Comma-separated stages, e.g. playoffs,grand-finals (empty = each scheduled matrix pair)"
         required: false
-        default: "grand-finals"
+        default: ""
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      # One leg per automatically tracked tournament stage. A leg failure
+      # never cancels the others (per-stage isolation extends to scheduling).
+      fail-fast: false
+      matrix:
+        pair:
+          - tournament: bmsd-2026
+            stages: grand-finals
+          - tournament: bgmi-showdown-2026
+            stages: grand-finals
     steps:
       - name: Trigger BGMI Tournament Hub ingestion
         run: |
           TOURNAMENT="${{ inputs.tournament }}"
-          if [ -z "$TOURNAMENT" ]; then TOURNAMENT="bmsd-2026"; fi
+          if [ -z "$TOURNAMENT" ]; then TOURNAMENT="${{ matrix.pair.tournament }}"; fi
           STAGES="${{ inputs.stages }}"
-          if [ -z "$STAGES" ]; then STAGES="grand-finals"; fi
+          if [ -z "$STAGES" ]; then STAGES="${{ matrix.pair.stages }}"; fi
           curl --fail --show-error --max-time 300 \
             -X POST "$APP_URL/api/ingest/bgmi-tournaments?tournament=$TOURNAMENT&stages=$STAGES" \
             -H "Authorization: Bearer $CRON_SECRET"

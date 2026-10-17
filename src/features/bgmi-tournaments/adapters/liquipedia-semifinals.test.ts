@@ -267,7 +267,10 @@ describe("Semi Finals sat-out spellings (BMPS-03)", () => {
   });
 
   it("rejects malformed MS cells instead of treating them as sat-out", () => {
-    for (const bad of ["{{MS|-|5}}", "{{MS|5|-}}", "{{MS|foo|bar}}", "{{MS||}}"]) {
+    // Note: `{{MS||}}` is intentionally absent here — since Showdown-02 it
+    // is the upcoming/no-data cell (skipped, never a result). Bare `{{MS}}`
+    // and populated malformed cells still fail closed.
+    for (const bad of ["{{MS|-|5}}", "{{MS|5|-}}", "{{MS|foo|bar}}", "{{MS}}"]) {
       const wikitext = SPELLING_EXCERPT.replace("{{MS|-|}}", bad);
       expect(() => parseStageDataset(wikitext, semiFinalsOptions())).toThrow(/Unparseable MS cell/);
     }

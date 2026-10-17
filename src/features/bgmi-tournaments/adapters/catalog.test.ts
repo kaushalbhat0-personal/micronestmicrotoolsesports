@@ -63,4 +63,15 @@ describe("BMPS Phase 2 catalog (BMPS-03)", () => {
     expect(getCatalogEntry("bmsd-2026")?.stages).toEqual(["grand-finals", "playoffs"]);
     expect(getCatalogEntry("bmsd-2026")?.sourcePage).toBe("BGMI Masters Series/Season 5");
   });
+
+  it("registers bgmi-showdown-2026 Grand Finals on its stage subpage", () => {
+    const entry = getCatalogEntry("bgmi-showdown-2026");
+    expect(entry).not.toBeNull();
+    expect(entry?.name).toBe("Battlegrounds Mobile India Showdown 2026");
+    expect(entry?.sourcePage).toBe("Battlegrounds Mobile India Showdown/2026/Grand Finals");
+    expect(entry?.stages).toEqual(["grand-finals"]);
+    // Disambiguated slug: Masters Series keeps `bmsd-2026`.
+    expect(entry?.slug).not.toBe("bmsd-2026");
+    expect(entry?.shortName).not.toBe(getCatalogEntry("bmsd-2026")?.shortName);
+  });
 });

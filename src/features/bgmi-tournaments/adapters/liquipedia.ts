@@ -252,6 +252,38 @@ export function extractSection(wikitext: string, heading: string): string | null
   return lines.slice(start).join("\n");
 }
 
+/**
+ * Stage-section location: the plain `===Heading===` form first, then the
+ * Showdown-subpage form `=={{Stage|Heading}}==` (H2, template-titled).
+ * The alternate is matched explicitly and case-insensitively against the
+ * same heading — it cannot match any other section, and existing pages
+ * (plain headings) resolve exactly as before.
+ */
+export function extractStageSection(wikitext: string, heading: string): string | null {
+  const direct = extractSection(wikitext, heading);
+  if (direct) return direct;
+  const marker = heading.trim().toLowerCase();
+  const lines = wikitext.split("\n");
+  let start = -1;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = (lines[i] ?? "").trim();
+    const match = /^(=+)\s*(.+?)\s*\1\s*$/.exec(line);
+    if (!match) continue;
+    const level = match[1]?.length ?? 99;
+    const title = (match[2] ?? "").trim();
+    if (start === -1) {
+      const stageForm = /^\{\{\s*stage\s*\|\s*(.+?)\s*\}\}$/i.exec(title);
+      if (level === 2 && stageForm && (stageForm[1] ?? "").trim().toLowerCase() === marker) {
+        start = i + 1;
+      }
+    } else if (level <= 2) {
+      return lines.slice(start, i).join("\n");
+    }
+  }
+  if (start === -1) return null;
+  return lines.slice(start).join("\n");
+}
+
 function cleanWikiText(value: string): string {
   return value
     .replace(/<br\s*\/?>/gi, " ")
@@ -365,6 +397,24 @@ export function isSatOutMsCell(raw: string): boolean {
   return /\{\{\s*MS\s*\|\s*-\s*(\|\s*)?\}\}/.test(raw);
 }
 
+/**
+ * Upcoming/no-data cells: `{{MS||}}` or whitespace-only parameters.
+ * Editors pre-create these for maps that have not been played yet —
+ * they carry no result and must produce no result row (and must not
+ * throw). Strictly narrower than sat-out: at least one parameter
+ * position must exist, every positional must be blank, and no named
+ * params may be present. Bare `{{MS}}` and any populated cell
+ * (`{{MS|5|-}}`, `{{MS|foo}}`, …) are NOT empty and still fail closed.
+ */
+export function isEmptyMsCell(raw: string): boolean {
+  const blocks = findTemplates(raw, "MS");
+  const block = blocks[0];
+  if (!block) return false;
+  const { named, positional } = parseParams(block.inner);
+  if (named.size > 0) return false;
+  return positional.length > 0 && positional.every((part) => part.trim() === "");
+}
+
 function parseMsCell(raw: string): { placement: number; finishes: number } | null {
   const blocks = findTemplates(raw, "MS");
   const block = blocks[0];
@@ -408,8 +458,14 @@ function parseTeamOpponent(raw: string): ParsedTeamCell {
     const matchNumber = Number.parseInt(m[1] ?? "0", 10);
     if (!Number.isInteger(matchNumber) || matchNumber < 1 || matchNumber > 64) continue;
     const cell = parseMsCell(value);
-    if (cell === null && value.trim() !== "" && !isSatOutMsCell(value)) {
-      throw integrationError(`Unparseable MS cell for team ${teamName} match ${matchNumber}`);
+    if (cell === null) {
+      // Upcoming map with no data yet: skip silently (no result row).
+      // A finished map left in this state fails later at completed-match
+      // validation — gaps can never be published as results.
+      if (value.trim() === "" || isEmptyMsCell(value)) continue;
+      if (!isSatOutMsCell(value)) {
+        throw integrationError(`Unparseable MS cell for team ${teamName} match ${matchNumber}`);
+      }
     }
     results.set(matchNumber, cell);
   }
@@ -470,7 +526,7 @@ function tournamentStatus(startsOn: string | null, endsOn: string | null, nowIso
 
 export function parseStageDataset(wikitext: string, options: ParseStageOptions): BgmiStageDataset {
   const stageDef = STAGE_HEADINGS[options.stageKey];
-  const section = extractSection(wikitext, stageDef.heading);
+  const section = extractStageSection(wikitext, stageDef.heading);
   if (!section) throw integrationError(`Stage section not found: ${stageDef.heading}`);
   const bracketBlocks = findTemplates(section, "Bracket");
   if (bracketBlocks.length === 0) throw integrationError(`Stage has no Bracket block: ${stageDef.heading}`);
@@ -583,6 +639,16 @@ export interface TournamentCatalogEntry {
   readonly sourcePage: string;
   /** Stage keys supported for this tournament (subset of SUPPORTED_STAGE_KEYS). */
   readonly stages: readonly SupportedStageKey[];
+  /**
+   * Deterministic metadata fallback for subpage sources that carry no
+   * `{{Infobox league}}` (Showdown stage subpages). Used only when the
+   * fetched snapshot provides no value — never inferred at runtime.
+   */
+  readonly metadataFallback?: {
+    readonly organizer: string | null;
+    readonly startsOn: string | null;
+    readonly endsOn: string | null;
+  };
 }
 
 /**
@@ -610,6 +676,23 @@ export const TOURNAMENT_CATALOG: readonly TournamentCatalogEntry[] = [
     sourcePage: "Battlegrounds Mobile India Pro Series/2026",
     stages: ["grand-finals", "last-chance", "semi-finals"],
   },
+  {
+    // Showdown-02: ongoing Showdown Grand Finals experiment. The stage
+    // lives on a dedicated subpage (no infobox there), so catalog-carried
+    // metadata applies. Slug deliberately avoids the `bmsd-2026` prefix,
+    // which belongs to the BGMI Masters Series.
+    slug: "bgmi-showdown-2026",
+    name: "Battlegrounds Mobile India Showdown 2026",
+    shortName: "Showdown 2026",
+    seasonYear: 2026,
+    sourcePage: "Battlegrounds Mobile India Showdown/2026/Grand Finals",
+    stages: ["grand-finals"],
+    metadataFallback: {
+      organizer: "KRAFTON",
+      startsOn: "2026-09-22",
+      endsOn: "2026-10-18",
+    },
+  },
 ];
 
 export function getCatalogEntry(tournamentSlug: string): TournamentCatalogEntry | null {
@@ -625,14 +708,15 @@ export function parseTournamentStage(
 ): BgmiStageDataset {
   const meta = parseInfoboxLeague(snapshot.wikitext);
   const seasonYear = entry.seasonYear ?? parseSeasonYear(meta.name);
+  const fallback = entry.metadataFallback;
   return parseStageDataset(snapshot.wikitext, {
     tournamentSlug: entry.slug,
     tournamentName: meta.name ?? entry.name,
     tournamentShortName: entry.shortName,
     seasonYear,
-    organizer: meta.organizer,
-    startsOn: meta.startDate,
-    endsOn: meta.endDate,
+    organizer: meta.organizer ?? fallback?.organizer ?? null,
+    startsOn: meta.startDate ?? fallback?.startsOn ?? null,
+    endsOn: meta.endDate ?? fallback?.endsOn ?? null,
     sourceUrl: snapshot.sourceUrl,
     sourcePage: snapshot.pageTitle,
     sourceRevision: snapshot.revisionId,
