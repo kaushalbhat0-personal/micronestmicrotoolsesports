@@ -7,9 +7,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs, BreadcrumbJsonLd } from "@/components/marketing/content/breadcrumbs";
 import { toolIcon } from "@/components/marketing/tool-icon-map";
-import { getAllAccessEntry, getPaidProductEntries } from "@/lib/marketing/paid-products";
+import { getAllAccessEntry, getPaidProductEntries, buildPlanTeasers } from "@/lib/marketing/paid-products";
 import { freeBadgeByMarketingSlug, freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
-import { TOOL_PLAN_PREFIX, buildOffers } from "@/lib/marketing/tool-offers";
 import { createClient } from "@/lib/supabase/server";
 import { listActivePlans } from "@/server/repositories/plans";
 
@@ -33,39 +32,26 @@ export const metadata: Metadata = {
   },
 };
 
-/** Monthly teaser price from the server-authoritative plan catalog — never hardcoded. */
-async function monthlyTeaser(prefix: string): Promise<string | null> {
+/**
+ * Single authoritative plan read per request — all monthly/yearly teasers
+ * derive from this one result via `buildPlanTeasers`. Never hardcoded:
+ * prefixes without an active INR plan render without prices (null-safe).
+ */
+async function loadPlanTeasers(prefixes: readonly string[]) {
   try {
     const supabase = await createClient();
     const plans = await listActivePlans(supabase);
-    const monthly = plans.find((p) => p.slug === `${prefix}-monthly` && p.currency === "INR" && p.is_active);
-    if (!monthly) return null;
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(
-      monthly.amount_minor / 100
-    );
+    return buildPlanTeasers(plans, prefixes);
   } catch {
-    return null;
+    // DB unavailable at render — cards render without prices.
+    return buildPlanTeasers([], prefixes);
   }
 }
 
 export default async function PaidToolsPage() {
   const entries = getPaidProductEntries();
   const allAccess = getAllAccessEntry();
-  const teasers = new Map<string, string | null>();
-  for (const e of entries) teasers.set(e.marketingSlug, await monthlyTeaser(e.planPrefix));
-
-  let offerCount = 0;
-  try {
-    const supabase = await createClient();
-    const plans = await listActivePlans(supabase);
-    offerCount = buildOffers(plans.filter((p) => p.currency === "INR" && p.is_active), "available").offers
-      ? plans.length
-      : 0;
-  } catch {
-    offerCount = 0;
-  }
-  void offerCount;
-  void TOOL_PLAN_PREFIX;
+  const teasers = await loadPlanTeasers(entries.map((e) => e.planPrefix));
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -87,7 +73,9 @@ export default async function PaidToolsPage() {
               const Icon = toolIcon(e.tool.icon);
               const badge = freeBadgeByMarketingSlug(e.marketingSlug);
               const free = freeTierByMarketingSlug(e.marketingSlug);
-              const teaser = teasers.get(e.marketingSlug);
+              const teaser = teasers.get(e.planPrefix);
+              const monthly = teaser?.monthly ?? null;
+              const yearly = teaser?.yearly ?? null;
               return (
                 <Card key={e.marketingSlug} className="group flex flex-col border-primary/15 card-interactive">
                   <CardHeader className="flex-1">
@@ -105,7 +93,8 @@ export default async function PaidToolsPage() {
                     {free ? (
                       <p className="mt-2 text-sm text-muted-foreground">Free: {free.allowance}</p>
                     ) : null}
-                    {teaser ? <p className="mt-1 text-sm font-medium">{teaser} / month</p> : null}
+                    {monthly ? <p className="mt-1 text-sm font-medium">{monthly} / month</p> : null}
+                    {yearly ? <p className="mt-1 text-sm text-muted-foreground">{yearly} / year</p> : null}
                     <p className="mt-2 font-mono text-[11px] tracking-wide text-muted-foreground">{e.tool.motif}</p>
                   </CardHeader>
                   <CardContent className="flex flex-wrap gap-2">

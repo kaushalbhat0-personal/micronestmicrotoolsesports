@@ -25,6 +25,14 @@ export async function generateStaticParams() {
 }
 
 // Planned drills have no pages: unknown slugs 404 at routing level.
+//
+// Known framework behavior (Next 15, accepted noise): each such 404 logs
+// one server-side `NoFallbackError` from the route module even though the
+// client correctly receives HTTP 404 with the not-found page. There is no
+// narrow supported suppression — `instrumentation.onRequestError` filtering
+// would be global error swallowing, and removing this flag would regress
+// unknown slugs to HTTP 200. Correct status takes precedence over log
+// silence; hits here are bots/typos only (no links or sitemap entries).
 export const dynamicParams = false;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
