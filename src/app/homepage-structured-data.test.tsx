@@ -200,16 +200,18 @@ describe("no FAQ JSON-LD without visible FAQ content", () => {
 });
 
 describe("homepage UI reflects the toolbox IA", () => {
-  it("composes the toolbox sections with no sponsorship remnants", () => {
+  it("composes the three-pillar sections with no sponsorship remnants", () => {
     const code = sourceOf(HOMEPAGE);
     for (const marker of [
       "ToolboxHero",
+      "PillarSection",
+      "LabFeatureSection",
       "ToolboxGroups",
-      "IntelligenceSection",
-      "DemoSection",
+      "CompetitionStrip",
       "HowItWorks",
       "PricingReassurance",
       "PhilosophySection",
+      "TrustSection",
       "FinalToolboxCTA",
     ]) {
       expect(code).toContain(marker);

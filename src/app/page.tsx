@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { ToolboxHero } from "@/components/marketing/homepage/toolbox-hero";
+import { PillarSection } from "@/components/marketing/homepage/pillar-section";
+import { LabFeatureSection } from "@/components/marketing/homepage/lab-feature-section";
 import { ToolboxGroups } from "@/components/marketing/homepage/toolbox-groups";
-import { IntelligenceSection } from "@/components/marketing/homepage/intelligence-section";
-import { DemoSection } from "@/components/marketing/homepage/demo-section";
+import { CompetitionStrip } from "@/components/marketing/homepage/competition-strip";
 import { HowItWorks } from "@/components/marketing/homepage/how-it-works";
 import { PricingReassurance } from "@/components/marketing/homepage/pricing-reassurance";
 import { PhilosophySection } from "@/components/marketing/homepage/philosophy-section";
+import { TrustSection } from "@/components/marketing/homepage/trust-section";
 import { FinalToolboxCTA } from "@/components/marketing/homepage/final-toolbox-cta";
 import {
   HOMEPAGE_DESCRIPTION,
@@ -42,7 +44,8 @@ export const metadata: Metadata = {
 /**
  * Toolbox homepage — fully static, no data fetching. MicroNest itself is the
  * subject; every tool is equally discoverable. Section order is the IA:
- * hero → toolbox → intelligence → demos → how-it-works → pricing → philosophy → CTA.
+ * hero → pillars → lab feature → toolbox → competition → how-it-works →
+ * pricing → philosophy → trust → CTA.
  */
 export default function MarketingPage() {
   return (
@@ -50,12 +53,14 @@ export default function MarketingPage() {
       <Header />
       <main id="main-content" className="flex-1">
         <ToolboxHero />
+        <PillarSection />
+        <LabFeatureSection />
         <ToolboxGroups />
-        <IntelligenceSection />
-        <DemoSection />
+        <CompetitionStrip />
         <HowItWorks />
         <PricingReassurance />
         <PhilosophySection />
+        <TrustSection />
         <FinalToolboxCTA />
       </main>
       <Footer />

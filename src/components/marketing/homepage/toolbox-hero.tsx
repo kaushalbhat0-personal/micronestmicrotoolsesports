@@ -3,7 +3,7 @@ import { LogoMark } from "@/components/shared/logo";
 
 /**
  * ToolboxHero — MicroNest itself is the hero. No single tool dominates:
- * headline is the tagline, CTAs point at the toolbox and the anonymous demo.
+ * headline is the tagline, CTAs point at the toolbox and the free Lab.
  */
 export function ToolboxHero() {
   return (
@@ -28,10 +28,10 @@ export function ToolboxHero() {
             Explore the toolbox
           </Link>
           <Link
-            href="/tools/prize-pool-splitter"
+            href="/bgmi-lab"
             className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-border bg-card px-8 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Try a tool without signup
+            Try something free
           </Link>
         </div>
         <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted-foreground" aria-label="Toolbox at a glance">

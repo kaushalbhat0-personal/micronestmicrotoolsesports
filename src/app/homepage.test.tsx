@@ -66,15 +66,17 @@ describe("homepage metadata — toolbox-first SEO", () => {
 });
 
 describe("homepage IA — toolbox-first, no single-tool dominance", () => {
-  it("renders sections in the approved toolbox order", () => {
+  it("renders sections in the approved three-pillar order", () => {
     const order = [
       "ToolboxHero",
+      "PillarSection",
+      "LabFeatureSection",
       "ToolboxGroups",
-      "IntelligenceSection",
-      "DemoSection",
+      "CompetitionStrip",
       "HowItWorks",
       "PricingReassurance",
       "PhilosophySection",
+      "TrustSection",
       "FinalToolboxCTA",
     ];
     const positions = order.map((name) => pageSource.indexOf(`<${name}`));
@@ -90,11 +92,18 @@ describe("homepage IA — toolbox-first, no single-tool dominance", () => {
     expect(hero).toContain("<h1");
     expect(hero).toContain("Explore the toolbox");
     expect(hero).toContain('href="/tools"');
-    expect(hero).toContain("Try a tool without signup");
-    expect(hero).toContain('href="/tools/prize-pool-splitter"');
+    expect(hero).toContain("Try something free");
+    expect(hero).toContain('href="/bgmi-lab"');
     expect(hero).not.toContain("Sponsorship Tracking");
     expect(hero).not.toContain("Meta-Parser");
     expect(hero).not.toContain("Start free trial");
+  });
+
+  it("pillar section presents Lab, Hub and Paid Tools", () => {
+    const code = homepageAndFooterSources();
+    expect(code).toContain("Explore BGMI Lab");
+    expect(code).toContain("Explore Tournament Hub");
+    expect(code).toContain("Explore Paid Tools");
   });
 
   it("no single tool dominates homepage narrative or conversion", () => {
@@ -110,11 +119,13 @@ describe("homepage IA — toolbox-first, no single-tool dominance", () => {
     expect(code).not.toContain("Best tool");
   });
 
-  it("final CTA is neutral and points at the toolbox", () => {
+  it("final CTA is neutral and points at the toolbox and the Lab", () => {
     const cta = readFileSync(join(process.cwd(), "src/components/marketing/homepage/final-toolbox-cta.tsx"), "utf8");
-    expect(cta).toContain("Find the tool for the job.");
+    expect(cta).toContain("Find your next tool.");
     expect(cta).toContain("Explore the toolbox");
     expect(cta).toContain('href="/tools"');
+    expect(cta).toContain("Explore BGMI Lab");
+    expect(cta).toContain('href="/bgmi-lab"');
     expect(cta).not.toContain("Sponsorship");
     expect(cta).not.toContain("Meta-Parser");
     expect(cta).not.toContain("signup?plan=");
@@ -156,17 +167,17 @@ describe("homepage IA — toolbox-first, no single-tool dominance", () => {
     expect(code).not.toContain("Starting at");
   });
 
-  it("Meta-Parser is never framed as a subscription on the homepage", () => {
+  it("public competition context is never framed as a subscription on the homepage", () => {
     const stripComments = (code: string) =>
       code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    const intelligence = stripComments(
-      readFileSync(join(process.cwd(), "src/components/marketing/homepage/intelligence-section.tsx"), "utf8")
+    const competition = stripComments(
+      readFileSync(join(process.cwd(), "src/components/marketing/homepage/competition-strip.tsx"), "utf8")
     );
-    expect(intelligence).not.toMatch(/subscri/i);
-    expect(intelligence).not.toContain("Get Meta-Parser");
-    expect(intelligence).not.toContain("Start Meta-Parser");
-    expect(intelligence).not.toContain("/pricing");
-    expect(intelligence).not.toContain("/signup");
+    expect(competition).not.toMatch(/subscri/i);
+    expect(competition).not.toContain("Get Meta-Parser");
+    expect(competition).not.toContain("Start Meta-Parser");
+    expect(competition).not.toContain("/pricing");
+    expect(competition).not.toContain("/signup");
     const pricing = readFileSync(
       join(process.cwd(), "src/components/marketing/homepage/pricing-reassurance.tsx"),
       "utf8"
@@ -186,10 +197,13 @@ describe("homepage IA — toolbox-first, no single-tool dominance", () => {
     }
   });
 
-  it("demos make no false persistence claims", () => {
-    const demo = readFileSync(join(process.cwd(), "src/components/marketing/homepage/demo-section.tsx"), "utf8");
-    expect(demo).toContain("Nothing is saved");
-    expect(demo).not.toMatch(/save your work|saved to your workspace/i);
+  it("lab teaser makes no false persistence claims and imports no drill mechanics", () => {
+    const teaser = readFileSync(join(process.cwd(), "src/components/marketing/homepage/lab-feature-section.tsx"), "utf8");
+    expect(teaser).toContain("Try {drill.name}");
+    expect(teaser).toContain('getLabTool("circle-iq")');
+    expect(teaser).toContain("no signup");
+    expect(teaser).not.toContain("features/bgmi-lab");
+    expect(teaser).not.toContain("dynamic(");
   });
 
   it("legal copy lives in footer/legal, not the hero", () => {

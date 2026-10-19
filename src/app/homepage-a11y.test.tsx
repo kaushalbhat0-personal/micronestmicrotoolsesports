@@ -24,7 +24,7 @@ describe("homepage heading hierarchy", () => {
   it("has exactly one h1 (hero) and h2-led sections", () => {
     const h1Files = FILES.filter((f) => sourceOf(f).includes("<h1"));
     expect(h1Files).toEqual(["toolbox-hero.tsx"]);
-    for (const file of ["toolbox-groups.tsx", "intelligence-section.tsx", "demo-section.tsx", "how-it-works.tsx", "pricing-reassurance.tsx", "philosophy-section.tsx", "final-toolbox-cta.tsx"]) {
+    for (const file of ["toolbox-groups.tsx", "pillar-section.tsx", "lab-feature-section.tsx", "competition-strip.tsx", "how-it-works.tsx", "pricing-reassurance.tsx", "philosophy-section.tsx", "trust-section.tsx", "final-toolbox-cta.tsx"]) {
       expect(sourceOf(file)).toContain("<h2");
     }
   });

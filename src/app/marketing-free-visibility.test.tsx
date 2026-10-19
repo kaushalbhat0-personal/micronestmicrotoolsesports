@@ -204,7 +204,7 @@ describe("homepage toolbox discovery (canonical, no hardcoded subset)", () => {
       "\n" +
       sourceOf("src/components/marketing/homepage/toolbox-groups.tsx") +
       "\n" +
-      sourceOf("src/components/marketing/homepage/intelligence-section.tsx") +
+      sourceOf("src/components/marketing/homepage/competition-strip.tsx") +
       "\n" +
       sourceOf("src/components/layout/footer.tsx");
     for (const name of ["Scrim Matchmaker", "VOD Clipper", "Roster Sentinel"]) {
@@ -246,12 +246,14 @@ describe("homepage toolbox discovery (canonical, no hardcoded subset)", () => {
     const code = sourceOf(HOMEPAGE);
     for (const marker of [
       "ToolboxHero",
+      "PillarSection",
+      "LabFeatureSection",
       "ToolboxGroups",
-      "IntelligenceSection",
-      "DemoSection",
+      "CompetitionStrip",
       "HowItWorks",
       "PricingReassurance",
       "PhilosophySection",
+      "TrustSection",
       "FinalToolboxCTA",
     ]) {
       expect(code).toContain(marker);

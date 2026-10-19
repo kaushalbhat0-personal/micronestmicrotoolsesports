@@ -21,7 +21,7 @@ export function PricingReassurance() {
           manual — no automatic charges.
         </p>
         <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Patch facts are public — reading them never needs a plan.
+          Patch facts are public — reading them never needs a plan. BGMI Lab drills are free with no signup.
         </p>
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
