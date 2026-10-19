@@ -4,14 +4,38 @@ import { LogoMark } from "@/components/shared/logo";
 /**
  * ToolboxHero — MicroNest itself is the hero. No single tool dominates:
  * headline is the tagline, CTAs point at the toolbox and the free Lab.
+ * The modular mark settles once (pieces → nest) with three staggered
+ * micro-labels (Practice / Analyze / Run) — CSS-only, one-shot, no loops.
  */
 export function ToolboxHero() {
   return (
     <section className="container-nest py-16 sm:py-20 lg:py-24" aria-labelledby="homepage-hero-heading">
       <div className="mx-auto max-w-3xl text-center">
         <div className="mx-auto mb-6 flex justify-center">
-          <LogoMark size={80} priority className="!size-14 sm:!size-[72px] lg:!size-[80px]" />
+          <span className="nest-assemble inline-flex">
+            <LogoMark size={80} priority className="!size-14 sm:!size-[72px] lg:!size-[80px]" />
+          </span>
         </div>
+        <ul
+          className="mb-5 flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold tracking-widest"
+          aria-label="Three ways to use the toolbox"
+        >
+          <li className="nest-reveal nest-reveal-delay-1 rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-primary">
+            PRACTICE
+          </li>
+          <li className="nest-reveal nest-reveal-delay-2 text-border" aria-hidden>
+            ◆
+          </li>
+          <li className="nest-reveal nest-reveal-delay-2 rounded-full border border-border bg-card px-3 py-1 text-muted-foreground">
+            ANALYZE
+          </li>
+          <li className="nest-reveal nest-reveal-delay-3 text-border" aria-hidden>
+            ◆
+          </li>
+          <li className="nest-reveal nest-reveal-delay-3 rounded-full border border-border bg-card px-3 py-1 text-muted-foreground">
+            RUN
+          </li>
+        </ul>
         <h1 id="homepage-hero-heading" className="font-display text-balance text-4xl font-normal tracking-tight sm:text-5xl">
           The toolbox behind esports.
         </h1>

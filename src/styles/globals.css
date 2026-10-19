@@ -176,6 +176,41 @@ html {
 .nest-reveal-delay-3 { animation-delay: 180ms; }
 .nest-reveal-delay-4 { animation-delay: 240ms; }
 
+/* Homepage interaction layer — restrained, transform/opacity only.
+   One-shot entrances (never infinite): the hero mark settles once,
+   decorative SVG strokes draw once. Hover/focus micro-shifts live in
+   components (translate 2–4px, icon rotate ≤5deg, arrow nudge).
+   Covered by the global prefers-reduced-motion rule below. */
+@keyframes nest-assemble {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.nest-assemble {
+  /* backwards (not both): end state equals natural styles, so retained
+     fill must not override later hover transforms on the same element. */
+  animation: nest-assemble var(--motion-hero, 360ms) ease-out backwards;
+}
+@keyframes nest-draw {
+  from {
+    opacity: 0;
+    stroke-dashoffset: var(--draw-len, 120);
+  }
+  to {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+.nest-draw {
+  stroke-dasharray: var(--draw-len, 120);
+  animation: nest-draw 900ms ease-out backwards;
+}
+
 /* Modular toolbox loader — 4-piece assembly */
 @keyframes nest-piece-in {
   0% {
@@ -297,6 +332,13 @@ html {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+  .nest-assemble,
+  .nest-draw {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    stroke-dashoffset: 0 !important;
   }
   .nest-piece {
     animation: none !important;

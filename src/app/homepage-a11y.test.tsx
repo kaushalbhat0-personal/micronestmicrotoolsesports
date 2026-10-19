@@ -62,13 +62,49 @@ describe("homepage touch targets and keyboard support", () => {
 });
 
 describe("homepage motion and layout safety", () => {
-  it("adds no custom animation (reduced-motion guard stays global)", () => {
+  it("uses only the restrained motion vocabulary (one-shot, transform/opacity)", () => {
     const code = allSources();
-    expect(code).not.toContain("nest-reveal");
+    // Allowlist: one-shot entrances + hover/focus micro-shifts only.
+    const used = new Set(code.match(/nest-[a-z0-9-]+/g) ?? []);
+    const allowed = new Set([
+      "nest-reveal",
+      "nest-reveal-delay-0",
+      "nest-reveal-delay-1",
+      "nest-reveal-delay-2",
+      "nest-reveal-delay-3",
+      "nest-reveal-delay-4",
+      "nest-assemble",
+      "nest-draw",
+    ]);
+    for (const token of used) {
+      expect(allowed.has(token), `unexpected motion token: ${token}`).toBe(true);
+    }
     expect(code).not.toContain("animate-");
     expect(code).not.toContain("keyframes");
+    // No looping or attention-grabbing animation on the homepage.
+    expect(code).not.toMatch(/infinite/);
+    expect(code).not.toMatch(/animate-ping|animate-pulse|animate-bounce|animate-spin/);
+    // No layout-triggering transitions (transform/opacity/border-color only).
+    expect(code).not.toMatch(/transition-\[(width|height|top|left|margin|padding)/);
     const css = readFileSync(join(process.cwd(), "src/styles/globals.css"), "utf8");
     expect(css).toContain("prefers-reduced-motion");
+    // Every homepage keyframe is covered by the reduced-motion guard.
+    for (const cls of [".nest-assemble", ".nest-draw"]) {
+      expect(css).toContain(cls);
+      const guardStart = css.indexOf("prefers-reduced-motion");
+      expect(css.indexOf(cls, guardStart)).toBeGreaterThan(guardStart);
+    }
+  });
+
+  it("hover and keyboard focus produce equivalent states", () => {
+    const code = allSources();
+    // Every hover micro-shift must have a focus-within mirror.
+    const hoverShifts = code.match(/group-hover:[a-z-]+\S*/g) ?? [];
+    expect(hoverShifts.length).toBeGreaterThan(0);
+    for (const shift of hoverShifts) {
+      const mirror = shift.replace("group-hover:", "group-focus-within:");
+      expect(code, `missing keyboard mirror for ${shift}`).toContain(mirror);
+    }
   });
 
   it("avoids fixed widths that cause horizontal overflow on mobile", () => {
@@ -77,9 +113,14 @@ describe("homepage motion and layout safety", () => {
     expect(code).not.toMatch(/w-\[\d+px\]/);
   });
 
-  it("cards remain understandable without hover (no hover-only content)", () => {
+  it("cards remain understandable without hover (motion only, never content)", () => {
     const code = allSources();
-    expect(code).not.toContain("group-hover:");
+    // Hover/focus may shift, tint, or nudge — never reveal, hide, or swap content.
     expect(code).not.toContain("hover:opacity-0");
+    expect(code).not.toContain("group-hover:opacity-0");
+    expect(code).not.toContain("focus-within:opacity-0");
+    expect(code).not.toMatch(/group-hover:(hidden|block|flex|grid|invisible|sr-only)/);
+    expect(code).not.toMatch(/group-focus-within:(hidden|block|flex|grid|invisible|sr-only)/);
+    expect(code).not.toMatch(/hover:(hidden|block)/);
   });
 });
