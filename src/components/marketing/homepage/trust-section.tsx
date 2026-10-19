@@ -21,7 +21,8 @@ const POINTS = [
 /**
  * TrustSection — restrained credibility. Only claims the product already
  * supports: explained methods, sourced public data, and honest boundaries.
- * No customers, counts, testimonials, revenue, or ratings — ever.
+ * No customers, counts, testimonials, revenue, or ratings — ever. Open
+ * typographic columns keep this supporting section quiet.
  */
 export function TrustSection() {
   return (
@@ -32,9 +33,9 @@ export function TrustSection() {
           Built to be useful first.
         </h2>
       </div>
-      <div className="mx-auto mt-8 grid max-w-4xl gap-5 sm:grid-cols-3">
+      <div className="mx-auto mt-8 grid max-w-4xl gap-8 sm:grid-cols-3 sm:gap-6">
         {POINTS.map((item) => (
-          <div key={item.title} className="rounded-[16px] border border-border bg-card p-5">
+          <div key={item.title} className="border-t border-border pt-4">
             <item.icon className="h-5 w-5 text-primary" aria-hidden />
             <h3 className="mt-3 text-[15px] font-semibold leading-none tracking-[-0.01em]">{item.title}</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.text}</p>

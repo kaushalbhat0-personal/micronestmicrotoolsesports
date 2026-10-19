@@ -32,6 +32,9 @@ describe("homepage heading hierarchy", () => {
   it("sections expose accessible names", () => {
     for (const file of FILES) {
       const code = sourceOf(file);
+      // Decorative partials (no <section>) are exempt — they must stay
+      // aria-hidden and carry no meaning.
+      if (!code.includes("<section")) continue;
       expect(code, file).toMatch(/aria-labelledby="[^"]+"|aria-label="[^"]+"/);
     }
   });

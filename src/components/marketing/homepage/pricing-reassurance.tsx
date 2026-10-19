@@ -4,11 +4,12 @@ import Link from "next/link";
  * PricingReassurance — neutral pricing discovery. No per-tool pricing table,
  * no sponsorship pricing story, no invented prices, and Meta-Parser is never
  * framed as a subscription (patch facts are public and free to read).
+ * Open centered composition with hairline rules — no panel chrome.
  */
 export function PricingReassurance() {
   return (
     <section className="container-nest py-12 sm:py-16" aria-labelledby="pricing-reassurance-heading">
-      <div className="mx-auto max-w-4xl rounded-[20px] border border-border bg-card p-6 text-center sm:p-10">
+      <div className="mx-auto max-w-2xl text-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">
           Start free. Upgrade when you need more.
         </p>

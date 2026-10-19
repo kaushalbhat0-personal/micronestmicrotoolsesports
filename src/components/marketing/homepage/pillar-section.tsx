@@ -12,10 +12,71 @@ import { getPaidProductEntries } from "@/lib/marketing/paid-products";
  * canonical registries (Lab registry, paid-products presentation source);
  * all other copy is presentational. No billing logic, no prices.
  *
- * Mission framing: each pillar reads as a choice, not a category —
- * a mission line, a tiny motif icon, and CTAs whose arrows nudge on
- * hover. Keyboard focus (focus-within) mirrors the hover state.
+ * Three doors, one design system: each pillar keeps identical structure
+ * and interaction (mission line, motif icon, nudging CTA arrows, with
+ * keyboard focus mirroring hover), but carries its own subtle motif —
+ * target rings for Practice, a bracket mark for Understand, modular
+ * pieces for Run — composed partially behind the card content.
  */
+
+function TargetDoorMotif() {
+  return (
+    <svg
+      width="160"
+      height="160"
+      viewBox="0 0 160 160"
+      aria-hidden="true"
+      focusable="false"
+      className="pointer-events-none absolute -right-10 -top-10"
+    >
+      <circle cx="110" cy="50" r="52" fill="none" stroke="var(--color-border-strong)" strokeWidth="1.5" opacity="0.5" />
+      <circle cx="110" cy="50" r="36" fill="none" stroke="var(--color-border-strong)" strokeWidth="1.5" opacity="0.45" />
+      <circle cx="110" cy="50" r="20" fill="none" stroke="var(--color-primary)" strokeWidth="2" opacity="0.55" />
+      <circle cx="110" cy="50" r="4" fill="var(--color-primary)" opacity="0.55" />
+    </svg>
+  );
+}
+
+function BracketDoorMotif() {
+  return (
+    <svg
+      width="160"
+      height="160"
+      viewBox="0 0 160 160"
+      aria-hidden="true"
+      focusable="false"
+      className="pointer-events-none absolute -right-8 -top-8"
+    >
+      <g fill="none" strokeWidth="2" opacity="0.55">
+        <path d="M96 12 H128 V68" stroke="var(--color-border-strong)" />
+        <path d="M96 148 H128 V92" stroke="var(--color-border-strong)" />
+        <path d="M128 68 V92" stroke="var(--color-info)" />
+        <path d="M128 80 H148" stroke="var(--color-info)" />
+        <circle cx="148" cy="80" r="3.5" fill="var(--color-info)" stroke="none" />
+      </g>
+    </svg>
+  );
+}
+
+function PiecesDoorMotif() {
+  return (
+    <svg
+      width="160"
+      height="160"
+      viewBox="0 0 160 160"
+      aria-hidden="true"
+      focusable="false"
+      className="pointer-events-none absolute -right-8 -top-8"
+    >
+      <g opacity="0.55">
+        <rect x="96" y="16" width="26" height="26" rx="6" fill="var(--color-border-strong)" opacity="0.5" />
+        <rect x="124" y="36" width="26" height="26" rx="6" fill="none" stroke="var(--color-primary)" strokeWidth="2" />
+        <rect x="102" y="56" width="26" height="26" rx="6" fill="var(--color-primary)" opacity="0.45" />
+      </g>
+    </svg>
+  );
+}
+
 export function PillarSection() {
   const labAvailable = getAvailableLabTools();
   const labPlannedCount = getLabTools().filter((t) => t.status === "planned").length;
@@ -34,8 +95,9 @@ export function PillarSection() {
         </p>
       </div>
       <div className="mx-auto mt-10 grid max-w-5xl gap-5 lg:grid-cols-3">
-        <Card className="group flex flex-col border-primary/15 transition-[transform,border-color,box-shadow] duration-[180ms] ease-out hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-primary/30 focus-within:shadow-sm">
-          <CardHeader className="flex-1">
+        <Card className="group relative flex flex-col overflow-hidden border-primary/15 transition-[transform,border-color,box-shadow] duration-[180ms] ease-out hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-primary/30 focus-within:shadow-sm">
+          <TargetDoorMotif />
+          <CardHeader className="relative flex-1">
             <div className="flex items-center justify-between">
               <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface-muted transition-transform duration-[180ms] ease-out group-hover:-translate-y-0.5 group-hover:rotate-[4deg] group-focus-within:-translate-y-0.5 group-focus-within:rotate-[4deg]">
                 <Target className="h-5 w-5 text-muted-foreground" aria-hidden />
@@ -52,7 +114,7 @@ export function PillarSection() {
               {labPlannedCount > 0 ? ` · ${labPlannedCount} more on the way` : ""}
             </p>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="relative flex flex-wrap gap-2">
             <Link
               href="/bgmi-lab"
               aria-label="Explore the free BGMI Lab practice drills"
@@ -73,8 +135,9 @@ export function PillarSection() {
           </CardContent>
         </Card>
 
-        <Card className="group flex flex-col border-border/60 transition-[transform,border-color,box-shadow] duration-[180ms] ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-border-strong focus-within:shadow-sm">
-          <CardHeader className="flex-1">
+        <Card className="group relative flex flex-col overflow-hidden border-border/60 transition-[transform,border-color,box-shadow] duration-[180ms] ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-border-strong focus-within:shadow-sm">
+          <BracketDoorMotif />
+          <CardHeader className="relative flex-1">
             <div className="flex items-center justify-between">
               <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface-muted transition-transform duration-[180ms] ease-out group-hover:-translate-y-0.5 group-hover:rotate-[4deg] group-focus-within:-translate-y-0.5 group-focus-within:rotate-[4deg]">
                 <Trophy className="h-5 w-5 text-muted-foreground" aria-hidden />
@@ -88,7 +151,7 @@ export function PillarSection() {
             </CardDescription>
             <p className="mt-2 text-sm text-muted-foreground">BGMI tournaments, updated after completed matches.</p>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="relative flex flex-wrap gap-2">
             <Link
               href="/bgmi-tournaments"
               aria-label="Explore the BGMI Tournament Hub standings and results"
@@ -100,8 +163,9 @@ export function PillarSection() {
           </CardContent>
         </Card>
 
-        <Card className="group flex flex-col border-border/60 transition-[transform,border-color,box-shadow] duration-[180ms] ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-border-strong focus-within:shadow-sm">
-          <CardHeader className="flex-1">
+        <Card className="group relative flex flex-col overflow-hidden border-border/60 transition-[transform,border-color,box-shadow] duration-[180ms] ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-border-strong focus-within:shadow-sm">
+          <PiecesDoorMotif />
+          <CardHeader className="relative flex-1">
             <div className="flex items-center justify-between">
               <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface-muted transition-transform duration-[180ms] ease-out group-hover:-translate-y-0.5 group-hover:rotate-[4deg] group-focus-within:-translate-y-0.5 group-focus-within:rotate-[4deg]">
                 <Wrench className="h-5 w-5 text-muted-foreground" aria-hidden />
@@ -115,7 +179,7 @@ export function PillarSection() {
             </CardDescription>
             <p className="mt-2 text-sm text-muted-foreground">{paidCount} focused tools + All Access bundle.</p>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="relative flex flex-wrap gap-2">
             <Link
               href="/paid-tools"
               aria-label="Explore MicroNest paid operator tools"

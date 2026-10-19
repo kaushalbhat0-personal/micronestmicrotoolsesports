@@ -19,8 +19,8 @@ const STEPS = [
 /**
  * HowItWorks — the microtool philosophy in three steps, framed as a
  * quiet game loop: pick, move, answer. Deliberately narrow and fast:
- * never an all-in-one platform, never enterprise software. Steps are
- * joined by a modular connector line (decorative, hidden on mobile).
+ * never an all-in-one platform, never enterprise software. Steps read as
+ * open typography with hairline rules — no card chrome at this level.
  */
 export function HowItWorks() {
   return (
@@ -32,12 +32,10 @@ export function HowItWorks() {
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">No unnecessary setup. Just useful tools.</p>
       </div>
-      <ol className="relative mx-auto mt-8 grid max-w-4xl gap-4 sm:grid-cols-3">
-        <span className="absolute left-[16%] right-[16%] top-8 hidden h-px bg-border sm:block" aria-hidden />
+      <ol className="mx-auto mt-8 grid max-w-4xl gap-8 sm:grid-cols-3 sm:gap-6">
         {STEPS.map((step) => (
-          <li key={step.n} className="relative rounded-[16px] border border-border bg-card p-5">
-            <p className="inline-flex items-center gap-2 font-mono text-[11px] tracking-widest text-primary" aria-hidden>
-              <span className="inline-block size-1.5 rounded-full bg-primary" />
+          <li key={step.n} className="border-t border-border pt-4">
+            <p className="font-mono text-[11px] tracking-widest text-primary" aria-hidden>
               {step.n}
             </p>
             <h3 className="mt-2 text-[15px] font-semibold leading-none tracking-[-0.01em]">{step.title}</h3>

@@ -6,6 +6,7 @@ import { PillarSection } from "@/components/marketing/homepage/pillar-section";
 import { LabFeatureSection } from "@/components/marketing/homepage/lab-feature-section";
 import { ToolboxGroups } from "@/components/marketing/homepage/toolbox-groups";
 import { CompetitionStrip } from "@/components/marketing/homepage/competition-strip";
+import { SectionTransition } from "@/components/marketing/homepage/modular-motif";
 import { HowItWorks } from "@/components/marketing/homepage/how-it-works";
 import { PricingReassurance } from "@/components/marketing/homepage/pricing-reassurance";
 import { PhilosophySection } from "@/components/marketing/homepage/philosophy-section";
@@ -54,8 +55,11 @@ export default function MarketingPage() {
       <main id="main-content" className="flex-1">
         <ToolboxHero />
         <PillarSection />
+        <SectionTransition label="First challenge" />
         <LabFeatureSection />
+        <SectionTransition label="The toolbox" />
         <ToolboxGroups />
+        <SectionTransition label="The competition" />
         <CompetitionStrip />
         <HowItWorks />
         <PricingReassurance />
