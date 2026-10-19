@@ -17,10 +17,10 @@ import {
  * contaminating the workspace/billing registries.
  */
 describe("toolbox presentation composer", () => {
-  it("exposes exactly nine entries: six workspace plus Meta-Parser plus BGMI plus Hub", () => {
+  it("exposes workspace plus Meta-Parser plus BGMI plus Hub entries (counts derived)", () => {
     const entries = getToolboxEntries();
-    expect(entries).toHaveLength(9);
-    expect(entries.filter((e) => e.kind === "workspace")).toHaveLength(6);
+    expect(entries).toHaveLength(getWorkspaceEntries().length + 3);
+    expect(entries.filter((e) => e.kind === "workspace")).toHaveLength(getWorkspaceEntries().length);
     expect(entries.filter((e) => e.kind === "patch-intelligence")).toHaveLength(1);
     expect(entries.filter((e) => e.kind === "public-microtool")).toHaveLength(1);
     expect(entries.filter((e) => e.kind === "tournament-hub")).toHaveLength(1);

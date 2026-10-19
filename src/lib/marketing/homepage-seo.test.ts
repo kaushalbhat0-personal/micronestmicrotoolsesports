@@ -10,8 +10,8 @@ import {
  * Slugs reference the canonical registry; every display field resolves from
  * it (workspace tools) or the Meta-Parser pointer. No duplicated catalog.
  */
-describe("toolbox groups cover the nine released tools exactly once", () => {
-  it("defines four neutral groups with nine slugs total and no duplicates", () => {
+describe("toolbox groups cover the released tools exactly once (count derived)", () => {
+  it("defines neutral groups with no duplicate slugs", () => {
     expect(TOOLBOX_GROUPS.map((g) => g.label)).toEqual([
       "Run the tournament",
       "Run the business",
@@ -19,14 +19,14 @@ describe("toolbox groups cover the nine released tools exactly once", () => {
       "Qualify on points",
     ]);
     const slugs = TOOLBOX_GROUPS.flatMap((g) => [...g.slugs]);
-    expect(slugs).toHaveLength(9);
-    expect(new Set(slugs).size).toBe(9);
+    expect(slugs.length).toBe(getHomepageToolboxItems().length);
+    expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  it("resolves to nine cards with canonical names, routes, and descriptions", () => {
+  it("resolves to cards with canonical names, routes, and descriptions", () => {
     const groups = resolveToolboxGroups();
     const cards = groups.flatMap((g) => g.cards);
-    expect(cards).toHaveLength(9);
+    expect(cards).toHaveLength(getHomepageToolboxItems().length);
     // Same nine entries as the SEO source — group order is editorial, not ranked.
     expect([...cards.map((c) => c.url)].sort()).toEqual(
       [...getHomepageToolboxItems().map((i) => i.url)].sort()

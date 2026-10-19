@@ -9,7 +9,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { MARKETING_TOOLS, getMarketingTool } from "@/config/marketing/tools";
 import { freeBadgeByMarketingSlug, freeTierByMarketingSlug } from "@/config/marketing/free-tiers";
 import type { ToolAccent } from "@/config/marketing/tools";
-import { ShieldCheck, CalendarSearch, Split, Scissors, FileCheck, Swords, Scale, Check, ArrowRight, ReceiptText, ClipboardList } from "lucide-react";
+import { Check, ArrowRight } from "lucide-react";
+import { toolIcon } from "@/components/marketing/tool-icon-map";
 import { BrowserFrame } from "@/components/marketing/browser-frame";
 import { ShapeCrop } from "@/components/marketing/shape-crop";
 import { ProductFragment } from "@/components/marketing/product-fragment";
@@ -34,18 +35,6 @@ async function getOffersForTool(slug: string): Promise<ReturnType<typeof buildOf
     return buildOffers(null, "coming-soon");
   }
 }
-
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  ShieldCheck,
-  CalendarSearch,
-  Split,
-  Scissors,
-  FileCheck,
-  Swords,
-  Scale,
-  ReceiptText,
-  ClipboardList,
-};
 
 /**
  * Public hands-on demos — Prize Pool Splitter and Tournament Roster Builder
@@ -109,7 +98,7 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
   const { slug } = await params;
   const tool = getMarketingTool(slug);
   if (!tool) notFound();
-  const Icon = iconMap[tool.icon] ?? ShieldCheck;
+  const Icon = toolIcon(tool.icon);
   const related = MARKETING_TOOLS.filter((t) => t.slug !== tool.slug).slice(0, 2);
   const { offers: toolOffers } = await getOffersForTool(tool.slug);
   // Compact pricing connection — monthly price from the authoritative catalog, never hardcoded.

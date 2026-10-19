@@ -38,4 +38,14 @@ describe("sitemap — RCCF-CLEANUP-02 (released tools only) + RCCF-TOOLBOX-IA-02
     expect(urls).toContain("/bgmi-qualification");
     expect(urls).toContain("/bgmi-tournaments");
   });
+
+  it("exposes the BGMI Lab index, its available drill, and Paid Tools (planned drills excluded)", async () => {
+    const urls = (await sitemap()).map((e) => new URL(e.url, "http://localhost:3000").pathname);
+    expect(urls).toContain("/bgmi-lab");
+    expect(urls).toContain("/bgmi-lab/circle-iq");
+    expect(urls).toContain("/paid-tools");
+    for (const slug of ["rotation-iq", "igl-decision-drill", "final-circle", "zone-patterns", "rotation-replay", "tournament-scenarios", "lift-the-trophy"]) {
+      expect(urls).not.toContain(`/bgmi-lab/${slug}`);
+    }
+  });
 });

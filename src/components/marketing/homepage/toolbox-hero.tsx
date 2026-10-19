@@ -35,9 +35,9 @@ export function ToolboxHero() {
           </Link>
         </div>
         <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted-foreground" aria-label="Toolbox at a glance">
-          <li>7 focused tools</li>
+          <li>Focused microtools</li>
           <li aria-hidden>·</li>
-          <li>2 work without signup</li>
+          <li>Free BGMI Lab drills</li>
           <li aria-hidden>·</li>
           <li>Patch facts free to read</li>
         </ul>

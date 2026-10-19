@@ -27,6 +27,7 @@ function sourceOf(relativePath: string): string {
 
 const HOMEPAGE = "src/app/page.tsx";
 const TOOLS_PAGE = "src/app/tools/page.tsx";
+const PAID_TOOLS_PAGE = "src/app/paid-tools/page.tsx";
 const TOOL_PAGE = "src/app/tools/[slug]/page.tsx";
 const PRICING_CLIENT = "src/app/pricing/pricing-client.tsx";
 
@@ -258,24 +259,37 @@ describe("homepage toolbox discovery (canonical, no hardcoded subset)", () => {
   });
 });
 
-describe("tool catalog exposes Free per available tool", () => {
-  it("badges available tools with the canonical Free badge plus allowance line", () => {
+describe("paid-tools catalog exposes Free per paid tool (hub links pillars)", () => {
+  it("tools hub routes to the three pillars without per-tool Free claims", () => {
     const code = sourceOf(TOOLS_PAGE);
+    expect(code).toContain("/bgmi-lab");
+    expect(code).toContain("/bgmi-tournaments");
+    expect(code).toContain("/paid-tools");
+    expect(code).not.toContain("freeBadgeByMarketingSlug");
+    expect(code).not.toContain("Coming soon");
+  });
+
+  it("paid-tools badges paid tools with the canonical Free badge plus allowance line", () => {
+    const code = sourceOf(PAID_TOOLS_PAGE);
     // No hardcoded badge: quota-limited tools must never read "Free forever".
     expect(code).not.toContain("Free forever");
     expect(code).toContain("freeBadgeByMarketingSlug");
     expect(code).toContain("freeTierByMarketingSlug");
     expect(code).toContain("Free: {free.allowance}");
-    expect(code).toContain("Every available tool can be started free");
+    expect(code).toContain("Every tool starts");
   });
 
-  it("coming-soon tools gain no Free claim and stay non-purchasable", () => {
-    const code = sourceOf(TOOLS_PAGE);
-    // Free lookup is gated on availability; coming-soon keeps its own treatment.
-    expect(code).toContain("const free = isAvailable ? freeTierByMarketingSlug(tool.slug) : null;");
-    expect(code).toContain("Coming soon");
-    expect(code).toContain("Preview concept");
-    expect(code).not.toMatch(/coming.?soon[\s\S]{0,200}Start free/i);
+  it("paid-tools page never presents Roster Builder as a paid card", () => {
+    const code = sourceOf(PAID_TOOLS_PAGE);
+    expect(code).not.toContain("tournament-roster-builder");
+    expect(code).not.toContain("Roster Builder");
+    expect(code).toContain("getPaidProductEntries");
+  });
+
+  it("paid-tools page performs no entitlement or org checks", () => {
+    const code = sourceOf(PAID_TOOLS_PAGE);
+    expect(code).not.toContain("requireEntitlement");
+    expect(code).not.toContain("requireOrganizationContext");
   });
 });
 

@@ -13,9 +13,10 @@ export interface NavGroup {
 }
 
 export const marketingNav: { label: string; href: string; icon: string }[] = [
-  { label: "Tools", href: "/tools", icon: "Grid3x3" },
+  { label: "BGMI Lab", href: "/bgmi-lab", icon: "Target" },
+  { label: "Tournament Hub", href: "/bgmi-tournaments", icon: "Trophy" },
+  { label: "Paid Tools", href: "/paid-tools", icon: "Grid3x3" },
   { label: "Pricing", href: "/pricing", icon: "CreditCard" },
-  { label: "Docs", href: "/docs", icon: "BookOpen" },
 ];
 
 export const dashboardNav: NavItem[] = [

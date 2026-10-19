@@ -4,28 +4,34 @@ import { renderToString } from "react-dom/server";
 import { Footer } from "./footer";
 
 /**
- * Footer tool discovery — derived from the canonical toolbox source so
- * Meta-Parser and the BGMI simulator are present and removed tools stay absent.
+ * Footer pillar discovery — grouped BGMI Lab / Tournaments / Paid Tools
+ * columns derived from the Lab registry and paid-products presentation
+ * source. Removed tools stay absent.
  */
 describe("footer toolbox discovery", () => {
-  it("links all nine released tools including Meta-Parser, BGMI, and the Hub", () => {
+  it("links the pillar surfaces: Lab drills, tournaments, and paid tools", () => {
     const html = renderToString(<Footer />);
     for (const href of [
+      "/bgmi-lab",
+      "/bgmi-lab/circle-iq",
+      "/bgmi-tournaments",
+      "/bgmi-qualification",
+      "/meta-parser",
       "/tools/sponsorship-tracking",
       "/tools/prize-pool-splitter",
       "/tools/draft-ban",
       "/tools/tie-breaker",
       "/tools/prize-payout-tracker",
-      "/tools/tournament-roster-builder",
-      "/meta-parser",
-      "/bgmi-qualification",
-      "/bgmi-tournaments",
+      "/paid-tools",
+      "/pricing",
     ]) {
       expect(html).toContain(`href="${href}"`);
     }
-    expect(html).toContain("Meta-Parser");
-    expect(html).toContain("BGMI Qualification Simulator");
-    expect(html).toContain("BGMI Tournament Hub");
+    expect(html).toContain("BGMI Lab");
+    expect(html).toContain("Circle IQ");
+    expect(html).toContain("Tournaments");
+    expect(html).toContain("Paid Tools");
+    expect(html).toContain("All Access");
   });
 
   it("never links removed or unreleased tools", () => {

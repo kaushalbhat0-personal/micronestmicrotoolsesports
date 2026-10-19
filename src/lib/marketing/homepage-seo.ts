@@ -4,7 +4,7 @@ import { freeBadgeBySlug, freeTierBySlug } from "@/config/marketing/free-tiers";
 /**
  * Homepage (toolbox-level) SEO — single source for identity metadata.
  *
- * Toolbox-first: MicroNest is the product; the nine tools are products
+ * Toolbox-first: MicroNest is the product; the released tools are products
  * inside the toolbox. No single tool dominates homepage identity.
  *
  * Workspace tools derive from the canonical marketing registry
@@ -80,7 +80,7 @@ export const BGMI_TOURNAMENTS_ITEM = {
   icon: "Trophy",
 } as const;
 
-/** Nine released toolbox entries: registry workspace tools + Meta-Parser + BGMI simulator + Tournament Hub. */
+/** Toolbox entries: registry workspace tools + Meta-Parser + BGMI simulator + Tournament Hub. */
 export function getHomepageToolboxItems(): HomepageToolboxItem[] {
   const workspace = getAvailableTools().map((tool, index) => ({
     position: index + 1,
@@ -235,15 +235,16 @@ function patchIntelligenceNode(item: HomepageToolboxItem): Record<string, unknow
   };
 }
 
-/** ItemList of the nine released tools — positions, names, canonical URLs. */
+/** ItemList of the released toolbox — positions, names, canonical URLs (count derived). */
 export function buildHomepageItemListJsonLd(): Record<string, unknown> {
+  const items = getHomepageToolboxItems();
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "MicroNest toolbox",
-    description: "The nine released MicroNest esports tools.",
-    numberOfItems: 9,
-    itemListElement: getHomepageToolboxItems().map((item) => ({
+    description: `The ${items.length} released MicroNest esports tools.`,
+    numberOfItems: items.length,
+    itemListElement: items.map((item) => ({
       "@type": "ListItem",
       position: item.position,
       name: item.name,

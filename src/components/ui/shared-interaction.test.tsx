@@ -78,8 +78,8 @@ describe("shared interaction layer", () => {
   });
 
   it("applies the interactive-card treatment only to clickable discovery surfaces", () => {
-    // Six workspace cards (one template occurrence) + Meta-Parser + BGMI simulator + Tournament Hub cards.
-    expect(src("src/app/tools/page.tsx").match(/card-interactive/g)).toHaveLength(4);
+    // /tools hub: one pillar-card template (three pillars, single map).
+    expect(src("src/app/tools/page.tsx").match(/card-interactive/g)).toHaveLength(1);
     expect(src("src/app/(dashboard)/dashboard/page.tsx")).toContain("card-interactive");
     // Static/informational surfaces stay static — including the hub's own
     // standings pages (data tables are read, not clicked-through cards).

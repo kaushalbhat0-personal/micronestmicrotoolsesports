@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { MARKETING_TOOLS } from "@/config/marketing/tools";
+import { labSitemapPaths } from "@/lib/marketing/public-tool-content";
 import { GUIDES } from "@/config/content/guides";
 import { GLOSSARY } from "@/config/content/glossary";
 import { USE_CASES } from "@/config/content/use-cases";
@@ -16,6 +17,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "",
     "/tools",
     ...MARKETING_TOOLS.map((t) => `/tools/${t.slug}`),
+    ...labSitemapPaths(),
+    "/paid-tools",
     "/bgmi-qualification",
     "/bgmi-tournaments",
     ...(await listPublishedBgmiTournamentPaths()).filter((p) => p !== "/bgmi-tournaments"),

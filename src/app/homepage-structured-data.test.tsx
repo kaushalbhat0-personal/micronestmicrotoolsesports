@@ -17,7 +17,7 @@ import {
  * Homepage UI is intentionally unchanged in this stage — only `<title>`,
  * meta/OG/Twitter, and JSON-LD are toolbox-first. These tests pin the
  * structured-data contract: valid Organization/WebSite, an ItemList of
- * exactly the nine released tools with canonical routes, truthful
+ * the released tools with canonical routes, truthful
  * SoftwareApplication fields only, and no hidden-FAQ markup.
  */
 
@@ -40,10 +40,10 @@ const EXPECTED_ROUTES = [
 ];
 
 describe("homepage toolbox items derive from existing sources (no duplicated registry)", () => {
-  it("contains exactly nine released tools in stable positions", () => {
+  it("contains the released tools in stable derived positions", () => {
     const items = getHomepageToolboxItems();
-    expect(items).toHaveLength(9);
-    expect(items.map((i) => i.position)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.map((i) => i.position)).toEqual(items.map((_, i) => i + 1));
     expect(items.map((i) => i.url)).toEqual(EXPECTED_ROUTES);
   });
 
@@ -122,13 +122,13 @@ describe("WebSite JSON-LD represents the toolbox site", () => {
   });
 });
 
-describe("ItemList JSON-LD lists the nine released tools", () => {
+describe("ItemList JSON-LD lists the released tools (count derived, never hardcoded)", () => {
   it("has positions, names, and canonical routes", () => {
     const list = buildHomepageItemListJsonLd();
     expect(list["@type"]).toBe("ItemList");
-    expect(list["numberOfItems"]).toBe(9);
+    expect(list["numberOfItems"]).toBe(getHomepageToolboxItems().length);
     const elements = list["itemListElement"] as Array<Record<string, unknown>>;
-    expect(elements).toHaveLength(9);
+    expect(elements).toHaveLength(getHomepageToolboxItems().length);
     elements.forEach((el, i) => {
       expect(el["@type"]).toBe("ListItem");
       expect(el["position"]).toBe(i + 1);
@@ -200,7 +200,7 @@ describe("no FAQ JSON-LD without visible FAQ content", () => {
 });
 
 describe("homepage UI reflects the toolbox IA", () => {
-  it("composes the nine toolbox sections with no sponsorship remnants", () => {
+  it("composes the toolbox sections with no sponsorship remnants", () => {
     const code = sourceOf(HOMEPAGE);
     for (const marker of [
       "ToolboxHero",

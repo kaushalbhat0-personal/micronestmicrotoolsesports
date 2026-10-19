@@ -59,7 +59,7 @@ export default function MarketingPage() {
         <FinalToolboxCTA />
       </main>
       <Footer />
-      {/* Structured data — toolbox identity: Organization + WebSite + ItemList (7 released tools). */}
+      {/* Structured data — toolbox identity: Organization + WebSite + ItemList. */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

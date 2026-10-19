@@ -1,4 +1,5 @@
 import { getAvailableTools, type MarketingTool } from "@/config/marketing/tools";
+import { freeBadgeBySlug, freeTierBySlug } from "@/config/marketing/free-tiers";
 import { BGMI_QUALIFICATION_ITEM, BGMI_TOURNAMENTS_ITEM, META_PARSER_ITEM } from "./homepage-seo";
 
 /**
@@ -95,20 +96,25 @@ export const BGMI_TOURNAMENTS_ENTRY: ToolboxEntry = {
   accessNote: "Public standings · Free to read",
 };
 
-/** Six released workspace tools as presentation entries (order = registry order). */
+/** Released workspace tools as presentation entries (order = registry order). */
 export function getWorkspaceEntries(): ToolboxEntry[] {
-  return getAvailableTools().map((tool) => ({
-    slug: tool.slug,
-    name: tool.name,
-    url: `/tools/${tool.slug}`,
-    kind: "workspace" as const,
-    description: tool.shortDescription,
-    icon: tool.icon,
-    ctaLabel: "View tool",
-    ctaAriaLabel: `View ${tool.name}`,
-    accessNote: "Workspace tool · Starts free",
-    marketingTool: tool,
-  }));
+  return getAvailableTools().map((tool) => {
+    const internal = tool.internalSlug ?? tool.slug;
+    const badge = freeBadgeBySlug(internal) ?? "Free plan";
+    const allowance = freeTierBySlug(internal)?.allowance ?? "";
+    return {
+      slug: tool.slug,
+      name: tool.name,
+      url: `/tools/${tool.slug}`,
+      kind: "workspace" as const,
+      description: tool.shortDescription,
+      icon: tool.icon,
+      ctaLabel: "View tool",
+      ctaAriaLabel: `View ${tool.name}`,
+      accessNote: allowance ? `${badge} · ${allowance}` : badge,
+      marketingTool: tool,
+    };
+  });
 }
 
 /** Nine public toolbox entries: six workspace tools plus Meta-Parser, the BGMI simulator, and the Tournament Hub. */
