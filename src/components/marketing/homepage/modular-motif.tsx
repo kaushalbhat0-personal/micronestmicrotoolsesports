@@ -7,6 +7,7 @@
  * meaning, and must appear only ~3–5 times per page (transitions, kit
  * headers, final CTA).
  */
+import * as React from "react";
 export function ModularMark({ className = "" }: { className?: string }) {
   return (
     <svg

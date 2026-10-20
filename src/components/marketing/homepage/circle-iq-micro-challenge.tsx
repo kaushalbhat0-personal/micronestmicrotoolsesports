@@ -42,7 +42,7 @@ export function getMicroRead(choice: MicroRotationChoice): MicroRead {
 }
 
 const BASE_BUTTON =
-  "absolute flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 font-mono text-sm font-bold transition-[border-color,background-color,box-shadow] duration-[180ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card";
+  "absolute flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 font-mono text-sm font-bold shadow-sm transition-[border-color,background-color,box-shadow] duration-[180ms] ease-out hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card";
 
 export function CircleIqMicroChallenge() {
   const [selected, setSelected] = useState<MicroRotationChoice | null>(null);
@@ -62,7 +62,8 @@ export function CircleIqMicroChallenge() {
       </p>
 
       <div className="px-5 pt-4 sm:px-6">
-        <div className="relative aspect-[3/2] w-full overflow-hidden rounded-[12px] border border-border bg-card">
+        <p className="font-mono text-[11px] font-bold tracking-widest text-foreground">YOUR MOVE</p>
+        <div className="relative mt-2 aspect-[3/2] w-full overflow-hidden rounded-[12px] border border-border bg-card">
           <svg
             viewBox="0 0 360 240"
             className="absolute inset-0 h-full w-full"
@@ -120,11 +121,18 @@ export function CircleIqMicroChallenge() {
                 style={{ left: option.left, top: option.top }}
                 className={
                   isPicked
-                    ? `${BASE_BUTTON} border-primary bg-primary text-primary-foreground shadow-sm ring-2 ring-primary ring-offset-2 ring-offset-card`
+                    ? `${BASE_BUTTON} border-primary bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-card`
                     : `${BASE_BUTTON} border-border-strong bg-card text-foreground hover:border-primary hover:bg-primary/10`
                 }
               >
                 {option.id}
+                {isPicked ? (
+                  <span
+                    aria-hidden
+                    data-selected-marker
+                    className="absolute -bottom-1.5 left-1/2 size-2 -translate-x-1/2 rotate-45 border border-primary bg-primary"
+                  />
+                ) : null}
               </button>
             );
           })}

@@ -45,12 +45,18 @@ function pick(hostEl: HTMLElement, id: "A" | "B" | "C"): HTMLButtonElement {
 describe("micro-challenge DOM interaction", () => {
   it("clicking B reveals the good read with the drill CTA", () => {
     const hostEl = renderChallenge();
-    pick(hostEl, "B");
+    const buttonB = pick(hostEl, "B");
     expect(hostEl.textContent).toContain("Good read");
     expect(hostEl.textContent).toContain("You chose the safer rotation.");
     const cta = hostEl.querySelector('a[href="/bgmi-lab/circle-iq"]');
     expect(cta?.textContent).toContain("Try Circle IQ");
     expect(hostEl.querySelector('[role="status"]')).not.toBeNull();
+    // The picked map position carries a non-color indicator; the rest do not.
+    expect(buttonB.querySelector("[data-selected-marker]")).not.toBeNull();
+    for (const id of ["A", "C"] as const) {
+      const idle = hostEl.querySelector(`button[aria-label^="Rotation option ${id}:"]`);
+      expect(idle?.querySelector("[data-selected-marker]")).toBeNull();
+    }
   });
 
   it("clicking A or C reveals the different read", () => {

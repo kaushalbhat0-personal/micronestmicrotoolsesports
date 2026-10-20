@@ -1,3 +1,4 @@
+import * as React from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import {
@@ -88,10 +89,17 @@ function ShelfHeader({ index, label, blurb, count }: { index: string; label: str
   );
 }
 
-/** Padded two-digit position mark inside a shelf (01, 02, …). */
+/**
+ * ToolMark — a position stamp in the running toolbox index (01–09 across
+ * shelves, never restarting per shelf). Purely presentational; the tool
+ * name beside it carries the meaning.
+ */
 function ToolMark({ position }: { position: number }) {
   return (
-    <span className="font-mono text-[11px] tracking-widest text-muted-foreground" aria-hidden>
+    <span
+      className="inline-flex min-w-8 shrink-0 items-center justify-center rounded-[6px] border border-border bg-surface-muted px-1.5 py-0.5 font-mono text-[11px] font-bold tracking-widest text-foreground"
+      aria-hidden
+    >
       {String(position).padStart(2, "0")}
     </span>
   );
@@ -102,7 +110,7 @@ function ToolMark({ position }: { position: number }) {
  * hairline dividers, so the cells read as compartments of a single kit
  * rather than four unrelated product cards.
  */
-function RunTheTournamentKit({ group, index }: { group: ResolvedToolboxGroup; index: string }) {
+function RunTheTournamentKit({ group, index, start }: { group: ResolvedToolboxGroup; index: string; start: number }) {
   return (
     <div role="group" aria-label={group.label}>
       <ShelfHeader index={index} label={group.label} blurb={group.blurb} count={group.cards.length} />
@@ -116,8 +124,8 @@ function RunTheTournamentKit({ group, index }: { group: ResolvedToolboxGroup; in
                   {card.accessNote}
                 </span>
               </div>
-              <div className="mt-4 flex items-baseline gap-3">
-                <ToolMark position={position + 1} />
+              <div className="mt-4 flex items-center gap-3">
+                <ToolMark position={start + position + 1} />
                 <h4 className="text-base font-semibold leading-none tracking-[-0.01em]">{card.name}</h4>
               </div>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{card.description}</p>
@@ -137,7 +145,7 @@ function RunTheTournamentKit({ group, index }: { group: ResolvedToolboxGroup; in
  * separated by hairlines, no card chrome. Used for the smaller two-tool
  * groups so each tool gets space without looking like a catalog grid.
  */
-function OpenToolRows({ group, index }: { group: ResolvedToolboxGroup; index: string }) {
+function OpenToolRows({ group, index, start }: { group: ResolvedToolboxGroup; index: string; start: number }) {
   return (
     <div role="group" aria-label={group.label}>
       <ShelfHeader index={index} label={group.label} blurb={group.blurb} count={group.cards.length} />
@@ -145,7 +153,7 @@ function OpenToolRows({ group, index }: { group: ResolvedToolboxGroup; index: st
         {group.cards.map((card, position) => (
           <div key={card.url} className="group flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:gap-5">
             <div className="flex items-center gap-4">
-              <ToolMark position={position + 1} />
+              <ToolMark position={start + position + 1} />
               <ToolIcon icon={card.icon} />
             </div>
             <div className="min-w-0 flex-1">
@@ -169,7 +177,7 @@ function OpenToolRows({ group, index }: { group: ResolvedToolboxGroup; index: st
  * and a single read-the-patch CTA. All copy resolves from the canonical
  * registry and group blurb — no patch numbers, changes, or conclusions.
  */
-function MetaParserFieldNotes({ group, index }: { group: ResolvedToolboxGroup; index: string }) {
+function MetaParserFieldNotes({ group, index, start }: { group: ResolvedToolboxGroup; index: string; start: number }) {
   const card = group.cards[0];
   if (!card) return null;
   return (
@@ -187,7 +195,7 @@ function MetaParserFieldNotes({ group, index }: { group: ResolvedToolboxGroup; i
             <span className="text-border" aria-hidden>
               ·
             </span>
-            <ToolMark position={1} />
+            <ToolMark position={start + 1} />
           </div>
           <h4 className="font-display mt-3 text-xl font-normal tracking-tight sm:text-2xl">{card.name}</h4>
           <dl className="mt-5 divide-y divide-border border-y border-border">
@@ -223,17 +231,37 @@ function MetaParserFieldNotes({ group, index }: { group: ResolvedToolboxGroup; i
   );
 }
 
+/** Tiny corner registration mark — an instrument-panel cue, nothing more. */
+function CornerMark({ className }: { className: string }) {
+  return (
+    <span aria-hidden className={`pointer-events-none absolute font-mono text-sm leading-none text-border-strong ${className}`}>
+      +
+    </span>
+  );
+}
+
 /**
- * ToolboxGroups — the nine released tools in four neutral editorial groups.
- * All display data resolves from the canonical registry via
- * `resolveToolboxGroups()` — no duplicated catalog. Presentation differs
- * per group (kit shelf, open rows, field-notes document) so the page reads
- * as a toolbox being opened rather than a database listing: no dominant
- * group, no ranking, no card wall. Every shelf carries its number, name,
- * and tool count, and every tool carries its position mark.
+ * ToolboxGroups — the released tools in four neutral editorial groups,
+ * presented as one connected toolbox object: a single frame with corner
+ * registration marks holds every shelf, and a running index (01–09)
+ * stamps each tool in registry order. All display data resolves from the
+ * canonical registry via `resolveToolboxGroups()` — no duplicated
+ * catalog, no hardcoded names or counts. Presentation differs per group
+ * (kit shelf, open rows, field-notes document) so the page reads as a
+ * toolbox being opened rather than a database listing: no dominant
+ * group, no ranking, no card wall.
  */
 export function ToolboxGroups() {
   const groups = resolveToolboxGroups();
+  const shelfStarts: number[] = [];
+  let running = 0;
+  for (const group of groups) {
+    shelfStarts.push(running);
+    running += group.cards.length;
+  }
+  const totalTools = running;
+  const totalLabel = String(totalTools).padStart(2, "0");
+
   return (
     <section className="container-nest py-12 sm:py-16" aria-labelledby="toolbox-groups-heading">
       <div className="mx-auto max-w-2xl text-center">
@@ -248,14 +276,32 @@ export function ToolboxGroups() {
           Focused tools, not an all-in-one platform. Pick one for tonight&apos;s job — use what you
           need, skip the rest.
         </p>
+        <div className="mx-auto mt-6 flex max-w-sm items-center gap-3">
+          <span className="h-px flex-1 bg-border" aria-hidden />
+          <p className="font-mono text-[11px] tracking-widest text-muted-foreground">
+            <span className="font-bold text-foreground">{totalLabel}</span> TOOLS
+          </p>
+          <span className="h-px flex-1 bg-border" aria-hidden />
+        </div>
       </div>
-      <div className="mx-auto mt-12 max-w-6xl space-y-12">
-        {groups.map((group, shelf) => {
-          const index = String(shelf + 1).padStart(2, "0");
-          if (group.label === "Run the tournament") return <RunTheTournamentKit key={group.label} group={group} index={index} />;
-          if (group.label === "Understand the game") return <MetaParserFieldNotes key={group.label} group={group} index={index} />;
-          return <OpenToolRows key={group.label} group={group} index={index} />;
-        })}
+      <div className="mx-auto mt-10 max-w-6xl">
+        <div className="relative overflow-hidden rounded-[24px] border border-border bg-card px-5 py-8 sm:px-8 sm:py-10 lg:px-12">
+          <CornerMark className="left-3 top-2.5" />
+          <CornerMark className="right-3 top-2.5" />
+          <CornerMark className="bottom-2.5 left-3" />
+          <CornerMark className="bottom-2.5 right-3" />
+          <div className="space-y-12">
+            {groups.map((group, shelf) => {
+              const index = String(shelf + 1).padStart(2, "0");
+              const start = shelfStarts[shelf] ?? 0;
+              if (group.label === "Run the tournament")
+                return <RunTheTournamentKit key={group.label} group={group} index={index} start={start} />;
+              if (group.label === "Understand the game")
+                return <MetaParserFieldNotes key={group.label} group={group} index={index} start={start} />;
+              return <OpenToolRows key={group.label} group={group} index={index} start={start} />;
+            })}
+          </div>
+        </div>
       </div>
     </section>
   );

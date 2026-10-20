@@ -26,6 +26,7 @@ describe("micro-challenge initial state", () => {
     const html = renderToString(<CircleIqMicroChallenge />);
     expect(html).toContain("ROUND 01");
     expect(html).toContain("Where would you rotate?");
+    expect(html).toContain("YOUR MOVE");
     for (const label of ["Rotation option A", "Rotation option B", "Rotation option C"]) {
       expect(html).toContain(label);
     }
