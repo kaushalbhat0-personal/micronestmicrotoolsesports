@@ -17,13 +17,16 @@ import { getPaidProductEntries } from "@/lib/marketing/paid-products";
  * keyboard focus mirroring hover), but carries its own subtle motif —
  * target rings for Practice, a bracket mark for Understand, modular
  * pieces for Run — composed partially behind the card content.
+ *
+ * The pillars read as entrances, not listings: generous internal space,
+ * larger titles, and confident CTAs. Copy is unchanged.
  */
 
 function TargetDoorMotif() {
   return (
     <svg
-      width="160"
-      height="160"
+      width="184"
+      height="184"
       viewBox="0 0 160 160"
       aria-hidden="true"
       focusable="false"
@@ -40,8 +43,8 @@ function TargetDoorMotif() {
 function BracketDoorMotif() {
   return (
     <svg
-      width="160"
-      height="160"
+      width="184"
+      height="184"
       viewBox="0 0 160 160"
       aria-hidden="true"
       focusable="false"
@@ -61,8 +64,8 @@ function BracketDoorMotif() {
 function PiecesDoorMotif() {
   return (
     <svg
-      width="160"
-      height="160"
+      width="184"
+      height="184"
       viewBox="0 0 160 160"
       aria-hidden="true"
       focusable="false"
@@ -84,41 +87,41 @@ export function PillarSection() {
   const drill = labAvailable[0];
 
   return (
-    <section className="container-nest py-12 sm:py-16" aria-labelledby="pillars-heading">
+    <section className="container-nest pb-12 pt-8 sm:pb-16 sm:pt-10" aria-labelledby="pillars-heading">
       <div className="mx-auto max-w-2xl text-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Three ways in</p>
-        <h2 id="pillars-heading" className="font-display mt-2 text-2xl font-normal tracking-tight sm:text-3xl">
+        <h2 id="pillars-heading" className="font-display mt-2 text-3xl font-normal tracking-tight sm:text-4xl">
           Pick your lane.
         </h2>
-        <p className="mt-2 text-muted-foreground">
+        <p className="mt-3 text-muted-foreground">
           Practice free, follow the competition, or run your operations — one toolbox, no bloat.
         </p>
       </div>
-      <div className="mx-auto mt-10 grid max-w-5xl gap-5 lg:grid-cols-3">
+      <div className="mx-auto mt-10 grid max-w-6xl gap-6 lg:grid-cols-3">
         <Card className="group relative flex flex-col overflow-hidden border-primary/15 transition-[transform,border-color,box-shadow] duration-[180ms] ease-out hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-primary/30 focus-within:shadow-sm">
           <TargetDoorMotif />
-          <CardHeader className="relative flex-1">
+          <CardHeader className="relative flex-1 p-6 sm:p-8">
             <div className="flex items-center justify-between">
-              <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface-muted transition-transform duration-[180ms] ease-out group-hover:-translate-y-0.5 group-hover:rotate-[4deg] group-focus-within:-translate-y-0.5 group-focus-within:rotate-[4deg]">
-                <Target className="h-5 w-5 text-muted-foreground" aria-hidden />
+              <span className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-border bg-surface-muted transition-transform duration-[180ms] ease-out group-hover:-translate-y-0.5 group-hover:rotate-[4deg] group-focus-within:-translate-y-0.5 group-focus-within:rotate-[4deg]">
+                <Target className="h-6 w-6 text-muted-foreground" aria-hidden />
               </span>
               <Badge variant="outline">Practice</Badge>
             </div>
-            <CardTitle className="mt-3 text-base">BGMI Lab</CardTitle>
-            <p className="text-sm font-medium text-primary">Sharpen your reads.</p>
-            <CardDescription>
+            <CardTitle className="mt-4 text-xl">BGMI Lab</CardTitle>
+            <p className="text-[15px] font-medium text-primary">Sharpen your reads.</p>
+            <CardDescription className="mt-2 text-[15px]">
               Free interactive drills for players, IGLs and teams — practice rotations, decisions and endgames. No signup.
             </CardDescription>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-3 text-sm text-muted-foreground">
               {drill ? `Live now: ${drill.name}` : "Drills opening soon"}
               {labPlannedCount > 0 ? ` · ${labPlannedCount} more on the way` : ""}
             </p>
           </CardHeader>
-          <CardContent className="relative flex flex-wrap gap-2">
+          <CardContent className="relative flex flex-wrap gap-2 px-6 pb-6 sm:px-8 sm:pb-8">
             <Link
               href="/bgmi-lab"
               aria-label="Explore the free BGMI Lab practice drills"
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Explore BGMI Lab
               <ArrowRight className="h-4 w-4 transition-transform duration-[180ms] ease-out group-hover:translate-x-0.5 group-focus-within:translate-x-0.5" aria-hidden />
@@ -127,7 +130,7 @@ export function PillarSection() {
               <Link
                 href={`/bgmi-lab/${drill.slug}` as Route}
                 aria-label={`Try ${drill.name} now — no signup needed`}
-                className="inline-flex min-h-[44px] items-center rounded-full border border-border bg-card px-5 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex min-h-[44px] items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Try {drill.name}
               </Link>
@@ -137,25 +140,25 @@ export function PillarSection() {
 
         <Card className="group relative flex flex-col overflow-hidden border-border/60 transition-[transform,border-color,box-shadow] duration-[180ms] ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-border-strong focus-within:shadow-sm">
           <BracketDoorMotif />
-          <CardHeader className="relative flex-1">
+          <CardHeader className="relative flex-1 p-6 sm:p-8">
             <div className="flex items-center justify-between">
-              <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface-muted transition-transform duration-[180ms] ease-out group-hover:-translate-y-0.5 group-hover:rotate-[4deg] group-focus-within:-translate-y-0.5 group-focus-within:rotate-[4deg]">
-                <Trophy className="h-5 w-5 text-muted-foreground" aria-hidden />
+              <span className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-border bg-surface-muted transition-transform duration-[180ms] ease-out group-hover:-translate-y-0.5 group-hover:rotate-[4deg] group-focus-within:-translate-y-0.5 group-focus-within:rotate-[4deg]">
+                <Trophy className="h-6 w-6 text-muted-foreground" aria-hidden />
               </span>
               <Badge variant="outline">Understand</Badge>
             </div>
-            <CardTitle className="mt-3 text-base">Tournament Hub</CardTitle>
-            <p className="text-sm font-medium text-primary">Follow the competition.</p>
-            <CardDescription>
+            <CardTitle className="mt-4 text-xl">Tournament Hub</CardTitle>
+            <p className="text-[15px] font-medium text-primary">Follow the competition.</p>
+            <CardDescription className="mt-2 text-[15px]">
               Public standings, match results and event context — follow the competition, free to read.
             </CardDescription>
-            <p className="mt-2 text-sm text-muted-foreground">BGMI tournaments, updated after completed matches.</p>
+            <p className="mt-3 text-sm text-muted-foreground">BGMI tournaments, updated after completed matches.</p>
           </CardHeader>
-          <CardContent className="relative flex flex-wrap gap-2">
+          <CardContent className="relative flex flex-wrap gap-2 px-6 pb-6 sm:px-8 sm:pb-8">
             <Link
               href="/bgmi-tournaments"
               aria-label="Explore the BGMI Tournament Hub standings and results"
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Explore Tournament Hub
               <ArrowRight className="h-4 w-4 transition-transform duration-[180ms] ease-out group-hover:translate-x-0.5 group-focus-within:translate-x-0.5" aria-hidden />
@@ -165,25 +168,25 @@ export function PillarSection() {
 
         <Card className="group relative flex flex-col overflow-hidden border-border/60 transition-[transform,border-color,box-shadow] duration-[180ms] ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-border-strong focus-within:shadow-sm">
           <PiecesDoorMotif />
-          <CardHeader className="relative flex-1">
+          <CardHeader className="relative flex-1 p-6 sm:p-8">
             <div className="flex items-center justify-between">
-              <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface-muted transition-transform duration-[180ms] ease-out group-hover:-translate-y-0.5 group-hover:rotate-[4deg] group-focus-within:-translate-y-0.5 group-focus-within:rotate-[4deg]">
-                <Wrench className="h-5 w-5 text-muted-foreground" aria-hidden />
+              <span className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-border bg-surface-muted transition-transform duration-[180ms] ease-out group-hover:-translate-y-0.5 group-hover:rotate-[4deg] group-focus-within:-translate-y-0.5 group-focus-within:rotate-[4deg]">
+                <Wrench className="h-6 w-6 text-muted-foreground" aria-hidden />
               </span>
               <Badge variant="outline">Run</Badge>
             </div>
-            <CardTitle className="mt-3 text-base">Paid Tools</CardTitle>
-            <p className="text-sm font-medium text-primary">Get the work done.</p>
-            <CardDescription>
+            <CardTitle className="mt-4 text-xl">Paid Tools</CardTitle>
+            <p className="text-[15px] font-medium text-primary">Get the work done.</p>
+            <CardDescription className="mt-2 text-[15px]">
               Focused operator tools for sponsorships, prize pools, drafts, standings and payouts. Every tool starts free.
             </CardDescription>
-            <p className="mt-2 text-sm text-muted-foreground">{paidCount} focused tools + All Access bundle.</p>
+            <p className="mt-3 text-sm text-muted-foreground">{paidCount} focused tools + All Access bundle.</p>
           </CardHeader>
-          <CardContent className="relative flex flex-wrap gap-2">
+          <CardContent className="relative flex flex-wrap gap-2 px-6 pb-6 sm:px-8 sm:pb-8">
             <Link
               href="/paid-tools"
               aria-label="Explore MicroNest paid operator tools"
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Explore Paid Tools
               <ArrowRight className="h-4 w-4 transition-transform duration-[180ms] ease-out group-hover:translate-x-0.5 group-focus-within:translate-x-0.5" aria-hidden />
@@ -191,7 +194,7 @@ export function PillarSection() {
             <Link
               href="/pricing"
               aria-label="View MicroNest tool pricing"
-              className="inline-flex min-h-[44px] items-center rounded-full border border-border bg-card px-5 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-[44px] items-center rounded-full border border-border bg-card px-6 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               View Pricing
             </Link>

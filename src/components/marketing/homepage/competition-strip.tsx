@@ -23,12 +23,12 @@ export function CompetitionStrip() {
           MicroNest publishes the context around the work — who stands where, and how the game itself changed.
         </p>
       </div>
-      <p className="mx-auto mt-6 flex max-w-4xl items-center gap-3 font-mono text-[11px] tracking-widest text-muted-foreground">
+      <p className="mx-auto mt-6 flex max-w-5xl items-center gap-3 font-mono text-[11px] tracking-widest text-muted-foreground">
         <span className="inline-block size-1.5 rounded-[2px] bg-primary" aria-hidden />
         FIELD NOTES
         <span className="h-px flex-1 bg-border" aria-hidden />
       </p>
-      <div className="relative mx-auto mt-4 grid max-w-4xl gap-5 sm:grid-cols-2">
+      <div className="relative mx-auto mt-4 grid max-w-5xl gap-5 sm:grid-cols-2">
         <span className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:block" aria-hidden>
           <span className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-[10px] font-bold text-muted-foreground">
             +

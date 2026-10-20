@@ -34,7 +34,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 function ToolIcon({ icon }: { icon: string }) {
   const Icon = iconMap[icon] ?? ShieldCheck;
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-border bg-surface-muted">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-border bg-surface-muted">
       <Icon className="h-5 w-5 text-muted-foreground" aria-hidden />
     </span>
   );
@@ -56,24 +56,59 @@ function ToolCta({ card }: { card: ToolboxGroupCard }) {
   );
 }
 
+/** Two modular tabs — the shelf's physical index mark. */
+function ShelfTabs() {
+  return (
+    <span className="flex shrink-0 items-center gap-1.5" aria-hidden>
+      <span className="inline-block size-1.5 rounded-[2px] bg-primary" />
+      <span className="inline-block size-1.5 rounded-[2px] bg-border-strong" />
+    </span>
+  );
+}
+
+/**
+ * ShelfHeader — every shelf carries a number, a name, and a tool count,
+ * like a labeled drawer in a physical toolbox. Numbers are positional
+ * (01–04), never a ranking.
+ */
+function ShelfHeader({ index, label, blurb, count }: { index: string; label: string; blurb: string; count: number }) {
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <ShelfTabs />
+        <p className="font-mono text-[11px] tracking-widest text-primary">SHELF {index}</p>
+        <span className="h-px min-w-6 flex-1 bg-border" aria-hidden />
+        <p className="font-mono text-[11px] tracking-widest text-muted-foreground">
+          {count} {count === 1 ? "TOOL" : "TOOLS"}
+        </p>
+      </div>
+      <h3 className="font-display mt-3 text-xl font-normal tracking-tight sm:text-2xl">{label}</h3>
+      <p className="mt-1 text-sm text-muted-foreground">{blurb}</p>
+    </div>
+  );
+}
+
+/** Padded two-digit position mark inside a shelf (01, 02, …). */
+function ToolMark({ position }: { position: number }) {
+  return (
+    <span className="font-mono text-[11px] tracking-widest text-muted-foreground" aria-hidden>
+      {String(position).padStart(2, "0")}
+    </span>
+  );
+}
+
 /**
  * RunTheTournamentKit — four tools as one kit: a shared shelf frame with
  * hairline dividers, so the cells read as compartments of a single kit
  * rather than four unrelated product cards.
  */
-function RunTheTournamentKit({ group }: { group: ResolvedToolboxGroup }) {
+function RunTheTournamentKit({ group, index }: { group: ResolvedToolboxGroup; index: string }) {
   return (
     <div role="group" aria-label={group.label}>
-      <div className="overflow-hidden rounded-[20px] border border-border bg-card">
-        <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6">
-          <ModularMark />
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{group.label}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{group.blurb}</p>
-          </div>
-        </div>
+      <ShelfHeader index={index} label={group.label} blurb={group.blurb} count={group.cards.length} />
+      <div className="mt-5 overflow-hidden rounded-[20px] border border-border bg-card">
         <div className="grid gap-px bg-border sm:grid-cols-2">
-          {group.cards.map((card) => (
+          {group.cards.map((card, position) => (
             <div key={card.url} className="group bg-card p-5 transition-colors duration-[180ms] hover:bg-surface-muted/40 focus-within:bg-surface-muted/40 sm:p-6">
               <div className="flex items-center justify-between gap-3">
                 <ToolIcon icon={card.icon} />
@@ -81,7 +116,10 @@ function RunTheTournamentKit({ group }: { group: ResolvedToolboxGroup }) {
                   {card.accessNote}
                 </span>
               </div>
-              <h3 className="mt-3 text-base font-semibold leading-none tracking-[-0.01em]">{card.name}</h3>
+              <div className="mt-4 flex items-baseline gap-3">
+                <ToolMark position={position + 1} />
+                <h4 className="text-base font-semibold leading-none tracking-[-0.01em]">{card.name}</h4>
+              </div>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{card.description}</p>
               <div className="mt-4">
                 <ToolCta card={card} />
@@ -99,26 +137,19 @@ function RunTheTournamentKit({ group }: { group: ResolvedToolboxGroup }) {
  * separated by hairlines, no card chrome. Used for the smaller two-tool
  * groups so each tool gets space without looking like a catalog grid.
  */
-function OpenToolRows({ group }: { group: ResolvedToolboxGroup }) {
+function OpenToolRows({ group, index }: { group: ResolvedToolboxGroup; index: string }) {
   return (
-    <div role="group" aria-label={group.label} className="mx-auto max-w-3xl">
-      <div className="flex items-center gap-3">
-        <span className="flex shrink-0 items-center gap-1.5" aria-hidden>
-          <span className="inline-block size-1.5 rounded-[2px] bg-primary" />
-          <span className="inline-block size-1.5 rounded-[2px] bg-border-strong" />
-        </span>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{group.label}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{group.blurb}</p>
-        </div>
-        <span className="h-px min-w-6 flex-1 bg-border" aria-hidden />
-      </div>
+    <div role="group" aria-label={group.label}>
+      <ShelfHeader index={index} label={group.label} blurb={group.blurb} count={group.cards.length} />
       <div className="mt-2 divide-y divide-border border-b border-border">
-        {group.cards.map((card) => (
+        {group.cards.map((card, position) => (
           <div key={card.url} className="group flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:gap-5">
-            <ToolIcon icon={card.icon} />
+            <div className="flex items-center gap-4">
+              <ToolMark position={position + 1} />
+              <ToolIcon icon={card.icon} />
+            </div>
             <div className="min-w-0 flex-1">
-              <h3 className="text-base font-semibold leading-none tracking-[-0.01em]">{card.name}</h3>
+              <h4 className="text-base font-semibold leading-none tracking-[-0.01em]">{card.name}</h4>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{card.description}</p>
               <p className="mt-2 font-mono text-[11px] tracking-widest text-muted-foreground">{card.accessNote}</p>
             </div>
@@ -138,12 +169,13 @@ function OpenToolRows({ group }: { group: ResolvedToolboxGroup }) {
  * and a single read-the-patch CTA. All copy resolves from the canonical
  * registry and group blurb — no patch numbers, changes, or conclusions.
  */
-function MetaParserFieldNotes({ group }: { group: ResolvedToolboxGroup }) {
+function MetaParserFieldNotes({ group, index }: { group: ResolvedToolboxGroup; index: string }) {
   const card = group.cards[0];
   if (!card) return null;
   return (
     <div role="group" aria-label={group.label}>
-      <div className="relative mx-auto max-w-3xl overflow-hidden rounded-[20px] border border-border bg-card">
+      <ShelfHeader index={index} label={group.label} blurb={group.blurb} count={group.cards.length} />
+      <div className="relative mt-5 overflow-hidden rounded-[20px] border border-border bg-card">
         <span className="absolute inset-y-0 left-0 w-1.5 bg-primary/70" aria-hidden />
         <div className="p-6 pl-8 sm:p-8 sm:pl-10">
           <div className="flex flex-wrap items-center gap-2">
@@ -152,8 +184,12 @@ function MetaParserFieldNotes({ group }: { group: ResolvedToolboxGroup }) {
               ·
             </span>
             <p className="font-mono text-[11px] tracking-widest text-muted-foreground">PATCH INTELLIGENCE</p>
+            <span className="text-border" aria-hidden>
+              ·
+            </span>
+            <ToolMark position={1} />
           </div>
-          <h3 className="font-display mt-3 text-xl font-normal tracking-tight sm:text-2xl">{card.name}</h3>
+          <h4 className="font-display mt-3 text-xl font-normal tracking-tight sm:text-2xl">{card.name}</h4>
           <dl className="mt-5 divide-y divide-border border-y border-border">
             <div className="grid gap-1 py-4 sm:grid-cols-[140px_1fr] sm:gap-4">
               <dt className="font-mono text-[11px] tracking-widest text-muted-foreground">WHAT CHANGED</dt>
@@ -193,7 +229,8 @@ function MetaParserFieldNotes({ group }: { group: ResolvedToolboxGroup }) {
  * `resolveToolboxGroups()` — no duplicated catalog. Presentation differs
  * per group (kit shelf, open rows, field-notes document) so the page reads
  * as a toolbox being opened rather than a database listing: no dominant
- * group, no ranking, no card wall.
+ * group, no ranking, no card wall. Every shelf carries its number, name,
+ * and tool count, and every tool carries its position mark.
  */
 export function ToolboxGroups() {
   const groups = resolveToolboxGroups();
@@ -212,11 +249,12 @@ export function ToolboxGroups() {
           need, skip the rest.
         </p>
       </div>
-      <div className="mx-auto mt-10 max-w-4xl space-y-10">
-        {groups.map((group) => {
-          if (group.label === "Run the tournament") return <RunTheTournamentKit key={group.label} group={group} />;
-          if (group.label === "Understand the game") return <MetaParserFieldNotes key={group.label} group={group} />;
-          return <OpenToolRows key={group.label} group={group} />;
+      <div className="mx-auto mt-12 max-w-6xl space-y-12">
+        {groups.map((group, shelf) => {
+          const index = String(shelf + 1).padStart(2, "0");
+          if (group.label === "Run the tournament") return <RunTheTournamentKit key={group.label} group={group} index={index} />;
+          if (group.label === "Understand the game") return <MetaParserFieldNotes key={group.label} group={group} index={index} />;
+          return <OpenToolRows key={group.label} group={group} index={index} />;
         })}
       </div>
     </section>

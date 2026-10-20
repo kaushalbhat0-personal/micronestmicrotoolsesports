@@ -1,89 +1,31 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowDown, ArrowRight, Crosshair } from "lucide-react";
+import { ArrowRight, Crosshair } from "lucide-react";
 import { getLabTool } from "@/lib/marketing/public-tool-content";
+import { CircleIqMicroChallenge } from "@/components/marketing/homepage/circle-iq-micro-challenge";
 
 /**
- * LabFeatureSection — the homepage's first play moment. Fully static:
- * name/tagline/steps resolve from the Lab registry, CTAs link to the
- * drill page. The interactive drill itself is never imported here, so
- * the homepage bundle stays light.
+ * LabFeatureSection — the homepage's first play moment and visual
+ * centerpiece. Fully static except for one tiny client island
+ * (CircleIqMicroChallenge, local state only): name/tagline resolve from
+ * the Lab registry, CTAs link to the drill page. No data fetching, no
+ * scoring, no persistence — the visitor sees something playable.
  *
- * Two-stage visual hierarchy: ROUND 01 framing with an invitation
- * headline on one side, and two large YOUR CALL → RESULT stage panels
- * (CSS/SVG only, one-shot stroke draw) on the other. The steps read as
- * an open editorial list, not cards. No data fetching, no scoring,
- * no duplicated mechanics — the visitor simply sees something playable.
+ * Wide two-part composition: the invitation (headline, open step list,
+ * CTAs) beside the live training prompt.
  */
 const STEPS = [
   { n: "01", title: "Make your call", text: "Study the zone snapshot and pick the rotation you would call." },
-  { n: "02", title: "Reveal the result", text: "See the recommended call instantly — no account, no waiting." },
+  { n: "02", title: "Reveal the result", text: "See the safer call instantly — no account, no waiting." },
   { n: "03", title: "Learn the why", text: "Every answer explains itself, so the reasoning transfers to matches." },
 ] as const;
-
-function PlayStages() {
-  return (
-    <div className="grid gap-3" aria-hidden>
-      <figure className="rounded-[16px] border border-border bg-surface-muted/50 p-5 sm:p-6">
-        <p className="font-mono text-[11px] tracking-widest text-muted-foreground">YOUR CALL</p>
-        <div className="mt-3 flex items-center gap-4">
-          <svg width="112" height="112" viewBox="0 0 64 64" role="presentation" className="shrink-0">
-            <circle cx="32" cy="32" r="26" fill="none" stroke="var(--color-border)" strokeWidth="2" />
-            <circle
-              cx="32"
-              cy="32"
-              r="16"
-              fill="none"
-              stroke="var(--color-primary)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              className="nest-draw"
-              style={{ ["--draw-len" as string]: 101, animationDelay: "200ms" }}
-            />
-            <circle cx="24" cy="40" r="3.5" fill="var(--color-primary)" />
-            <path d="M24 40 L32 32" stroke="var(--color-foreground-muted)" strokeWidth="1.5" strokeDasharray="3 3" />
-          </svg>
-          <p className="font-display text-xl font-normal tracking-tight sm:text-2xl">You pick the rotation.</p>
-        </div>
-      </figure>
-      <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-border" aria-hidden />
-        <span className="flex size-8 items-center justify-center rounded-full border border-primary/30 bg-primary/5">
-          <ArrowDown className="h-4 w-4 text-primary" aria-hidden />
-        </span>
-        <span className="h-px flex-1 bg-border" aria-hidden />
-      </div>
-      <figure className="rounded-[16px] border border-primary/25 bg-primary/[0.05] p-5 sm:p-6">
-        <p className="font-mono text-[11px] tracking-widest text-primary">RESULT</p>
-        <div className="mt-3 flex items-center gap-4">
-          <svg width="112" height="112" viewBox="0 0 64 64" role="presentation" className="shrink-0">
-            <circle cx="32" cy="32" r="26" fill="none" stroke="var(--color-border)" strokeWidth="2" />
-            <circle cx="32" cy="32" r="16" fill="none" stroke="var(--color-primary)" strokeWidth="2" />
-            <circle cx="24" cy="40" r="3.5" fill="var(--color-primary)" />
-            <path
-              d="M27 32.5 L31 36.5 L38 28.5"
-              fill="none"
-              stroke="var(--color-success)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="nest-draw"
-              style={{ ["--draw-len" as string]: 30, animationDelay: "600ms" }}
-            />
-          </svg>
-          <p className="font-display text-xl font-normal tracking-tight sm:text-2xl">See the call, learn the why.</p>
-        </div>
-      </figure>
-    </div>
-  );
-}
 
 export function LabFeatureSection() {
   const drill = getLabTool("circle-iq");
   if (!drill) return null;
   return (
     <section className="container-nest py-12 sm:py-16" aria-labelledby="lab-feature-heading">
-      <div className="mx-auto max-w-5xl rounded-[20px] border border-primary/15 bg-card p-6 sm:p-10">
+      <div className="mx-auto max-w-6xl rounded-[20px] border border-primary/15 bg-card p-6 sm:p-10 lg:p-12">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-mono text-[11px] tracking-widest text-primary">BGMI LAB</p>
           <span className="text-border" aria-hidden>
@@ -108,8 +50,8 @@ export function LabFeatureSection() {
             </p>
           </div>
         </div>
-        <div className="mt-8 grid items-start gap-8 lg:grid-cols-2">
-          <div className="order-2 lg:order-1">
+        <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,6fr)]">
+          <div>
             <ol className="divide-y divide-border border-y border-border">
               {STEPS.map((step) => (
                 <li key={step.n} className="flex gap-4 py-4">
@@ -123,7 +65,7 @@ export function LabFeatureSection() {
                 </li>
               ))}
             </ol>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
               <Link
                 href={`/bgmi-lab/${drill.slug}` as Route}
                 aria-label={`Try ${drill.name} now — no signup needed`}
@@ -141,9 +83,7 @@ export function LabFeatureSection() {
               </Link>
             </div>
           </div>
-          <div className="order-1 lg:order-2">
-            <PlayStages />
-          </div>
+          <CircleIqMicroChallenge />
         </div>
       </div>
     </section>

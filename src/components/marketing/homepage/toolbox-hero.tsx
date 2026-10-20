@@ -9,7 +9,7 @@ import { LogoMark } from "@/components/shared/logo";
  */
 export function ToolboxHero() {
   return (
-    <section className="container-nest py-16 sm:py-20 lg:py-24" aria-labelledby="homepage-hero-heading">
+    <section className="container-nest py-10 sm:py-12 lg:py-14" aria-labelledby="homepage-hero-heading">
       <div className="mx-auto max-w-3xl text-center">
         <div className="mx-auto mb-6 flex justify-center">
           <span className="nest-assemble inline-flex">
@@ -36,7 +36,7 @@ export function ToolboxHero() {
             RUN
           </li>
         </ul>
-        <h1 id="homepage-hero-heading" className="font-display text-balance text-4xl font-normal tracking-tight sm:text-5xl">
+        <h1 id="homepage-hero-heading" className="font-display text-balance text-4xl font-normal tracking-tight sm:text-5xl lg:text-6xl">
           The toolbox behind esports.
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground">

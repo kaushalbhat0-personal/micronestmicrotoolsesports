@@ -35,6 +35,31 @@ export function ModularMark({ className = "" }: { className?: string }) {
 }
 
 /**
+ * PlayToolsKnowledge — the bridge from the first challenge into the
+ * toolbox. The modular pieces as a quiet equation: play, tools,
+ * knowledge → MicroNest. Decorative only (`aria-hidden`): the sections
+ * themselves carry the accessible headings. No motion, no emphasis.
+ */
+export function PlayToolsKnowledge() {
+  return (
+    <div aria-hidden="true" className="container-nest">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-4 gap-y-2 py-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+        <span className="flex items-center gap-2">
+          <ModularMark />
+          Play
+        </span>
+        <span className="text-border">+</span>
+        <span>Tools</span>
+        <span className="text-border">+</span>
+        <span>Knowledge</span>
+        <span className="text-primary">=</span>
+        <span className="text-foreground">MicroNest</span>
+      </div>
+    </div>
+  );
+}
+
+/**
  * SectionTransition — slim editorial bridge between major homepage areas
  * (practice → first challenge → toolbox → competition). Decorative only:
  * the sections themselves carry the accessible headings.
