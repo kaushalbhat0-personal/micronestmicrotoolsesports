@@ -7,7 +7,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs, BreadcrumbJsonLd } from "@/components/marketing/content/breadcrumbs";
 import { toolIcon } from "@/components/marketing/tool-icon-map";
-import { getLabTools } from "@/lib/marketing/public-tool-content";
+import type { BgmiLabCategory, BgmiLabTool } from "@/config/public/bgmi-lab";
+import { buildLabItemListJsonLd, getLabTools, labAbsoluteUrl } from "@/lib/marketing/public-tool-content";
 
 export const metadata: Metadata = {
   title: "BGMI Lab — Free BGMI Practice Drills | MicroNest",
@@ -27,10 +28,62 @@ export const metadata: Metadata = {
   },
 };
 
+const CATEGORY_ORDER: readonly { key: BgmiLabCategory; label: string; blurb: string }[] = [
+  { key: "practice", label: "Practice", blurb: "Decision drills — make the call, read why." },
+  { key: "learn", label: "Learn", blurb: "Pattern study from real tournament contexts." },
+  { key: "fun", label: "Fun", blurb: "Light-hearted moments after practice." },
+];
+
+function AvailableCard({ tool }: { tool: BgmiLabTool }) {
+  const Icon = toolIcon(tool.icon);
+  return (
+    <Card className="group flex flex-col border-primary/15 card-interactive">
+      <CardHeader className="flex-1">
+        <div className="flex items-center justify-between">
+          <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface-muted">
+            <Icon className="h-5 w-5 text-muted-foreground" />
+          </span>
+          <span className="flex items-center gap-2">
+            <Badge variant="success">Available</Badge>
+            <Badge variant="outline">Free</Badge>
+          </span>
+        </div>
+        <CardTitle className="mt-3 text-base">{tool.name}</CardTitle>
+        <CardDescription>{tool.tagline}</CardDescription>
+        <p className="mt-2 text-sm text-muted-foreground">{tool.description}</p>
+      </CardHeader>
+      <CardContent>
+        <Link
+          href={`/bgmi-lab/${tool.slug}` as Route}
+          className="inline-flex h-9 min-h-[44px] items-center rounded-full border border-border bg-card px-4 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Start drill
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PlannedCard({ tool }: { tool: BgmiLabTool }) {
+  const Icon = toolIcon(tool.icon);
+  return (
+    <Card className="flex flex-col bg-surface-muted/40">
+      <CardHeader className="flex-1">
+        <div className="flex items-center justify-between">
+          <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface-muted">
+            <Icon className="h-5 w-5 text-muted-foreground" />
+          </span>
+          <Badge variant="secondary">Planned</Badge>
+        </div>
+        <CardTitle className="mt-3 text-base">{tool.name}</CardTitle>
+        <CardDescription>{tool.tagline}</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
+
 export default function BgmiLabPage() {
   const tools = getLabTools();
-  const available = tools.filter((t) => t.status === "available");
-  const planned = tools.filter((t) => t.status === "planned");
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -46,60 +99,37 @@ export default function BgmiLabPage() {
             </p>
           </div>
 
-          <h2 className="mt-10 text-sm font-semibold">Available now</h2>
-          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {available.map((tool) => {
-              const Icon = toolIcon(tool.icon);
-              return (
-                <Card key={tool.slug} className="group flex flex-col border-primary/15 card-interactive">
-                  <CardHeader className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface-muted">
-                        <Icon className="h-5 w-5 text-muted-foreground" />
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <Badge variant="success">Available</Badge>
-                        <Badge variant="outline">Free</Badge>
-                      </span>
+          {CATEGORY_ORDER.map((group) => {
+            const groupTools = tools.filter((t) => t.category === group.key && t.status !== "archived");
+            if (groupTools.length === 0) return null;
+            const available = groupTools.filter((t) => t.status === "available");
+            const planned = groupTools.filter((t) => t.status !== "available");
+            return (
+              <section key={group.key} aria-label={group.label} className="mt-12">
+                <h2 className="text-sm font-semibold">{group.label}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{group.blurb}</p>
+                {available.length > 0 ? (
+                  <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {available.map((tool) => (
+                      <AvailableCard key={tool.slug} tool={tool} />
+                    ))}
+                  </div>
+                ) : null}
+                {planned.length > 0 ? (
+                  <>
+                    <h3 className="mt-6 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Coming soon to {group.label.toLowerCase()}
+                    </h3>
+                    <div className="mt-3 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                      {planned.map((tool) => (
+                        <PlannedCard key={tool.slug} tool={tool} />
+                      ))}
                     </div>
-                    <CardTitle className="mt-3 text-base">{tool.name}</CardTitle>
-                    <CardDescription>{tool.tagline}</CardDescription>
-                    <p className="mt-2 text-sm text-muted-foreground">{tool.description}</p>
-                  </CardHeader>
-                  <CardContent>
-                    <Link
-                      href={`/bgmi-lab/${tool.slug}` as Route}
-                      className="inline-flex h-9 min-h-[44px] items-center rounded-full border border-border bg-card px-4 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      Start drill
-                    </Link>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          <h2 className="mt-12 text-sm font-semibold">Coming soon to the Lab</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Planned drills — listed here so the roadmap is honest. No pages, no signup, no waiting list.</p>
-          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {planned.map((tool) => {
-              const Icon = toolIcon(tool.icon);
-              return (
-                <Card key={tool.slug} className="flex flex-col bg-surface-muted/40">
-                  <CardHeader className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface-muted">
-                        <Icon className="h-5 w-5 text-muted-foreground" />
-                      </span>
-                      <Badge variant="secondary">Planned</Badge>
-                    </div>
-                    <CardTitle className="mt-3 text-base">{tool.name}</CardTitle>
-                    <CardDescription>{tool.tagline}</CardDescription>
-                  </CardHeader>
-                </Card>
-              );
-            })}
-          </div>
+                  </>
+                ) : null}
+              </section>
+            );
+          })}
 
           <div className="mt-12 grid gap-3 sm:grid-cols-2">
             <Link href="/bgmi-tournaments" className="rounded-[12px] border border-border bg-card p-4 hover:bg-surface-muted/50">
@@ -116,7 +146,10 @@ export default function BgmiLabPage() {
         </section>
       </main>
       <Footer />
-      <BreadcrumbJsonLd items={[{ name: "Home", item: "/" }, { name: "BGMI Lab", item: "/bgmi-lab" }]} />
+      <BreadcrumbJsonLd
+        items={[{ name: "Home", item: labAbsoluteUrl("/") }, { name: "BGMI Lab", item: labAbsoluteUrl("/bgmi-lab") }]}
+      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(buildLabItemListJsonLd()) }} />
     </div>
   );
 }

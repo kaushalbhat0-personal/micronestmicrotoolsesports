@@ -4,7 +4,10 @@ import {
   ClipboardList,
   Crosshair,
   FileCheck,
+  Flag,
+  Flame,
   Gauge,
+  History,
   Newspaper,
   ReceiptText,
   Scale,
@@ -40,7 +43,10 @@ const ICONS: Record<string, ComponentType<{ className?: string }>> = {
   Trophy,
   Crosshair,
   Gauge,
+  History,
   ArrowRight,
+  Flame,
+  Flag,
 };
 
 export function toolIcon(name: string): ComponentType<{ className?: string }> {
