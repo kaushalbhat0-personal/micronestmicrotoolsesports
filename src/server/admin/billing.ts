@@ -31,13 +31,16 @@ export interface AdminOrderItem {
   amountMinor: number;
   currency: string;
   status: string;
+  provider: string | null;
   razorpayOrderId: string | null;
+  dodoSessionId: string | null;
   createdAt: string;
 }
 
 export interface AdminPaymentItem {
   id: string;
   razorpayPaymentId: string | null;
+  dodoPaymentId: string | null;
   orderId: string;
   organizationId: string;
   organizationName: string;
@@ -213,12 +216,12 @@ export async function getAdminBilling(searchParams: Record<string, string | stri
         // For accurate count when both, we need to fetch ids via separate query; we choose to count via razorpay ilike OR org in
         // Supabase supports .or with mixed, but we will just use razorpay ilike for count when orgIds empty, else use in
         if (orgIds && orgIds.length > 0) {
-          // For count, we need to count orders where razorpay ilike OR org in ids — we do two counts and take max? Instead we will just count with in + ilike via or string
-          // PostgREST or supports `razorpay_order_id.ilike.%q%,organization_id.in.(id1,id2)`
+          // For count, we need to count orders where provider id ilike OR org in ids
+          // PostgREST or supports `razorpay_order_id.ilike.%q%,dodo_session_id.ilike.%q%,organization_id.in.(id1,id2)`
           const inList = `(${orgIds.join(",")})`;
-          countQ = (countQ as never as { or: (s: string) => never }).or(`razorpay_order_id.ilike.${like},organization_id.in.${inList}`) as never;
+          countQ = (countQ as never as { or: (s: string) => never }).or(`razorpay_order_id.ilike.${like},dodo_session_id.ilike.${like},organization_id.in.${inList}`) as never;
         } else {
-          countQ = (countQ as never as { ilike: (c: string, v: string) => never }).ilike("razorpay_order_id", like) as never;
+          countQ = (countQ as never as { or: (s: string) => never }).or(`razorpay_order_id.ilike.${like},dodo_session_id.ilike.${like}`) as never;
         }
       }
       if (status && ["created", "paid", "failed", "expired"].includes(status)) {
@@ -237,7 +240,7 @@ export async function getAdminBilling(searchParams: Record<string, string | stri
     try {
       let dataQ = admin
         .from("orders")
-        .select("id, organization_id, plan_id, tool_id, is_all_access, amount_minor, currency, status, razorpay_order_id, created_at")
+        .select("id, organization_id, plan_id, tool_id, is_all_access, amount_minor, currency, status, provider, razorpay_order_id, dodo_session_id, created_at")
         .order("created_at", { ascending: false })
         .range(from, to) as unknown as never;
 
@@ -245,9 +248,9 @@ export async function getAdminBilling(searchParams: Record<string, string | stri
         const like = formatLike(q);
         if (orgIds && orgIds.length > 0) {
           const inList = `(${orgIds.join(",")})`;
-          dataQ = (dataQ as never as { or: (s: string) => never }).or(`razorpay_order_id.ilike.${like},organization_id.in.${inList}`) as never;
+          dataQ = (dataQ as never as { or: (s: string) => never }).or(`razorpay_order_id.ilike.${like},dodo_session_id.ilike.${like},organization_id.in.${inList}`) as never;
         } else {
-          dataQ = (dataQ as never as { ilike: (c: string, v: string) => never }).ilike("razorpay_order_id", like) as never;
+          dataQ = (dataQ as never as { or: (s: string) => never }).or(`razorpay_order_id.ilike.${like},dodo_session_id.ilike.${like}`) as never;
         }
       }
       if (status && ["created", "paid", "failed", "expired"].includes(status)) {
@@ -265,7 +268,9 @@ export async function getAdminBilling(searchParams: Record<string, string | stri
               amount_minor: number;
               currency: string;
               status: string;
+              provider: string | null;
               razorpay_order_id: string | null;
+              dodo_session_id: string | null;
               created_at: string;
             }>
           | null;
@@ -313,7 +318,9 @@ export async function getAdminBilling(searchParams: Record<string, string | stri
             amountMinor: r.amount_minor,
             currency: r.currency,
             status: r.status,
+            provider: r.provider,
             razorpayOrderId: r.razorpay_order_id,
+            dodoSessionId: r.dodo_session_id,
             createdAt: r.created_at,
           };
         });
@@ -337,9 +344,9 @@ export async function getAdminBilling(searchParams: Record<string, string | stri
         const like = formatLike(q);
         if (orgIds && orgIds.length > 0) {
           const inList = `(${orgIds.join(",")})`;
-          countQ = (countQ as never as { or: (s: string) => never }).or(`razorpay_payment_id.ilike.${like},organization_id.in.${inList}`) as never;
+          countQ = (countQ as never as { or: (s: string) => never }).or(`razorpay_payment_id.ilike.${like},dodo_payment_id.ilike.${like},organization_id.in.${inList}`) as never;
         } else {
-          countQ = (countQ as never as { ilike: (c: string, v: string) => never }).ilike("razorpay_payment_id", like) as never;
+          countQ = (countQ as never as { or: (s: string) => never }).or(`razorpay_payment_id.ilike.${like},dodo_payment_id.ilike.${like}`) as never;
         }
       }
       if (status && ["created", "authorized", "captured", "failed"].includes(status)) {
@@ -358,16 +365,16 @@ export async function getAdminBilling(searchParams: Record<string, string | stri
     try {
       let dataQ = admin
         .from("payments")
-        .select("id, razorpay_payment_id, order_id, organization_id, amount_minor, currency, status, verified_at, created_at")
+        .select("id, razorpay_payment_id, dodo_payment_id, order_id, organization_id, amount_minor, currency, status, verified_at, created_at")
         .order("created_at", { ascending: false })
         .range(from, to) as unknown as never;
       if (q) {
         const like = formatLike(q);
         if (orgIds && orgIds.length > 0) {
           const inList = `(${orgIds.join(",")})`;
-          dataQ = (dataQ as never as { or: (s: string) => never }).or(`razorpay_payment_id.ilike.${like},organization_id.in.${inList}`) as never;
+          dataQ = (dataQ as never as { or: (s: string) => never }).or(`razorpay_payment_id.ilike.${like},dodo_payment_id.ilike.${like},organization_id.in.${inList}`) as never;
         } else {
-          dataQ = (dataQ as never as { ilike: (c: string, v: string) => never }).ilike("razorpay_payment_id", like) as never;
+          dataQ = (dataQ as never as { or: (s: string) => never }).or(`razorpay_payment_id.ilike.${like},dodo_payment_id.ilike.${like}`) as never;
         }
       }
       if (status && ["created", "authorized", "captured", "failed"].includes(status)) {
@@ -378,6 +385,7 @@ export async function getAdminBilling(searchParams: Record<string, string | stri
           | Array<{
               id: string;
               razorpay_payment_id: string | null;
+              dodo_payment_id: string | null;
               order_id: string;
               organization_id: string;
               amount_minor: number;
@@ -401,6 +409,7 @@ export async function getAdminBilling(searchParams: Record<string, string | stri
         payments = rows.map((r) => ({
           id: r.id,
           razorpayPaymentId: r.razorpay_payment_id,
+          dodoPaymentId: r.dodo_payment_id,
           orderId: r.order_id,
           organizationId: r.organization_id,
           organizationName: orgMap.get(r.organization_id)?.name ?? "Unknown",

@@ -241,7 +241,7 @@ export interface OrganizationProviderCredential {
 }
 
 export type BillingPeriod = "monthly" | "yearly";
-export type PlanCurrency = "INR";
+export type PlanCurrency = "INR" | "USD";
 export type OrderStatus = "created" | "paid" | "failed" | "expired";
 export type PaymentStatus = "created" | "authorized" | "captured" | "failed";
 
@@ -269,6 +269,10 @@ export interface Order {
   currency: PlanCurrency;
   status: OrderStatus;
   razorpay_order_id: string | null;
+  /** Fulfilling provider: razorpay (historical/dormant) or dodo (V1). */
+  provider?: string | null;
+  /** Dodo checkout session id (cks_*) for dodo orders; null otherwise. */
+  dodo_session_id?: string | null;
   is_live_test?: boolean;
   created_at: string;
   updated_at: string;
@@ -280,6 +284,10 @@ export interface Payment {
   organization_id: string;
   razorpay_payment_id: string | null;
   razorpay_signature: string | null;
+  /** Dodo payment id (pay_*) for dodo payments; null otherwise. */
+  dodo_payment_id?: string | null;
+  /** Dodo webhook signature (audit trail); null otherwise. */
+  dodo_signature?: string | null;
   amount_minor: number;
   currency: PlanCurrency;
   status: PaymentStatus;

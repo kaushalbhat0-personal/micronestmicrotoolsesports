@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       organizationId: parsed.data.organizationId,
     });
 
-    if (!result.keyId) {
+    if (!result.checkoutUrl) {
       // Safe configuration error, no secret leak
       throw validationError("Payment not configured");
     }
@@ -38,10 +38,10 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         orderId: result.orderId,
-        razorpayOrderId: result.razorpayOrderId,
+        provider: result.provider,
+        checkoutUrl: result.checkoutUrl,
         amountMinor: result.amountMinor,
         currency: result.currency,
-        keyId: result.keyId,
       },
       { status: 200 }
     );

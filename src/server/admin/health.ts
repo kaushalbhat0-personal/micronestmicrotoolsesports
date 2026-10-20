@@ -38,6 +38,9 @@ export interface AdminHealthResult {
 export const CRON_JOB_IDS = [
   "/api/cron/sentinel-scan",
   "/api/cron/sentinel-retention",
+  // GitHub Actions schedulers surface here via the shared cron_run_ledger —
+  // a missing row means the scheduler never reached the endpoint.
+  "bgmi-tournaments-ingest",
   META_PARSER_JOB_ID,
   metaParserJobIdForGame("dota-2"),
   metaParserJobIdForGame("valorant"),

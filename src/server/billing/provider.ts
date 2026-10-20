@@ -3,7 +3,7 @@
  * Application depends on BillingProvider, not Stripe/Razorpay specifics.
  */
 
-export type BillingProviderName = "stripe" | "razorpay";
+export type BillingProviderName = "stripe" | "razorpay" | "dodo";
 
 export interface BillingProvider {
   readonly name: BillingProviderName;

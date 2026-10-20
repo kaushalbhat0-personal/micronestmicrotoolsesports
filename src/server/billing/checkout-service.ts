@@ -2,8 +2,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/auth/get-user";
 import { requireOrganizationRole } from "@/lib/auth/require-membership";
 import { getPlanById } from "@/server/repositories/plans";
-import { createRazorpayOrder } from "./razorpay";
-import { getRazorpayConfig } from "@/server/integrations/razorpay/client";
+import {
+  createDodoCheckoutSession,
+  isSupportedBillingCurrency,
+  validateDodoProduct,
+  type DodoClientLike,
+} from "./dodo";
+import { getDodoConfig, getDodoProductIdForPlanSlug } from "@/server/integrations/dodo/client";
 
 export type CheckoutInput = {
   planId: string;
@@ -12,16 +17,19 @@ export type CheckoutInput = {
 
 export type CheckoutResult = {
   orderId: string;
-  razorpayOrderId: string;
+  /** Active provider for this order (dodo for new purchases; razorpay dormant). */
+  provider: "dodo";
+  /** Hosted Dodo checkout URL — redirect the buyer here. */
+  checkoutUrl: string;
+  dodoSessionId: string;
   amountMinor: number;
   currency: string;
-  keyId: string | null;
 };
 
 export async function createCheckoutOrder(
   input: CheckoutInput,
   deps?: {
-    razorpayClient?: Parameters<typeof createRazorpayOrder>[1] extends { client?: infer C } ? C : never;
+    dodoClient?: DodoClientLike;
   }
 ): Promise<CheckoutResult> {
   // Buyer attribution (Phase 4): the authenticated purchaser is the buyer.
@@ -40,19 +48,62 @@ export async function createCheckoutOrder(
     throw validationError("Invalid or inactive plan");
   }
 
-  // Fail-fast: validate Razorpay config BEFORE creating internal order
-  // If Razorpay is not configured and no test double is provided, do not create audit noise.
-  const razorpayCfg = getRazorpayConfig();
-  if (!razorpayCfg && !deps?.razorpayClient) {
+  // Fail-fast: validate Dodo config BEFORE creating internal order
+  // If Dodo is not configured and no test double is provided, do not create audit noise.
+  const dodoCfg = getDodoConfig();
+  if (!dodoCfg && !deps?.dodoClient) {
     const { validationError } = await import("@/lib/errors");
     throw validationError("Payment not configured");
   }
 
-  // Snapshot from plan — server-authoritative, client never provides amount/currency/tool
+  // Snapshot from plan — server-authoritative, client never provides amount/currency/tool.
+  // The market is DERIVED from the authoritative plan currency: INR = India,
+  // USD = international (Sponsorship Tracking only in V1). There is no country
+  // input anywhere in this flow, so a client cannot pick a market or price.
   const isAllAccess = plan.tool_id === null;
   const toolId = plan.tool_id;
 
-  // Create MicroNest order first (audit history, even if Razorpay fails)
+  // V1 supports INR (India) and USD (international Sponsorship Tracking).
+  // Anything else fails closed — the client cannot influence this value.
+  if (!isSupportedBillingCurrency(plan.currency)) {
+    const { validationError } = await import("@/lib/errors");
+    throw validationError("Unsupported billing currency");
+  }
+
+  // V1 scope guard: USD purchasing exists only for Sponsorship Tracking.
+  // INR plans keep their existing behavior unchanged.
+  if (plan.currency === "USD" && plan.tool_id === null) {
+    const { validationError } = await import("@/lib/errors");
+    throw validationError("Unsupported billing currency for this plan");
+  }
+
+  // Resolve Dodo product from plan slug — server-side, never client input.
+  // Missing mapping fails closed BEFORE any order is created.
+  const productId = getDodoProductIdForPlanSlug(plan.slug);
+  if (!productId) {
+    const { validationError } = await import("@/lib/errors");
+    throw validationError("Payment not configured for this plan");
+  }
+
+  // Targeted product validation: only the product required for THIS checkout
+  // is validated (existence, one-time semantics, currency, amount). One
+  // misconfigured unrelated product can never block other plans, and an
+  // invalid product here fails closed before any order is created.
+  const productCheck = await validateDodoProduct(
+    {
+      productId,
+      amountMinor: plan.amount_minor,
+      currency: plan.currency,
+      billingPeriod: plan.billing_period,
+    },
+    deps?.dodoClient ? { client: deps.dodoClient } : undefined
+  );
+  if (!productCheck.valid) {
+    const { validationError } = await import("@/lib/errors");
+    throw validationError("Payment not configured for this plan");
+  }
+
+  // Create MicroNest order first (audit history, even if Dodo fails)
   const { data: order, error: orderError } = await admin
     .from("orders")
     .insert({
@@ -64,6 +115,7 @@ export async function createCheckoutOrder(
       amount_minor: plan.amount_minor,
       currency: plan.currency,
       status: "created",
+      provider: "dodo",
     })
     .select("id")
     .single();
@@ -74,39 +126,47 @@ export async function createCheckoutOrder(
 
   const orderId = order.id as string;
 
+  // Buyer email for the Dodo customer record — server-derived from auth, never client input
+  const buyerEmail =
+    (user as { email?: string | null }).email ?? (user as { primaryEmail?: string | null }).primaryEmail ?? null;
+
+  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const returnUrl = getDodoConfig()?.returnUrl ?? (origin ? `${origin.replace(/\/$/, "")}/billing/return` : "");
+  if (!returnUrl) {
+    await admin.from("orders").update({ status: "failed" }).eq("id", orderId);
+    throw new Error("Dodo return URL not configured — missing DODO_PAYMENTS_RETURN_URL");
+  }
+
   try {
-    const razorpayOrder = await createRazorpayOrder(
+    const dodoSession = await createDodoCheckoutSession(
       {
         amountMinor: plan.amount_minor,
         currency: plan.currency,
-        receipt: orderId,
-        notes: {
-          product_type: "software_subscription",
-          billing_period: plan.billing_period,
-          plan_slug: plan.slug,
-          tool: isAllAccess ? "all_access" : (plan.tool_id ?? "unknown"),
-          business: "MicroNest — subscription software for esports operations",
-        },
+        productId,
+        customerEmail: buyerEmail ?? `org-${input.organizationId}@micronest.local`,
+        orderId,
+        organizationId: input.organizationId,
+        planSlug: plan.slug,
+        returnUrl: `${returnUrl}?orderId=${orderId}`,
       },
-      deps?.razorpayClient ? { client: deps.razorpayClient } : undefined
+      deps?.dodoClient ? { client: deps.dodoClient } : undefined
     );
 
-    // Persist razorpay_order_id server-side, never trust client
+    // Persist provider refs server-side, never trust client
     const { error: updateError } = await admin
       .from("orders")
-      .update({ razorpay_order_id: razorpayOrder.providerOrderId })
+      .update({ provider: "dodo", dodo_session_id: dodoSession.sessionId })
       .eq("id", orderId);
 
-    if (updateError) throw new Error(`Failed to persist Razorpay order: ${updateError.message}`);
-
-    const resolvedKeyId = getRazorpayConfig()?.keyId ?? process.env.RAZORPAY_KEY_ID ?? null;
+    if (updateError) throw new Error(`Failed to persist Dodo session: ${updateError.message}`);
 
     return {
       orderId,
-      razorpayOrderId: razorpayOrder.providerOrderId,
+      provider: "dodo" as const,
+      checkoutUrl: dodoSession.checkoutUrl,
+      dodoSessionId: dodoSession.sessionId,
       amountMinor: plan.amount_minor,
       currency: plan.currency,
-      keyId: resolvedKeyId,
     };
   } catch (err) {
     // Deterministic failure: mark order failed, no entitlement, no payment

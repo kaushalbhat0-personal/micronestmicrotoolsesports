@@ -18,7 +18,9 @@ export interface StuckOrder {
   amountMinor: number;
   currency: string;
   status: string;
+  provider: string | null;
   razorpayOrderId: string | null;
+  dodoSessionId: string | null;
   createdAt: string;
   ageHours: number;
 }
@@ -26,6 +28,7 @@ export interface StuckOrder {
 export interface ReplayCandidate {
   paymentId: string;
   razorpayPaymentId: string | null;
+  dodoPaymentId: string | null;
   orderId: string;
   orderStatus: string;
   organizationId: string;
@@ -80,7 +83,7 @@ export async function getBillingExceptions(): Promise<BillingExceptionsResult> {
   try {
     const { data, error } = await admin
       .from("orders")
-      .select("id, organization_id, amount_minor, currency, status, razorpay_order_id, created_at")
+      .select("id, organization_id, amount_minor, currency, status, provider, razorpay_order_id, dodo_session_id, created_at")
       .eq("status", "created")
       .lt("created_at", cutoff)
       .order("created_at", { ascending: true })
@@ -92,7 +95,9 @@ export async function getBillingExceptions(): Promise<BillingExceptionsResult> {
       amount_minor: number;
       currency: string;
       status: string;
+      provider: string | null;
       razorpay_order_id: string | null;
+      dodo_session_id: string | null;
       created_at: string;
     }>);
     const orgIds = [...new Set(rows.map((r) => r.organization_id))];
@@ -109,7 +114,9 @@ export async function getBillingExceptions(): Promise<BillingExceptionsResult> {
       amountMinor: r.amount_minor,
       currency: r.currency,
       status: r.status,
+      provider: r.provider,
       razorpayOrderId: r.razorpay_order_id,
+      dodoSessionId: r.dodo_session_id,
       createdAt: r.created_at,
       ageHours: Math.round((nowMs - new Date(r.created_at).getTime()) / 3600000),
     }));
@@ -121,7 +128,7 @@ export async function getBillingExceptions(): Promise<BillingExceptionsResult> {
   try {
     const { data, error } = await admin
       .from("payments")
-      .select("id, order_id, organization_id, amount_minor, currency, status, razorpay_payment_id, created_at")
+      .select("id, order_id, organization_id, amount_minor, currency, status, razorpay_payment_id, dodo_payment_id, created_at")
       .in("status", ["captured", "authorized"])
       .order("created_at", { ascending: false })
       .limit(LIMIT);
@@ -134,6 +141,7 @@ export async function getBillingExceptions(): Promise<BillingExceptionsResult> {
       currency: string;
       status: string;
       razorpay_payment_id: string | null;
+      dodo_payment_id: string | null;
       created_at: string;
     }>);
     if (rows.length > 0) {
@@ -154,6 +162,7 @@ export async function getBillingExceptions(): Promise<BillingExceptionsResult> {
         result.replayCandidates.push({
           paymentId: r.id,
           razorpayPaymentId: r.razorpay_payment_id,
+          dodoPaymentId: r.dodo_payment_id,
           orderId: r.order_id,
           orderStatus: order?.status ?? "order-not-found",
           organizationId: r.organization_id,
@@ -171,12 +180,12 @@ export async function getBillingExceptions(): Promise<BillingExceptionsResult> {
     result.replayError = "Unable to load replay candidates.";
   }
 
-  // 3. Orphan / order-not-found webhook situations: failed razorpay webhooks (bounded)
+  // 3. Orphan / order-not-found webhook situations: failed provider webhooks (bounded)
   try {
     const { data, error } = await admin
       .from("webhook_events")
       .select("id, provider, provider_event_id, event_type, status, created_at")
-      .eq("provider", "razorpay")
+      .in("provider", ["razorpay", "dodo"])
       .eq("status", "failed")
       .order("created_at", { ascending: false })
       .limit(LIMIT);

@@ -259,7 +259,7 @@ export default async function AdminCustomersPage({
                       <li key={o.id} className="flex items-center justify-between gap-2 px-4 py-3 text-sm">
                         <div className="min-w-0">
                           <p className="font-medium">{o.planName ?? "Order"}</p>
-                          <p className="font-mono text-xs text-muted-foreground">{o.razorpayOrderId ?? o.id.slice(0, 8)}</p>
+                          <p className="font-mono text-xs text-muted-foreground">{o.dodoSessionId ?? o.razorpayOrderId ?? o.id.slice(0, 8)}</p>
                         </div>
                         <div className="shrink-0 text-right">
                           <p className="font-mono text-xs">{formatMinor(o.amountMinor, o.currency)}</p>
@@ -283,7 +283,7 @@ export default async function AdminCustomersPage({
                     {userDetail.payments.map((p) => (
                       <li key={p.id} className="flex items-center justify-between gap-2 px-4 py-3 text-sm">
                         <div className="min-w-0">
-                          <p className="font-mono text-xs">{p.razorpayPaymentId ?? p.id.slice(0, 8)}</p>
+                          <p className="font-mono text-xs">{p.dodoPaymentId ?? p.razorpayPaymentId ?? p.id.slice(0, 8)}</p>
                           <p className="text-xs text-muted-foreground">{formatDate(p.createdAt)}</p>
                         </div>
                         <div className="shrink-0 text-right">
@@ -441,7 +441,7 @@ export default async function AdminCustomersPage({
                   <ul className="divide-y divide-border">
                     {orgDetail.orders.map((o) => (
                       <li key={o.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                        <span className="font-mono text-xs">{o.razorpayOrderId ?? o.id.slice(0, 8)}</span>
+                        <span className="font-mono text-xs">{o.dodoSessionId ?? o.razorpayOrderId ?? o.id.slice(0, 8)}</span>
                         <Badge variant={o.status === "paid" ? "success" : "secondary"}>{o.status}</Badge>
                       </li>
                     ))}
@@ -460,7 +460,7 @@ export default async function AdminCustomersPage({
                   <ul className="divide-y divide-border">
                     {orgDetail.payments.map((p) => (
                       <li key={p.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                        <span className="font-mono text-xs">{p.razorpayPaymentId ?? p.id.slice(0, 8)}</span>
+                        <span className="font-mono text-xs">{p.dodoPaymentId ?? p.razorpayPaymentId ?? p.id.slice(0, 8)}</span>
                         <Badge variant={p.status === "captured" ? "success" : "secondary"}>{p.status}</Badge>
                       </li>
                     ))}

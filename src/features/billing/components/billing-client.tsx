@@ -7,7 +7,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, Split, Calendar, CreditCard, RefreshCw, Check, AlertCircle, Infinity as InfinityIcon, ArrowRight, Swords, Scale, ReceiptText, ClipboardList } from "lucide-react";
-import { getPurchaseGuide } from "@/lib/purchase/plan-guidance";
 import { FreePlanBadge } from "@/components/freemium/free-plan-badge";
 import { UpgradeCTA } from "@/components/freemium/upgrade-cta";
 import {
@@ -50,6 +49,9 @@ type AvailableCard = {
   icon: string;
   monthly: { planId: string; amountMinor: number; currency: string } | null;
   yearly: { planId: string; amountMinor: number; currency: string } | null;
+  /** International (USD) offers — server-set, Sponsorship Tracking only in V1. */
+  usdMonthly?: { planId: string; amountMinor: number; currency: string } | null;
+  usdYearly?: { planId: string; amountMinor: number; currency: string } | null;
   /** Canonical Free presentation (server-built from FREE_TIERS). */
   free: BillingFreeInfo | null;
   /** True when the workspace may self-claim Free. */
@@ -113,7 +115,10 @@ type HistoryEntry = {
 
 function formatAmount(amountMinor: number, currency: string): string {
   const amount = amountMinor / 100;
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+  // Locale follows the authoritative currency (INR → en-IN, USD → en-US).
+  // Currency itself always comes from the server-resolved plan/order.
+  const locale = currency === "USD" ? "en-US" : "en-IN";
+  return new Intl.NumberFormat(locale, { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
 }
 
 function formatDate(dateStr: string): string {
@@ -125,12 +130,6 @@ function expiryLabel(expiresAt: string | null, status: string): string {
   if (status === "expired") return `Expired on ${formatDate(expiresAt)}`;
   if (status === "expiring_soon") return `Expiring soon — ${formatDate(expiresAt)}`;
   return `Active until ${formatDate(expiresAt)}`;
-}
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
-  }
 }
 
 /**
@@ -270,69 +269,19 @@ export function BillingClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message ?? "Checkout failed");
-      const { orderId, razorpayOrderId, amountMinor, currency, keyId } = data as {
+      const { orderId, checkoutUrl, amountMinor, currency } = data as {
         orderId: string;
-        razorpayOrderId: string;
+        checkoutUrl?: string;
         amountMinor: number;
         currency: string;
-        keyId: string;
       };
+      if (!checkoutUrl) throw new Error("Checkout unavailable — please try again");
 
-      // Load Razorpay script if needed
-      if (!window.Razorpay) {
-        await new Promise<void>((resolve, reject) => {
-          const s = document.createElement("script");
-          s.src = "https://checkout.razorpay.com/v1/checkout.js";
-          s.onload = () => resolve();
-          s.onerror = () => reject(new Error("Failed to load Razorpay"));
-          document.body.appendChild(s);
-        });
-      }
-      const selectedPlan = plans.find((p) => p.id === planId);
-      const planLabel = selectedPlan ? selectedPlan.name : "MicroNest plan";
-      const options = {
-        key: keyId,
-        amount: amountMinor,
-        currency,
-        name: "MicroNest",
-        description: `${planLabel} \u00B7 Software subscription \u00B7 Digital service for ${organizationSlug} workspace`,
-        order_id: razorpayOrderId,
-        handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
-          try {
-            const verifyRes = await fetch("/api/billing/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                orderId,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature,
-              }),
-            });
-            const vData = await verifyRes.json();
-            if (!verifyRes.ok) throw new Error(vData.error?.message ?? "Verification failed");
-            const paidPlan = plans.find((p) => p.id === planId) ?? null;
-            const paidGuide = getPurchaseGuide(paidPlan?.slug);
-            setPurchase({
-              toolName: paidGuide?.toolName ?? paidPlan?.name ?? "MicroNest",
-              toolHref: paidGuide ? paidGuide.toolRoute(organizationSlug) : `/dashboard/${organizationSlug}`,
-              firstStep: paidGuide?.firstStep ?? "Open your workspace to start.",
-              accessUntil: vData.expiresAt ? formatDate(vData.expiresAt) : "permanent",
-            });
-            setMessage(null);
-            // Refresh billing state without destroying the success guidance
-            router.refresh();
-          } catch (err) {
-            setMessage({ type: "error", text: err instanceof Error ? err.message : "Verification failed" });
-          } finally {
-            setLoading(false);
-          }
-        },
-        modal: { ondismiss: () => setLoading(false) },
-        theme: { color: "#E86A1A" },
-      };
-      const rzp = new window.Razorpay!(options);
-      rzp.open();
+      // Dodo hosted checkout: full redirect. Provisioning happens via webhook;
+      // the return page polls order status and never claims success itself.
+      setMessage({ type: "success", text: `Opening secure checkout for ${formatAmount(amountMinor, currency)}…` });
+      window.location.href = checkoutUrl;
+      void orderId;
     } catch (err) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Checkout failed" });
       setLoading(false);
@@ -477,6 +426,12 @@ export function BillingClient({
                 (o): o is { planId: string; amountMinor: number; currency: string; period: "monthly" | "yearly" } => o !== null
               );
               const hasPaid = options.length > 0;
+              // International (USD) offers: separate, explicitly labeled market.
+              // Server-authoritative planIds flow into the same hardened
+              // checkout endpoint; currency always comes from the plan.
+              const usdOptions = [t.usdMonthly ? { ...t.usdMonthly, period: "monthly" as const } : null, t.usdYearly ? { ...t.usdYearly, period: "yearly" as const } : null].filter(
+                (o): o is { planId: string; amountMinor: number; currency: string; period: "monthly" | "yearly" } => o !== null
+              );
               return (
                 <Card key={t.toolSlug} variant="default" className="border-border/60">
                   <CardHeader className="pb-3">
@@ -510,6 +465,18 @@ export function BillingClient({
                           ))}
                         </div>
                       </>
+                    ) : null}
+                    {usdOptions.length > 0 ? (
+                      <div className="space-y-1 border-t border-border/40 pt-3">
+                        <p className="text-xs font-medium text-foreground">International (USD)</p>
+                        <div className="flex flex-wrap gap-2">
+                          {usdOptions.map((o) => (
+                            <Button key={o.planId} size="sm" variant="outline" className="min-h-[44px]" disabled={loading} onClick={() => handleCheckout(o.planId)} aria-label={`Add ${t.displayName} ${o.period} international — ${formatAmount(o.amountMinor, o.currency)} USD`}>
+                              Add {o.period === "monthly" ? "monthly" : "yearly"} — {formatAmount(o.amountMinor, o.currency)} USD
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
                     ) : null}
                   </CardContent>
                 </Card>
@@ -601,7 +568,7 @@ export function BillingClient({
                 })()}
               </div>
             )}
-            {/* Pre-checkout disclosure — must be visible BEFORE Razorpay */}
+            {/* Pre-checkout disclosure — must be visible BEFORE hosted checkout */}
             {selectedPlanId &&
               (() => {
                 const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;

@@ -18,7 +18,7 @@ function req(body: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockCreateCheckoutOrder.mockResolvedValue({ orderId: "order-1", razorpayOrderId: "rzp-1", amountMinor: 100, currency: "INR", keyId: "rzp_test" });
+  mockCreateCheckoutOrder.mockResolvedValue({ orderId: "order-1", provider: "dodo", checkoutUrl: "https://checkout.dodopayments.com/session/cks_1", dodoSessionId: "cks_1", amountMinor: 100, currency: "INR" });
 });
 
 describe("POST /api/billing/checkout — buyer identity cannot come from the client", () => {

@@ -29,6 +29,7 @@ export type BillingHistoryEntry = {
   currency: string;
   status: string;
   razorpayPaymentId: string | null;
+  dodoPaymentId: string | null;
 };
 
 export type BillingOverview = {
@@ -121,6 +122,7 @@ export async function getBillingOverview(supabase: SupabaseClient, organizationI
         currency: order.currency,
         status: payment?.status ?? order.status,
         razorpayPaymentId: payment?.razorpay_payment_id ?? null,
+        dodoPaymentId: payment?.dodo_payment_id ?? null,
       };
     });
 
@@ -191,6 +193,15 @@ export type BillingAvailableCard = {
   icon: string;
   monthly: { planId: string; amountMinor: number; currency: string } | null;
   yearly: { planId: string; amountMinor: number; currency: string } | null;
+  /**
+   * International (USD) offers — V1: Sponsorship Tracking only. Server sets
+   * these from active USD plans; every other tool always receives null here,
+   * so no UI can ever surface a USD offer for an out-of-scope tool. The
+   * client sends back only the server-provided planId (same hardened
+   * checkout endpoint); browser locale never selects currency.
+   */
+  usdMonthly: { planId: string; amountMinor: number; currency: string } | null;
+  usdYearly: { planId: string; amountMinor: number; currency: string } | null;
   /** Canonical Free presentation (same adapter as Your Tools). */
   free: BillingFreeInfo | null;
   /** True when the workspace may self-claim Free via the generic claim flow. */
@@ -327,17 +338,26 @@ export function buildBillingToolSections(input: DiscoveryInput): { yourTools: Bi
     // Claimable Free tiers stay discoverable even without paid plans;
     // plan-less non-claimable tools are excluded (no truthful CTA exists).
     if (toolPlans.length === 0 && !claimable) continue;
-    const pick = (period: string) => {
-      const p = toolPlans.find((x) => x.billing_period === period);
+    // Pricing offers are market-separated server-side: monthly/yearly carry
+    // the INR offers; usdMonthly/usdYearly carry the international (USD)
+    // offers, gated to Sponsorship Tracking for V1 so no other tool (and
+    // never All Access) can surface a USD offer. The two markets never merge
+    // into a single price list, so USD can never appear as a duplicate INR
+    // offer. The client returns only the server-provided planId.
+    const pick = (period: string, currency: string) => {
+      const p = toolPlans.find((x) => x.billing_period === period && x.currency === currency);
       return p ? { planId: p.id, amountMinor: p.amount_minor, currency: p.currency } : null;
     };
+    const isSponsorship = cfg.slug === SPONSORSHIP_TOOL_SLUG;
     availableToAdd.push({
       toolSlug: cfg.slug,
       displayName: cfg.name,
       description: cfg.description,
       icon: cfg.icon,
-      monthly: pick("monthly"),
-      yearly: pick("yearly"),
+      monthly: pick("monthly", "INR"),
+      yearly: pick("yearly", "INR"),
+      usdMonthly: isSponsorship ? pick("monthly", "USD") : null,
+      usdYearly: isSponsorship ? pick("yearly", "USD") : null,
       free: freeInfoFor(cfg.slug),
       claimable,
     });

@@ -28,6 +28,8 @@ function addable(toolSlug: string): BillingAvailableCard {
     icon: "Split",
     monthly: null,
     yearly: null,
+    usdMonthly: null,
+    usdYearly: null,
     free: FREE("Free plan", "1/month"),
     claimable: true,
   };

@@ -170,8 +170,8 @@ describe("Billing — RCCF-ADMIN-06", () => {
     const svc = readFileSync("src/server/admin/billing.ts", "utf8");
     // orders
     expect(svc).toContain("select(\"id, organization_id, plan_id, tool_id, is_all_access, amount_minor");
-    // payments
-    expect(svc).toContain("select(\"id, razorpay_payment_id, order_id, organization_id, amount_minor");
+    // payments (razorpay + dodo provider references)
+    expect(svc).toContain("select(\"id, razorpay_payment_id, dodo_payment_id, order_id, organization_id, amount_minor");
     // webhook_events
     expect(svc).toContain("select(\"id, provider, provider_event_id, event_type, status, processed");
     // plans

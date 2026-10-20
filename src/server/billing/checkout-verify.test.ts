@@ -41,18 +41,24 @@ vi.mock("@/lib/supabase/admin", () => ({
   })),
 }));
 
-// Mock razorpay adapter
+// Mock dodo adapter (active provider)
+vi.mock("./dodo", async (importOriginal) => {
+  const actual = await (importOriginal() as Promise<typeof import("./dodo")>);
+  return {
+    ...actual,
+    createDodoCheckoutSession: vi.fn(async (input: { amountMinor: number; currency: string; orderId: string }) => ({
+      sessionId: "cks_dodo_" + input.orderId,
+      checkoutUrl: "https://checkout.dodopayments.com/session/cks_dodo_" + input.orderId,
+    })),
+    validateDodoProduct: vi.fn(async () => ({ valid: true, productId: "pdt_mock" })),
+  };
+});
+
+// Keep razorpay adapter mock — verify-service (dormant Razorpay path) still imports it
 vi.mock("./razorpay", async (importOriginal) => {
   const actual = await (importOriginal() as Promise<typeof import("./razorpay")>);
   return {
     ...actual,
-    createRazorpayOrder: vi.fn(async (input: { amountMinor: number; currency: string; receipt: string }) => ({
-      providerOrderId: "order_razor_" + input.receipt,
-      amountMinor: input.amountMinor,
-      currency: input.currency,
-      status: "created",
-      receipt: input.receipt,
-    })),
     verifyRazorpayPayment: vi.fn(({ signature }: { signature: string }) => ({ valid: signature === "valid_sig" })),
     fetchRazorpayPayment: vi.fn(async (paymentId: string) => ({
       providerPaymentId: paymentId,
@@ -64,12 +70,13 @@ vi.mock("./razorpay", async (importOriginal) => {
   };
 });
 
-// Mock razorpay integration config so checkout doesn't require real env validation
-vi.mock("@/server/integrations/razorpay/client", async (importOriginal) => {
-  const actual = await (importOriginal() as Promise<typeof import("@/server/integrations/razorpay/client")>);
+// Mock dodo integration config so checkout doesn't require real env validation
+vi.mock("@/server/integrations/dodo/client", async (importOriginal) => {
+  const actual = await (importOriginal() as Promise<typeof import("@/server/integrations/dodo/client")>);
   return {
     ...actual,
-    getRazorpayConfig: vi.fn(() => ({ keyId: "rzp_test_123", keySecret: "test_secret", webhookSecret: "test_webhook_secret" })),
+    getDodoConfig: vi.fn(() => ({ apiKey: "dodo_test_key", environment: "test_mode", returnUrl: "https://example.com/billing/return" })),
+    getDodoProductIdForPlanSlug: vi.fn((slug: string) => `pdt_micro_${slug.replace(/-/g, "_")}`),
   };
 });
 
@@ -90,8 +97,8 @@ function mockPlanRow(plan: Record<string, unknown>) {
 describe("billing checkout — server-authoritative", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.RAZORPAY_KEY_ID = "rzp_test_123";
-    process.env.RAZORPAY_KEY_SECRET = "test_secret";
+    process.env.DODO_PAYMENTS_API_KEY = "dodo_test_key";
+    process.env.DODO_PAYMENTS_ENVIRONMENT = "test_mode";
   });
 
   it("creates order with server snapshot, not client amount", async () => {
@@ -106,7 +113,7 @@ describe("billing checkout — server-authoritative", () => {
         return {
           insert: mockInsert,
           update: mockUpdate,
-          select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: { id: "order-1", organization_id: "org-a", plan_id: "plan-1", amount_minor: 149900, currency: "INR", razorpay_order_id: "order_razor_order-1", is_all_access: false, tool_id: "tool-1" }, error: null })) })) })),
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(async () => ({ data: { id: "order-1", organization_id: "org-a", plan_id: "plan-1", amount_minor: 149900, currency: "INR", provider: "dodo", dodo_session_id: "cks_dodo_order-1", is_all_access: false, tool_id: "tool-1" }, error: null })) })) })),
         } as never;
       }
       if (table === "plans") {
@@ -119,8 +126,11 @@ describe("billing checkout — server-authoritative", () => {
     expect(result.amountMinor).toBe(149900);
     expect(result.currency).toBe("INR");
     expect(result.orderId).toBe("order-1");
+    expect(result.provider).toBe("dodo");
+    expect(result.checkoutUrl).toContain("https://checkout.dodopayments.com/session/");
+    expect(result.dodoSessionId).toBe("cks_dodo_order-1");
     expect(mockInsert).toHaveBeenCalledWith(
-      expect.objectContaining({ amount_minor: 149900, currency: "INR", tool_id: "tool-1", is_all_access: false })
+      expect.objectContaining({ amount_minor: 149900, currency: "INR", tool_id: "tool-1", is_all_access: false, provider: "dodo" })
     );
   });
 
@@ -173,7 +183,7 @@ describe("billing checkout — server-authoritative", () => {
     expect(insertSpy).not.toHaveBeenCalled();
   });
 
-  it("razorpay order failure marks order failed", async () => {
+  it("dodo session failure marks order failed", async () => {
     const mockInsert = vi.fn(() => ({
       select: vi.fn(() => ({ single: vi.fn(async () => ({ data: { id: "order-fail" }, error: null })) })),
     }));
@@ -185,15 +195,15 @@ describe("billing checkout — server-authoritative", () => {
       }
       return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
     });
-    const { createRazorpayOrder } = await import("./razorpay");
-    (createRazorpayOrder as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("Razorpay down"));
-    await expect(createCheckoutOrder({ planId: "plan-1", organizationId: "org-a" })).rejects.toThrow("Razorpay down");
+    const { createDodoCheckoutSession } = await import("./dodo");
+    (createDodoCheckoutSession as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("Dodo down"));
+    await expect(createCheckoutOrder({ planId: "plan-1", organizationId: "org-a" })).rejects.toThrow("Dodo down");
     expect(mockUpdate).toHaveBeenCalledWith({ status: "failed" });
   });
 
-  it("fail-fast when Razorpay not configured — no order created", async () => {
-    const { getRazorpayConfig } = await import("@/server/integrations/razorpay/client");
-    (getRazorpayConfig as unknown as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
+  it("fail-fast when Dodo not configured — no order created", async () => {
+    const { getDodoConfig } = await import("@/server/integrations/dodo/client");
+    (getDodoConfig as unknown as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
     // Also need to ensure no client double provided
     mockAdminFrom.mockImplementation((table: string) => {
       if (table === "plans") {
@@ -208,6 +218,19 @@ describe("billing checkout — server-authoritative", () => {
       return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
     });
     await expect(createCheckoutOrder({ planId: "plan-1", organizationId: "org-a" })).rejects.toThrow("Payment not configured");
+    expect(insertSpy).not.toHaveBeenCalled();
+  });
+
+  it("fail-fast when plan has no Dodo product — no order created", async () => {
+    const { getDodoProductIdForPlanSlug } = await import("@/server/integrations/dodo/client");
+    (getDodoProductIdForPlanSlug as unknown as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
+    const insertSpy = vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(async () => ({ data: { id: "should-not-create" }, error: null })) })) }));
+    mockAdminFrom.mockImplementation((table: string) => {
+      if (table === "orders") return { insert: insertSpy, update: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) })) } as never;
+      if (table === "plans") return mockPlanRow({ id: "plan-1", tool_id: "tool-1", billing_period: "monthly", amount_minor: 149900, currency: "INR", is_active: true, slug: "unmapped-plan" }) as never;
+      return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
+    });
+    await expect(createCheckoutOrder({ planId: "plan-1", organizationId: "org-a" })).rejects.toThrow("Payment not configured for this plan");
     expect(insertSpy).not.toHaveBeenCalled();
   });
 });

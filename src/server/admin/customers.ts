@@ -76,6 +76,7 @@ export interface CustomerOrder {
   currency: string;
   status: string;
   razorpayOrderId: string | null;
+  dodoSessionId: string | null;
   createdAt: string;
 }
 
@@ -87,6 +88,7 @@ export interface CustomerPayment {
   currency: string;
   status: string;
   razorpayPaymentId: string | null;
+  dodoPaymentId: string | null;
   verifiedAt: string | null;
   createdAt: string;
 }
@@ -320,7 +322,7 @@ export async function getCustomerByUser(userId: string): Promise<CustomerDetail>
     if (orgIds.length > 0) {
       const { data } = await admin
         .from("orders")
-        .select("id, organization_id, plan_id, amount_minor, currency, status, razorpay_order_id, created_at")
+        .select("id, organization_id, plan_id, amount_minor, currency, status, provider, razorpay_order_id, dodo_session_id, created_at")
         .in("organization_id", orgIds)
         .order("created_at", { ascending: false })
         .limit(DETAIL_LIMIT);
@@ -332,6 +334,7 @@ export async function getCustomerByUser(userId: string): Promise<CustomerDetail>
         currency: string;
         status: string;
         razorpay_order_id: string | null;
+      dodo_session_id: string | null;
         created_at: string;
       }>);
       const planIds = [...new Set(rows.map((r) => r.plan_id))];
@@ -351,6 +354,7 @@ export async function getCustomerByUser(userId: string): Promise<CustomerDetail>
         currency: r.currency,
         status: r.status,
         razorpayOrderId: r.razorpay_order_id,
+        dodoSessionId: r.dodo_session_id,
         createdAt: r.created_at,
       }));
     }
@@ -361,7 +365,7 @@ export async function getCustomerByUser(userId: string): Promise<CustomerDetail>
     if (orgIds.length > 0) {
       const { data } = await admin
         .from("payments")
-        .select("id, order_id, organization_id, amount_minor, currency, status, razorpay_payment_id, verified_at, created_at")
+        .select("id, order_id, organization_id, amount_minor, currency, status, razorpay_payment_id, dodo_payment_id, verified_at, created_at")
         .in("organization_id", orgIds)
         .order("created_at", { ascending: false })
         .limit(DETAIL_LIMIT);
@@ -373,6 +377,7 @@ export async function getCustomerByUser(userId: string): Promise<CustomerDetail>
         currency: string;
         status: string;
         razorpay_payment_id: string | null;
+      dodo_payment_id: string | null;
         verified_at: string | null;
         created_at: string;
       }>)).map((r) => ({
@@ -383,6 +388,7 @@ export async function getCustomerByUser(userId: string): Promise<CustomerDetail>
         currency: r.currency,
         status: r.status,
         razorpayPaymentId: r.razorpay_payment_id,
+        dodoPaymentId: r.dodo_payment_id,
         verifiedAt: r.verified_at,
         createdAt: r.created_at,
       }));
@@ -552,7 +558,7 @@ export async function getCustomerByOrg(orgId: string): Promise<OrgDetail> {
   try {
     const { data } = await admin
       .from("orders")
-      .select("id, organization_id, plan_id, amount_minor, currency, status, razorpay_order_id, created_at")
+      .select("id, organization_id, plan_id, amount_minor, currency, status, provider, razorpay_order_id, dodo_session_id, created_at")
       .eq("organization_id", orgId)
       .order("created_at", { ascending: false })
       .limit(DETAIL_LIMIT);
@@ -564,6 +570,7 @@ export async function getCustomerByOrg(orgId: string): Promise<OrgDetail> {
       currency: string;
       status: string;
       razorpay_order_id: string | null;
+      dodo_session_id: string | null;
       created_at: string;
     }>);
     const planIds = [...new Set(rows.map((r) => r.plan_id))];
@@ -581,6 +588,7 @@ export async function getCustomerByOrg(orgId: string): Promise<OrgDetail> {
       currency: r.currency,
       status: r.status,
       razorpayOrderId: r.razorpay_order_id,
+      dodoSessionId: r.dodo_session_id,
       createdAt: r.created_at,
     }));
   } catch {
@@ -591,7 +599,7 @@ export async function getCustomerByOrg(orgId: string): Promise<OrgDetail> {
   try {
     const { data } = await admin
       .from("payments")
-      .select("id, order_id, organization_id, amount_minor, currency, status, razorpay_payment_id, verified_at, created_at")
+      .select("id, order_id, organization_id, amount_minor, currency, status, razorpay_payment_id, dodo_payment_id, verified_at, created_at")
       .eq("organization_id", orgId)
       .order("created_at", { ascending: false })
       .limit(DETAIL_LIMIT);
@@ -603,6 +611,7 @@ export async function getCustomerByOrg(orgId: string): Promise<OrgDetail> {
       currency: string;
       status: string;
       razorpay_payment_id: string | null;
+      dodo_payment_id: string | null;
       verified_at: string | null;
       created_at: string;
     }>)).map((r) => ({
@@ -613,6 +622,7 @@ export async function getCustomerByOrg(orgId: string): Promise<OrgDetail> {
       currency: r.currency,
       status: r.status,
       razorpayPaymentId: r.razorpay_payment_id,
+      dodoPaymentId: r.dodo_payment_id,
       verifiedAt: r.verified_at,
       createdAt: r.created_at,
     }));

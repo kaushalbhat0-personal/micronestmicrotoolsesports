@@ -30,7 +30,19 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({ from: mockAdminFrom, rpc: mockAdminRpc })),
 }));
 
-// ── Razorpay mocks ──
+// ── Dodo mocks (active provider for createCheckoutOrder) ──
+vi.mock("./dodo", async (importOriginal) => {
+  const actual = await (importOriginal() as Promise<typeof import("./dodo")>);
+  return {
+    ...actual,
+    createDodoCheckoutSession: vi.fn(async (input: { amountMinor: number; currency: string; orderId: string }) => ({
+      sessionId: "cks_dodo_" + input.orderId,
+      checkoutUrl: "https://checkout.dodopayments.com/session/cks_dodo_" + input.orderId,
+    })),
+    validateDodoProduct: vi.fn(async () => ({ valid: true, productId: "pdt_mock" })),
+  };
+});
+// Razorpay adapter mock — still used by the dormant live-test path
 vi.mock("./razorpay", async (importOriginal) => {
   const actual = await (importOriginal() as Promise<typeof import("./razorpay")>);
   return {
@@ -44,6 +56,15 @@ vi.mock("./razorpay", async (importOriginal) => {
     })),
   };
 });
+vi.mock("@/server/integrations/dodo/client", async (importOriginal) => {
+  const actual = await (importOriginal() as Promise<typeof import("@/server/integrations/dodo/client")>);
+  return {
+    ...actual,
+    getDodoConfig: vi.fn(() => ({ apiKey: "dodo_test_key", environment: "test_mode", returnUrl: "https://example.com/billing/return" })),
+    getDodoProductIdForPlanSlug: vi.fn((slug: string) => `pdt_micro_${slug.replace(/-/g, "_")}`),
+  };
+});
+// Live-test service still uses the dormant Razorpay path — keep its config mock
 vi.mock("@/server/integrations/razorpay/client", async (importOriginal) => {
   const actual = await (importOriginal() as Promise<typeof import("@/server/integrations/razorpay/client")>);
   return {
@@ -113,8 +134,8 @@ function mockUserGrantAccess(userGrant: { expires_at: string | null; source?: st
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.RAZORPAY_KEY_ID = "rzp_test_123";
-  process.env.RAZORPAY_KEY_SECRET = "test_secret";
+  process.env.DODO_PAYMENTS_API_KEY = "dodo_test_key";
+  process.env.DODO_PAYMENTS_ENVIRONMENT = "test_mode";
 });
 
 describe("Phase 4 — buyer attribution at checkout", () => {

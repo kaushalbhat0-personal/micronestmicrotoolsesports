@@ -82,6 +82,33 @@ describe("BillingClient", () => {
     expect(html).not.toContain("₹2,499");
   });
 
+  it("renders International (USD) offers separately from INR offers", () => {
+    const html = renderToString(
+      <BillingClient
+        organizationId="org-a"
+        organizationSlug="test-org"
+        entitlements={[]}
+        yourTools={[]}
+        availableToAdd={[
+          { toolSlug: "sponsor-sentinel", displayName: "Sponsorship Tracking", description: "Test", icon: "ShieldCheck", monthly: { planId: "p-inr-m", amountMinor: 149900, currency: "INR" }, yearly: { planId: "p-inr-y", amountMinor: 1499000, currency: "INR" }, usdMonthly: { planId: "p-usd-m", amountMinor: 1900, currency: "USD" }, usdYearly: { planId: "p-usd-y", amountMinor: 19000, currency: "USD" }, free: freeFor("sponsor-sentinel"), claimable: true },
+        ]}
+        plans={[]}
+        history={[]}
+        currentPlan={null}
+        freeClaimCopy={null}
+      />
+    );
+    // INR market unchanged (SSR splits text nodes with comments — assert fragments + intact aria-labels).
+    expect(html).toContain("₹1,499");
+    expect(html).toContain("Add Sponsorship Tracking monthly — ₹1,499");
+    // USD market: separate labeled block, never merged into INR prices.
+    expect(html).toContain("International (USD)");
+    expect(html).toContain("$19");
+    expect(html).toContain("$190");
+    expect(html).toContain("Add Sponsorship Tracking monthly international — $19 USD");
+    expect(html).toContain("Add Sponsorship Tracking yearly international — $190 USD");
+  });
+
   it("shows no paid plan state", () => {
     const html = renderToString(
       <BillingClient

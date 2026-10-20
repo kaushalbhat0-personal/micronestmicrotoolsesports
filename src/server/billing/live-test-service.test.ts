@@ -71,6 +71,27 @@ vi.mock("@/server/integrations/razorpay/client", async (importOriginal) => {
   };
 });
 
+vi.mock("./dodo", async (importOriginal) => {
+  const actual = await (importOriginal() as Promise<typeof import("./dodo")>);
+  return {
+    ...actual,
+    createDodoCheckoutSession: vi.fn(async () => ({
+      sessionId: "cks_mock",
+      checkoutUrl: "https://checkout.dodopayments.com/session/cks_mock",
+    })),
+    validateDodoProduct: vi.fn(async () => ({ valid: true, productId: "pdt_mock" })),
+  };
+});
+
+vi.mock("@/server/integrations/dodo/client", async (importOriginal) => {
+  const actual = await (importOriginal() as Promise<typeof import("@/server/integrations/dodo/client")>);
+  return {
+    ...actual,
+    getDodoConfig: vi.fn(() => ({ apiKey: "dodo_test_key", environment: "test_mode", returnUrl: "https://example.com/billing/return" })),
+    getDodoProductIdForPlanSlug: vi.fn((slug: string) => `pdt_micro_${slug.replace(/-/g, "_")}`),
+  };
+});
+
 import { createLiveTestCheckoutOrder, LIVE_TEST_AMOUNT_MINOR, LIVE_TEST_PLAN_IDS } from "./live-test-service";
 
 const PLAN_MONTHLY = {
@@ -365,8 +386,15 @@ describe("live-test checkout — gated ₹1", () => {
     expect(arg).not.toHaveProperty("subscription_id");
   });
 
-  // 17 normal checkout remains commercial price — import and test
+  // 17 normal checkout remains commercial price — import and test (Dodo active provider)
   it("normal checkout remains commercial price (not affected by live-test)", async () => {
+    const { createDodoCheckoutSession } = await import("./dodo");
+    const { getDodoProductIdForPlanSlug } = await import("@/server/integrations/dodo/client");
+    (getDodoProductIdForPlanSlug as unknown as ReturnType<typeof vi.fn>).mockReturnValue("pdt_sponsor_m");
+    (createDodoCheckoutSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      sessionId: "cks_normal_1",
+      checkoutUrl: "https://checkout.dodopayments.com/session/cks_normal_1",
+    });
     const { createCheckoutOrder } = await import("./checkout-service");
     const mockNormalInsert = vi.fn(() => ({
       select: vi.fn(() => ({ single: vi.fn(async () => ({ data: { id: "order-normal-1" }, error: null })) })),
@@ -377,16 +405,10 @@ describe("live-test checkout — gated ₹1", () => {
       if (table === "plans") return mockPlanRow(PLAN_MONTHLY) as never;
       return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })) })) } as never;
     });
-    mockCreateRazorpayOrder.mockResolvedValueOnce({
-      providerOrderId: "order_razor_normal",
-      amountMinor: PLAN_MONTHLY.amount_minor,
-      currency: "INR",
-      status: "created",
-      receipt: "order-normal-1",
-    });
     // Ensure normal checkout still uses plan price 149900, not 100
     const result = await createCheckoutOrder({ planId: PLAN_MONTHLY.id, organizationId: TEST_ORG_ID });
     expect(result.amountMinor).toBe(149900);
+    expect(result.provider).toBe("dodo");
     expect(mockNormalInsert).toHaveBeenCalledWith(expect.objectContaining({ amount_minor: 149900 }));
     // Normal checkout must NOT mark is_live_test true
     const inserted = ((mockNormalInsert as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as unknown[])[0] as Record<string, unknown>;

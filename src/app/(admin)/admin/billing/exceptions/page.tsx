@@ -59,7 +59,7 @@ export default async function BillingExceptionsPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <p className="text-sm font-medium">{o.organizationName}</p>
-                      <p className="font-mono text-xs text-muted-foreground">{o.razorpayOrderId ?? o.id.slice(0, 8)} · {formatDate(o.createdAt)} · {o.ageHours}h old</p>
+                      <p className="font-mono text-xs text-muted-foreground">{o.dodoSessionId ?? o.razorpayOrderId ?? o.id.slice(0, 8)} · {formatDate(o.createdAt)} · {o.ageHours}h old</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs">{formatMinor(o.amountMinor, o.currency)}</span>
@@ -98,7 +98,7 @@ export default async function BillingExceptionsPage() {
                     <div>
                       <p className="text-sm font-medium">{c.organizationName}</p>
                       <p className="font-mono text-xs text-muted-foreground">
-                        payment {c.razorpayPaymentId ?? c.paymentId.slice(0, 8)} · order {c.orderStatus}
+                        payment {c.dodoPaymentId ?? c.razorpayPaymentId ?? c.paymentId.slice(0, 8)} · order {c.orderStatus}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

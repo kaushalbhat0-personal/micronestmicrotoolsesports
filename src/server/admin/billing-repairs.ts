@@ -150,7 +150,7 @@ export async function replayPaymentCompletion(
   // Load payment WITHOUT signature/payload — only linkage + money state
   const { data: payment, error: payError } = await admin
     .from("payments")
-    .select("id, order_id, organization_id, amount_minor, currency, status, razorpay_payment_id")
+    .select("id, order_id, organization_id, amount_minor, currency, status, razorpay_payment_id, dodo_payment_id")
     .eq("id", paymentId)
     .maybeSingle();
   if (payError || !payment) throw new Error("Payment not found");
@@ -162,12 +162,13 @@ export async function replayPaymentCompletion(
     currency: string;
     status: string;
     razorpay_payment_id: string | null;
+    dodo_payment_id: string | null;
   };
 
   if (p.status !== "captured" && p.status !== "authorized") {
     throw new Error(`Payment is not eligible for replay (status: ${p.status})`);
   }
-  if (!p.razorpay_payment_id) throw new Error("Payment has no provider payment ID");
+  if (!p.razorpay_payment_id && !p.dodo_payment_id) throw new Error("Payment has no provider payment ID");
 
   const { data: order, error: orderError } = await admin
     .from("orders")

@@ -147,9 +147,9 @@ export default async function AdminBillingPage({
                   defaultValue={data.query}
                   placeholder={
                     section === "orders"
-                      ? "Razorpay order or org"
+                      ? "Provider order or org"
                       : section === "payments"
-                        ? "Razorpay payment or org"
+                        ? "Provider payment or org"
                         : section === "webhooks"
                           ? "Provider event ID"
                           : "Plan slug or name"
@@ -333,7 +333,7 @@ export default async function AdminBillingPage({
                         Status
                       </th>
                       <th scope="col" className="hidden px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground lg:table-cell">
-                        Razorpay Order
+                        Provider Order
                       </th>
                       <th scope="col" className="hidden px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground md:table-cell">
                         Created
@@ -360,8 +360,8 @@ export default async function AdminBillingPage({
                         <td className="px-4 py-3">
                           <Badge variant={o.status === "paid" ? "success" : o.status === "failed" ? "destructive" : "secondary"}>{o.status}</Badge>
                         </td>
-                        <td className="hidden px-4 py-3 font-mono text-xs text-muted-foreground lg:table-cell truncate max-w-[160px]" title={o.razorpayOrderId ?? ""}>
-                          {o.razorpayOrderId ?? "—"}
+                        <td className="hidden px-4 py-3 font-mono text-xs text-muted-foreground lg:table-cell truncate max-w-[160px]" title={o.dodoSessionId ?? o.razorpayOrderId ?? ""}>
+                          {o.dodoSessionId ?? o.razorpayOrderId ?? "—"}
                         </td>
                         <td className="hidden px-4 py-3 text-xs text-muted-foreground md:table-cell">{formatDate(o.createdAt)}</td>
                       </tr>
@@ -384,7 +384,7 @@ export default async function AdminBillingPage({
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Payments</CardTitle>
-              <CardDescription>Verified via Razorpay HMAC and authoritative fetch — status is from database, not provider.</CardDescription>
+              <CardDescription>Verified via provider signature and authoritative fetch — status is from database, not provider.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -393,7 +393,7 @@ export default async function AdminBillingPage({
                   <thead>
                     <tr className="border-y border-border bg-surface-muted/40 text-left">
                       <th scope="col" className="px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        Razorpay Payment
+                        Provider Payment
                       </th>
                       <th scope="col" className="px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                         Organization
@@ -415,8 +415,8 @@ export default async function AdminBillingPage({
                   <tbody className="divide-y divide-border">
                     {data.payments.map((p) => (
                       <tr key={p.id} className="hover:bg-surface-muted/30">
-                        <td className="px-4 py-3 font-mono text-xs truncate max-w-[180px]" title={p.razorpayPaymentId ?? ""}>
-                          {p.razorpayPaymentId ?? "—"}
+                        <td className="px-4 py-3 font-mono text-xs truncate max-w-[180px]" title={p.dodoPaymentId ?? p.razorpayPaymentId ?? ""}>
+                          {p.dodoPaymentId ?? p.razorpayPaymentId ?? "—"}
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium">{p.organizationName}</p>

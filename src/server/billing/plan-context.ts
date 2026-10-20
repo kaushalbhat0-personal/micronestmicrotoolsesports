@@ -6,6 +6,11 @@ import { listActivePlans } from "@/server/repositories/plans";
  * workspace → billing journey. The plan catalog is authoritative:
  * unknown, inactive, or non-INR slugs resolve to null and callers
  * must fall back to normal (plan-free) behavior with human copy.
+ *
+ * INR-only by product decision: international (USD) buyers select their
+ * market plan explicitly via planId (checkout derives the market from the
+ * authoritative plan currency). Signup hints stay INR to preserve the
+ * existing India-first onboarding copy.
  */
 
 export interface PlanContext {

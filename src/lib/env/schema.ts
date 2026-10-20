@@ -20,6 +20,27 @@ const serverSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  // Dodo Payments — optional (test_mode key works only against test mode, live key only against live mode)
+  DODO_PAYMENTS_API_KEY: z.string().min(1).optional(),
+  DODO_PAYMENTS_WEBHOOK_KEY: z.string().min(1).optional(),
+  DODO_PAYMENTS_ENVIRONMENT: z.enum(["test_mode", "live_mode"]).optional(),
+  DODO_PAYMENTS_RETURN_URL: z.string().url().optional(),
+  // Dodo product IDs — one per plan slug (Dodo pricing model is immutable).
+  // Server-only, plan-slug keyed, fail closed when missing. Test/live differ.
+  DODO_PRODUCT_SPONSORSHIP_TRACKING_MONTHLY: z.string().min(1).optional(),
+  DODO_PRODUCT_SPONSORSHIP_TRACKING_YEARLY: z.string().min(1).optional(),
+  DODO_PRODUCT_SPONSORSHIP_TRACKING_MONTHLY_USD: z.string().min(1).optional(),
+  DODO_PRODUCT_SPONSORSHIP_TRACKING_YEARLY_USD: z.string().min(1).optional(),
+  DODO_PRODUCT_PRIZE_POOL_SPLITTER_MONTHLY: z.string().min(1).optional(),
+  DODO_PRODUCT_PRIZE_POOL_SPLITTER_YEARLY: z.string().min(1).optional(),
+  DODO_PRODUCT_DRAFT_BAN_MONTHLY: z.string().min(1).optional(),
+  DODO_PRODUCT_DRAFT_BAN_YEARLY: z.string().min(1).optional(),
+  DODO_PRODUCT_TIE_BREAKER_MONTHLY: z.string().min(1).optional(),
+  DODO_PRODUCT_TIE_BREAKER_YEARLY: z.string().min(1).optional(),
+  DODO_PRODUCT_PRIZE_PAYOUT_TRACKER_MONTHLY: z.string().min(1).optional(),
+  DODO_PRODUCT_PRIZE_PAYOUT_TRACKER_YEARLY: z.string().min(1).optional(),
+  DODO_PRODUCT_ALL_ACCESS_MONTHLY: z.string().min(1).optional(),
+  DODO_PRODUCT_ALL_ACCESS_YEARLY: z.string().min(1).optional(),
   // Twitch — optional
   TWITCH_CLIENT_ID: z.string().optional(),
   TWITCH_CLIENT_SECRET: z.string().optional(),
