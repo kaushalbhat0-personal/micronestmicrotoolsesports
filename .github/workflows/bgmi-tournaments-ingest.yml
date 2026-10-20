@@ -2,6 +2,16 @@
 # Source freshness is measured in hours, not minutes: one daily run plus
 # manual dispatch while a tournament is actively running. No Vercel Cron,
 # no five-minute polling.
+#
+# OBSERVABILITY CONTRACT (BMSD 2026 lesson):
+# - The endpoint returns HTTP 200 with `{ ok: false }` when any stage fails,
+#   so this workflow gates on the response BODY, not the status code alone.
+# - An unchanged source revision still returns `ok: true` and is healthy —
+#   only `ok: false` / non-2xx / invalid body fails the run.
+# - A missing scheduled execution leaves no application ledger row; that case
+#   is visible here in the Actions run history, not in Supabase. If a daily
+#   run is absent, check this workflow's runs and the APP_URL/CRON_SECRET
+#   secrets first — the application ledger cannot record a call it never got.
 name: bgmi-tournaments-ingest
 
 on:
@@ -36,13 +46,40 @@ jobs:
     steps:
       - name: Trigger BGMI Tournament Hub ingestion
         run: |
+          # Fail closed on missing configuration without printing secret values.
+          if [ -z "${APP_URL:-}" ]; then echo "::error::APP_URL secret is not configured"; exit 1; fi
+          if [ -z "${CRON_SECRET:-}" ]; then echo "::error::CRON_SECRET secret is not configured"; exit 1; fi
           TOURNAMENT="${{ inputs.tournament }}"
           if [ -z "$TOURNAMENT" ]; then TOURNAMENT="${{ matrix.pair.tournament }}"; fi
           STAGES="${{ inputs.stages }}"
           if [ -z "$STAGES" ]; then STAGES="${{ matrix.pair.stages }}"; fi
-          curl --fail --show-error --max-time 300 \
+          BODY_FILE="$(mktemp)"
+          trap 'rm -f "$BODY_FILE"' EXIT
+          HTTP_STATUS="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' --max-time 300 \
             -X POST "$APP_URL/api/ingest/bgmi-tournaments?tournament=$TOURNAMENT&stages=$STAGES" \
-            -H "Authorization: Bearer $CRON_SECRET"
+            -H "Authorization: Bearer $CRON_SECRET")"
+          echo "HTTP status: $HTTP_STATUS"
+          # Always surface the body: on success it is the audit trail, on
+          # failure it carries the endpoint's error detail (no secrets).
+          cat "$BODY_FILE"
+          echo ""
+          case "$HTTP_STATUS" in
+            2*) ;;
+            *) echo "::error::Ingestion endpoint returned HTTP $HTTP_STATUS"; exit 1 ;;
+          esac
+          # The endpoint returns HTTP 200 with { ok: false } when any stage
+          # fails, so the body contract — not the status alone — gates success.
+          # An unchanged source revision returns ok:true and stays healthy.
+          python3 - "$BODY_FILE" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as f:
+              body = json.load(f)
+          ok = body.get("ok") is True
+          failed = body.get("failed", 0)
+          if not ok or failed != 0:
+              print(f"::error::Ingestion reported failure: ok={body.get('ok')} failed={failed}")
+              sys.exit(1)
+          PY
         env:
           APP_URL: ${{ secrets.APP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}

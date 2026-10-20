@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { assertCronAuth } from "@/server/cron/cron-auth";
+import { recordCronRunComplete, recordCronRunStart } from "@/server/cron/run-ledger";
 import { handleRouteError } from "@/lib/errors";
 import { parseOrThrow } from "@/lib/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -48,6 +49,13 @@ function resolveStages(single: SupportedStageKey, csv: string | undefined): Supp
  * GitHub Actions (daily) → Bearer <CRON_SECRET> → Liquipedia API →
  * parse → validate (all-or-nothing) → publish → ledger.
  *
+ * Observability mirrors meta-parser: every authenticated invocation writes
+ * a best-effort `cron_run_ledger` row (`bgmi-tournaments-ingest`) so the
+ * Superadmin health view can attribute last-attempt / last-failure even
+ * when the failure happens before any per-stage `bgmi_ingestion_runs` row
+ * exists. Scheduler/transport failures (no HTTP call reaches this route)
+ * still leave no ledger row — those are visible in Actions run history.
+ *
  * Query/body carry only the catalogued tournament + stage selectors.
  * No organization input (global catalogue) and no arbitrary URLs —
  * the adapter resolves selectors against TOURNAMENT_CATALOG.
@@ -56,6 +64,12 @@ async function handler(request: Request) {
   const cronRunId = randomUUID();
   try {
     assertCronAuth(request);
+
+    try {
+      await recordCronRunStart(BGMI_TOURNAMENTS_JOB_ID, cronRunId);
+    } catch {
+      // ledger write failure is non-fatal
+    }
 
     const url = new URL(request.url);
     const params = parseOrThrow(ingestQuerySchema, {
@@ -67,6 +81,11 @@ async function handler(request: Request) {
 
     // Fail fast on unknown catalog entries before touching any store.
     if (!getCatalogEntry(params.tournament)) {
+      try {
+        await recordCronRunComplete(cronRunId, false, `Unknown tournament: ${params.tournament}`.slice(0, 500));
+      } catch {
+        // ledger write failure is non-fatal
+      }
       return NextResponse.json(
         {
           ok: false,
@@ -115,6 +134,19 @@ async function handler(request: Request) {
     }
 
     const failed = outcomes.filter((o) => o.outcome === "failed");
+    try {
+      // Per-stage failures carry an error summary so the ledger (and the
+      // Superadmin health view) shows WHAT failed, not just that it failed.
+      const failureSummary =
+        failed.length === 0
+          ? undefined
+          : `${failed.length} stage(s) failed: ${failed
+              .map((o) => `${o.tournamentSlug}/${o.stageSlug}`)
+              .join(", ")}`.slice(0, 500);
+      await recordCronRunComplete(cronRunId, failed.length === 0, failureSummary);
+    } catch {
+      // non-fatal
+    }
     return NextResponse.json(
       {
         ok: failed.length === 0,
@@ -128,6 +160,11 @@ async function handler(request: Request) {
       { status: 200 }
     );
   } catch (error) {
+    try {
+      await recordCronRunComplete(cronRunId, false, error instanceof Error ? error.message : String(error));
+    } catch {
+      // non-fatal
+    }
     return handleRouteError(error);
   }
 }

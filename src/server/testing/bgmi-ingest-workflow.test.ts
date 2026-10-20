@@ -34,4 +34,33 @@ describe("bgmi-tournaments-ingest scheduler (Showdown-02)", () => {
     expect(text).toContain("/api/ingest/bgmi-tournaments?tournament=$TOURNAMENT&stages=$STAGES");
     expect(text).toContain("Authorization: Bearer $CRON_SECRET");
   });
+
+  it("fails closed on missing secrets without printing values", () => {
+    const text = workflowText();
+    expect(text).toMatch(/APP_URL secret is not configured/);
+    expect(text).toMatch(/CRON_SECRET secret is not configured/);
+    // Secret values must never be echoed; only presence-check messages and
+    // the safe HTTP status / endpoint response body are printed.
+    expect(text).not.toMatch(/echo[^#\n]*\$CRON_SECRET/);
+    expect(text).not.toMatch(/echo[^#\n]*\$APP_URL/);
+  });
+
+  it("gates success on the response body contract, not the status alone", () => {
+    const text = workflowText();
+    // The endpoint returns 200 with { ok: false } on stage failure, so the
+    // workflow must assert ok:true and failed==0 and exit non-zero otherwise.
+    expect(text).toMatch(/ok.*True|body\.get\(["']ok["']\)/);
+    expect(text).toMatch(/failed/);
+    expect(text).toContain("exit 1");
+    // Non-2xx transport failures (auth, unreachable endpoint) also fail.
+    expect(text).toMatch(/HTTP|\bhttp_code\b/);
+  });
+
+  it("treats an unchanged source revision as healthy (no false alerts)", () => {
+    const text = workflowText();
+    // Success is defined as ok:true with zero failures — never as
+    // "source revision changed". A no-op run stays green.
+    expect(text).not.toMatch(/revision.*changed|source.*changed/i);
+    expect(text).toMatch(/unchanged|ok:true/i);
+  });
 });

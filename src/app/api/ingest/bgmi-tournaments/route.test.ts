@@ -13,8 +13,13 @@ vi.mock("@/features/bgmi-tournaments/repositories/store", () => ({
 vi.mock("@/features/bgmi-tournaments/services/ingest", () => ({
   ingestTournamentStage: vi.fn(),
 }));
+vi.mock("@/server/cron/run-ledger", () => ({
+  recordCronRunStart: vi.fn(),
+  recordCronRunComplete: vi.fn(),
+}));
 
 import { assertCronAuth } from "@/server/cron/cron-auth";
+import { recordCronRunComplete, recordCronRunStart } from "@/server/cron/run-ledger";
 import { ingestTournamentStage } from "@/features/bgmi-tournaments/services/ingest";
 import { GET } from "./route";
 
@@ -185,5 +190,64 @@ describe("GET /api/ingest/bgmi-tournaments", () => {
     );
     expect(response.status).toBe(400);
     expect(vi.mocked(ingestTournamentStage)).not.toHaveBeenCalled();
+  });
+
+  it("records a shared cron ledger start/complete around successful ingestion", async () => {
+    vi.mocked(assertCronAuth).mockImplementation(() => undefined);
+    vi.mocked(ingestTournamentStage).mockResolvedValue({
+      tournamentSlug: "bmsd-2026",
+      stageSlug: "grand-finals",
+      outcome: "unchanged",
+      teamsCount: 16,
+      matchesCompleted: 18,
+      matchesTotal: 18,
+      sourceRevision: 721716,
+      warnings: [],
+    });
+    const response = await GET(
+      new Request("https://example.com/api/ingest/bgmi-tournaments?tournament=bmsd-2026&stage=grand-finals", {
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(vi.mocked(recordCronRunStart)).toHaveBeenCalledWith("bgmi-tournaments-ingest", expect.any(String));
+    expect(vi.mocked(recordCronRunComplete)).toHaveBeenCalledWith(expect.any(String), true, undefined);
+  });
+
+  it("records a failed cron ledger row when ingestion reports failure", async () => {
+    vi.mocked(assertCronAuth).mockImplementation(() => undefined);
+    vi.mocked(ingestTournamentStage).mockResolvedValue({
+      tournamentSlug: "bmsd-2026",
+      stageSlug: "grand-finals",
+      outcome: "failed",
+      teamsCount: 0,
+      matchesCompleted: 0,
+      matchesTotal: 0,
+      sourceRevision: null,
+      warnings: [],
+      error: "fetch failed: boom",
+    });
+    const response = await GET(
+      new Request("https://example.com/api/ingest/bgmi-tournaments?tournament=bmsd-2026&stage=grand-finals", {
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      })
+    );
+    const body = (await response.json()) as { ok: boolean; failed: number };
+    expect(body.ok).toBe(false);
+    expect(body.failed).toBe(1);
+    expect(vi.mocked(recordCronRunComplete)).toHaveBeenCalledWith(expect.any(String), false, expect.any(String));
+  });
+
+  it("records a failed cron ledger row for unknown tournaments without leaking secrets", async () => {
+    vi.mocked(assertCronAuth).mockImplementation(() => undefined);
+    const response = await GET(
+      new Request("https://example.com/api/ingest/bgmi-tournaments?tournament=nope-2026&stage=grand-finals", {
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      })
+    );
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text).not.toContain(CRON_SECRET);
+    expect(vi.mocked(recordCronRunComplete)).toHaveBeenCalledWith(expect.any(String), false, expect.any(String));
   });
 });
