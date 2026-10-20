@@ -73,3 +73,52 @@ describe("circle-iq production guard — demo shell must never ship again", () =
     }
   });
 });
+
+describe("circle-iq responsive hardening — layout contract", () => {
+  const shellSrc = readFileSync(join(process.cwd(), "src/features/bgmi-lab/components/circle-iq-shell.tsx"), "utf8");
+  const adSafeSrc = readFileSync(
+    join(process.cwd(), "src/components/marketing/bgmi-lab/ad-safe-game-layout.tsx"),
+    "utf8",
+  );
+
+  it("keeps the SVG fluid with mobile-relief insets and no fixed widths", () => {
+    expect(shellSrc).toContain('viewBox="0 0 360 240"');
+    expect(shellSrc).toContain("h-auto w-full");
+    // Mobile map relief lives inside the island (AdSafe boundary untouched).
+    expect(shellSrc).toContain("-mx-1");
+    expect(shellSrc).toContain("sm:mx-0");
+    expect(shellSrc).toContain("px-4 sm:px-6");
+    // No fixed-width, min-width, nowrap, or scrolling gameplay elements.
+    for (const banned of ["w-[", "min-w-", "max-w-[", "whitespace-nowrap", "overflow-x-", "overflow:scroll"]) {
+      expect(shellSrc, `gameplay must not contain ${banned}`).not.toContain(banned);
+    }
+  });
+
+  it("keeps the base/sm breakpoint model with no md/lg gameplay branches", () => {
+    expect(shellSrc).toContain("sm:grid-cols-2");
+    expect(shellSrc).toContain("sm:px-6");
+    expect(shellSrc).toContain("sm:w-auto");
+    for (const bp of ["md:", "lg:", "xl:", "2xl:"]) {
+      expect(shellSrc, `gameplay must not branch on ${bp}`).not.toContain(bp);
+    }
+  });
+
+  it("wraps the scout row and keeps primary actions full-width on mobile", () => {
+    expect(shellSrc).toContain("flex flex-wrap items-center gap-2 text-sm");
+    expect(shellSrc).toContain("w-full");
+    expect(shellSrc).toContain("sm:w-auto");
+    expect(shellSrc).toContain("justify-center");
+    expect(shellSrc).toContain("data-map-target");
+    expect(shellSrc).toContain("resolveMapTap");
+  });
+
+  it("leaves the AdSafe boundary byte-identical in behavior", () => {
+    expect(adSafeSrc).toContain("p-5 sm:p-6");
+    expect(adSafeSrc).toContain('data-ad-safe="game-island"');
+    // "advertisement" appears only in the file's own invariant comment, so
+    // the ad-marker check targets executable/embed vectors instead.
+    for (const banned of ["adsbygoogle", "ca-pub", "<iframe", "ins class=", "AdSense.create"]) {
+      expect(adSafeSrc, `AdSafe must not contain ${banned}`).not.toContain(banned);
+    }
+  });
+});

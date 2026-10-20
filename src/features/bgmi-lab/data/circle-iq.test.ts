@@ -1,12 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { CIRCLE_IQ_ROUNDS, CIRCLE_IQ_TOTAL } from "./circle-iq-rounds";
 import {
+  MAP_TAP_THRESHOLD,
+  SCOUTS_PER_ROUND,
   buildResult,
+  consequenceCopyFor,
+  consequenceKindFor,
   createRunSeed,
+  createScoutState,
+  inspectReveal,
   isComplete,
+  isRevealTargetValid,
   orderOptionsForRound,
   orderRoundsForRun,
+  resolveMapTap,
+  revealIdsFor,
   scorePick,
+  scoutNote,
   summarizeScore,
   tendencyForMisses,
   tendencyLine,
@@ -252,6 +262,274 @@ describe("circle-iq tendency — honest run mirror (V3)", () => {
   it("keeps tendency lines free of ratings and guarantees", () => {
     for (const t of ["hold", "open", "contested", "mixed"] as const) {
       expect(tendencyLine(t)).not.toMatch(/IGL|rating|score|percent|guarantee|always/i);
+    }
+  });
+});
+
+/** Pre-commit surfaces must never grade a route. Word-boundary matched. */
+const PRE_COMMIT_LEAK = /\b(covered|open|safer|risky|strong|weak|best|better|correct|wrong|optimal|exposed)\b/i;
+
+/** Intel may state terrain facts, but never a verdict, grade, or score. */
+const INTEL_VERDICT_LEAK = /\b(correct|wrong|best|strong|weak|safer|riskier|verdict|score|optimal|answer)\b/i;
+
+function preCommitCopy(round: (typeof CIRCLE_IQ_ROUNDS)[number]): string[] {
+  return [
+    round.title,
+    round.situation,
+    round.question,
+    ...round.landmarks.map((l) => l.label),
+    ...round.options.flatMap((o) => [o.label, o.route.caption]),
+  ];
+}
+
+describe("circle-iq V4 — authored reveal model", () => {
+  it("gives every round 3–4 inspectable targets with stable unique ids", () => {
+    for (const round of CIRCLE_IQ_ROUNDS) {
+      expect(round.reveals.length).toBeGreaterThanOrEqual(3);
+      expect(round.reveals.length).toBeLessThanOrEqual(4);
+      const ids = round.reveals.map((r) => r.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const id of ids) expect(id.length).toBeGreaterThan(2);
+    }
+  });
+
+  it("references a real landmark or option target for every reveal", () => {
+    for (const round of CIRCLE_IQ_ROUNDS) {
+      for (const reveal of round.reveals) {
+        expect(isRevealTargetValid(round, reveal), `${round.id}/${reveal.id} → ${reveal.targetId}`).toBe(true);
+      }
+      expect(new Set(revealIdsFor(round)).size).toBe(round.reveals.length);
+    }
+  });
+
+  it("keeps reveal pins inside the 360×240 diagram with concise factual intel", () => {
+    for (const round of CIRCLE_IQ_ROUNDS) {
+      for (const reveal of round.reveals) {
+        expect(["landmark", "route", "threat"]).toContain(reveal.kind);
+        expect(reveal.x).toBeGreaterThanOrEqual(0);
+        expect(reveal.x).toBeLessThanOrEqual(360);
+        expect(reveal.y).toBeGreaterThanOrEqual(0);
+        expect(reveal.y).toBeLessThanOrEqual(240);
+        expect(reveal.title.length).toBeGreaterThan(2);
+        expect(reveal.intel.length).toBeGreaterThan(20);
+      }
+    }
+  });
+
+  it("never leaks verdict, grade, or score inside scout intel", () => {
+    for (const round of CIRCLE_IQ_ROUNDS) {
+      for (const reveal of round.reveals) {
+        expect(reveal.intel, `${round.id}/${reveal.id}`).not.toMatch(INTEL_VERDICT_LEAK);
+        expect(reveal.title, `${round.id}/${reveal.id}`).not.toMatch(INTEL_VERDICT_LEAK);
+      }
+    }
+  });
+});
+
+describe("circle-iq V4 — answer-leak removal (pre-commit surfaces)", () => {
+  it("keeps situation, question, labels, captions, and landmark names grade-free", () => {
+    for (const round of CIRCLE_IQ_ROUNDS) {
+      for (const copy of preCommitCopy(round)) {
+        expect(copy, `${round.id}: ${copy}`).not.toMatch(PRE_COMMIT_LEAK);
+      }
+    }
+  });
+
+  it("keeps every route preview caption to neutral geometry", () => {
+    for (const round of CIRCLE_IQ_ROUNDS) {
+      for (const option of round.options) {
+        expect(option.route.caption.length).toBeGreaterThan(5);
+        expect(option.route.caption, `${round.id}/${option.id}`).not.toMatch(PRE_COMMIT_LEAK);
+        expect(option.route.caption).not.toMatch(/guarantee|predict|\bwin\b|surviv\w*|correct|100%/i);
+      }
+    }
+  });
+});
+
+describe("circle-iq V4 — scout budget rules", () => {
+  it("starts every round with exactly 2 scouts and empty inspections", () => {
+    expect(SCOUTS_PER_ROUND).toBe(2);
+    expect(createScoutState()).toEqual({ scoutsLeft: 2, inspectedIds: [] });
+  });
+
+  it("spends one scout per fresh target and never drops below zero", () => {
+    const round = CIRCLE_IQ_ROUNDS[0]!;
+    const ids = revealIdsFor(round);
+    const state = createScoutState();
+    const first = inspectReveal(state, ids[0]!, ids, false);
+    expect(first.consumed).toBe(true);
+    expect(first.state).toEqual({ scoutsLeft: 1, inspectedIds: [ids[0]] });
+    const second = inspectReveal(first.state, ids[1]!, ids, false);
+    expect(second.consumed).toBe(true);
+    expect(second.state.scoutsLeft).toBe(0);
+    const third = inspectReveal(second.state, ids[2]!, ids, false);
+    expect(third.consumed).toBe(false);
+    expect(third.state.scoutsLeft).toBe(0);
+    expect(third.state.inspectedIds).toHaveLength(2);
+  });
+
+  it("never lets the same target consume twice", () => {
+    const round = CIRCLE_IQ_ROUNDS[0]!;
+    const ids = revealIdsFor(round);
+    const once = inspectReveal(createScoutState(), ids[0]!, ids, false);
+    const twice = inspectReveal(once.state, ids[0]!, ids, false);
+    expect(twice.consumed).toBe(false);
+    expect(twice.state.scoutsLeft).toBe(1);
+  });
+
+  it("fails safely on unknown targets and locked rounds", () => {
+    const round = CIRCLE_IQ_ROUNDS[0]!;
+    const ids = revealIdsFor(round);
+    expect(inspectReveal(createScoutState(), "nope", ids, false).consumed).toBe(false);
+    expect(inspectReveal(createScoutState(), ids[0]!, ids, true).consumed).toBe(false);
+    expect(createScoutState().scoutsLeft).toBe(SCOUTS_PER_ROUND);
+  });
+
+  it("reports scout use as information, never currency", () => {
+    expect(scoutNote(0)).toMatch(/cold/i);
+    expect(scoutNote(1)).toMatch(/1 of 2/);
+    expect(scoutNote(2)).toMatch(/both/i);
+    expect(scoutNote(0)).not.toMatch(/point|coin|reward|bonus/i);
+  });
+});
+
+describe("circle-iq V4 — outcome-differentiated consequences", () => {
+  it("maps every option to arrived / caught-open / left-behind", () => {
+    let arrived = 0;
+    let caught = 0;
+    let held = 0;
+    for (const round of CIRCLE_IQ_ROUNDS) {
+      for (const option of round.options) {
+        const kind = consequenceKindFor(option);
+        if (option.quality === "strong") {
+          expect(kind).toBe("arrived");
+          arrived += 1;
+        } else if (option.route.style === "hold") {
+          expect(kind).toBe("left-behind");
+          held += 1;
+        } else {
+          expect(kind).toBe("caught-open");
+          caught += 1;
+        }
+      }
+    }
+    expect(arrived).toBe(8);
+    expect(caught).toBeGreaterThan(0);
+    expect(held).toBeGreaterThan(0);
+  });
+
+  it("uses three visibly distinct consequence lines (no shared verdict copy)", () => {
+    const lines = new Set<string>();
+    for (const round of CIRCLE_IQ_ROUNDS) {
+      for (const option of round.options) {
+        lines.add(consequenceCopyFor(option).line);
+      }
+    }
+    expect(lines.size).toBe(3);
+    const text = [...lines].join(" | ");
+    expect(text).toMatch(/tightens on your position/);
+    expect(text).toMatch(/closes past you/);
+    expect(text).toMatch(/leaves the position behind/);
+  });
+
+  it("keeps pre-existing identity and tendency behavior unchanged", () => {
+    const round = CIRCLE_IQ_ROUNDS[0]!;
+    const strong = round.options.find((o) => o.quality === "strong")!;
+    expect(scorePick(round, strong.id, false)).toEqual({ points: 1, isStrong: true });
+    expect(tendencyForMisses([])).toBeNull();
+  });
+});
+
+describe("circle-iq responsive hardening — resolveMapTap", () => {
+  const pins = [
+    { id: "a", x: 82, y: 170 },
+    { id: "b", x: 165, y: 62 },
+  ];
+  const corridors = [
+    { optionId: "north", points: [{ x: 82, y: 170 }, { x: 238, y: 100 }] },
+    { optionId: "stay", points: [{ x: 100, y: 180 }, { x: 100, y: 180 }] },
+  ];
+
+  it("exposes a documented threshold sized for the smallest map", () => {
+    // 360px viewport → ~256px map after in-island padding relief → 0.71
+    // scale. 2 × 36 × 0.71 ≈ 51px effective touch diameter ≥ 44px.
+    expect(MAP_TAP_THRESHOLD).toBe(36);
+    expect(2 * MAP_TAP_THRESHOLD * (256 / 360)).toBeGreaterThanOrEqual(44);
+  });
+
+  it("resolves taps to the nearest pin", () => {
+    // Exact pin center ties with its corridor at distance 0 → pin wins.
+    expect(resolveMapTap(pins, corridors, 82, 170)).toEqual({ kind: "pin", id: "a" });
+    expect(resolveMapTap(pins, corridors, 165, 64)).toEqual({ kind: "pin", id: "b" });
+  });
+
+  it("resolves taps near a corridor line to that corridor", () => {
+    // Midpoint of the north line, offset 10 units perpendicular-ish.
+    expect(resolveMapTap([], corridors, 160, 135)).toEqual({ kind: "corridor", optionId: "north" });
+  });
+
+  it("resolves hold corridors (degenerate points) by point distance", () => {
+    expect(resolveMapTap([], corridors, 102, 182)).toEqual({ kind: "corridor", optionId: "stay" });
+  });
+
+  it("returns null past the threshold and on invalid input", () => {
+    expect(resolveMapTap(pins, corridors, 5, 5)).toBeNull();
+    expect(resolveMapTap([], [], 180, 120)).toBeNull();
+    expect(resolveMapTap(pins, corridors, Number.NaN, 120)).toBeNull();
+    expect(resolveMapTap(pins, corridors, 84, 168, 0)).toBeNull();
+    // Custom thresholds are honored.
+    expect(resolveMapTap(pins, corridors, 120, 130, 200)).not.toBeNull();
+  });
+
+  it("breaks ties deterministically: pins before corridors, first-in-order", () => {
+    const tied = [
+      { id: "first", x: 100, y: 100 },
+      { id: "second", x: 100, y: 100 },
+    ];
+    expect(resolveMapTap(tied, [], 100, 100)).toEqual({ kind: "pin", id: "first" });
+    const pinOnLine = [{ id: "p", x: 160, y: 135 }];
+    expect(resolveMapTap(pinOnLine, corridors, 160, 135)).toEqual({ kind: "pin", id: "p" });
+    // Repeated calls agree.
+    const once = resolveMapTap(pins, corridors, 120, 120);
+    expect(resolveMapTap(pins, corridors, 120, 120)).toEqual(once);
+  });
+
+  it("never mutates its inputs", () => {
+    const frozenPins = pins.map((p) => ({ ...p }));
+    const frozenCorridors = corridors.map((c) => ({ optionId: c.optionId, points: c.points.map((p) => ({ ...p })) }));
+    resolveMapTap(frozenPins, frozenCorridors, 120, 120);
+    expect(frozenPins).toEqual(pins);
+    expect(frozenCorridors).toEqual(corridors);
+  });
+
+  it("resolves every authored pin at mobile map scales", () => {
+    // Client tap exactly on each pin center, across supported map widths.
+    for (const mapWidth of [232, 248, 256, 280, 310, 332]) {
+      const mapHeight = (mapWidth * 240) / 360;
+      for (const round of CIRCLE_IQ_ROUNDS) {
+        const roundPins = round.reveals.map((r) => ({ id: r.id, x: r.x, y: r.y }));
+        for (const pin of roundPins) {
+          const clientX = (pin.x / 360) * mapWidth;
+          const clientY = (pin.y / 240) * mapHeight;
+          // Convert back exactly as the island does, then resolve.
+          const vx = (clientX / mapWidth) * 360;
+          const vy = (clientY / mapHeight) * 240;
+          expect(resolveMapTap(roundPins, [], vx, vy)).toEqual({ kind: "pin", id: pin.id });
+        }
+      }
+    }
+  });
+
+  it("resolves taps between authored pins deterministically", () => {
+    for (const round of CIRCLE_IQ_ROUNDS) {
+      const roundPins = round.reveals.map((r) => ({ id: r.id, x: r.x, y: r.y }));
+      if (roundPins.length < 2) continue;
+      const a = roundPins[0]!;
+      const b = roundPins[1]!;
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      // Midpoint may be inside both thresholds (nearest wins) or outside
+      // both (null) — either way the answer must be stable.
+      expect(resolveMapTap(roundPins, [], mid.x, mid.y)).toEqual(resolveMapTap(roundPins, [], mid.x, mid.y));
     }
   });
 });

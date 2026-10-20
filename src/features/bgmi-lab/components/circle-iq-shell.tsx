@@ -6,16 +6,29 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import {
   CIRCLE_IQ_ROUNDS,
+  SCOUTS_PER_ROUND,
+  consequenceCopyFor,
+  consequenceForCrossing,
+  consequenceKindFor,
   createRunSeed,
+  createScoutState,
+  crossingForOption,
+  inspectReveal,
   isComplete,
   orderOptionsForRound,
   orderRoundsForRun,
+  resolveMapTap,
+  revealIdsFor,
   scorePick,
+  scoutNote,
+  selectCrossing,
   summarizeScore,
   tendencyForMisses,
   tendencyLine,
+  type CircleIqCrossing,
   type CircleIqLandmark,
   type CircleIqOption,
+  type CircleIqReveal,
   type CircleIqRoutePoint,
 } from "../data/circle-iq-logic";
 import { ShareRow } from "./share-row";
@@ -23,17 +36,25 @@ import { getBgmiLabTool } from "@/config/public/bgmi-lab";
 import { labAbsoluteUrl } from "@/lib/marketing/public-tool-content";
 
 /**
- * Circle IQ — super-interactive replayable gameplay (V3).
+ * Circle IQ — super-interactive replayable gameplay (V5 Hybrid).
  *
- * STUDY → PREVIEW → COMMIT → CONSEQUENCE → VERDICT → NEXT.
- * Eight authored synthetic rounds in a seeded per-run order with seeded
- * per-round option display order. Tapping a route or an answer button only
- * previews (no scoring); "Commit to this call" locks the round, plays a
- * lightweight SVG/CSS consequence, then reveals verdict + principle.
+ * INVESTIGATE → SELECT CORRIDOR → SELECT CROSSING → PREVIEW → COMMIT →
+ * CONSEQUENCE → DEBRIEF. Eight authored synthetic rounds in a seeded
+ * per-run order with seeded per-round option display order. Each round
+ * grants 2 scouts to inspect authored map targets (facts only, never a
+ * verdict). Tapping a corridor previews NEUTRAL geometry; the map then
+ * reveals that corridor's authored crossing pins (A/B…) and the matching
+ * native crossing list. Selecting a crossing draws YOU → crossing →
+ * authored arrival neutrally. "Commit to this call" locks corridor +
+ * crossing + scouting, plays a crossing-aware SVG/CSS consequence
+ * (arrived / caught-open / left-behind, with a SPOTTED beat on high
+ * exposure), then reveals verdict + crossing note + principle + scout
+ * note. Hold options carry no crossings and skip straight to Preview.
  * Ephemeral state only (no account, no persistence, no analytics). Lives
  * inside AdSafeGameLayout; renders no ads and nothing resembling one.
  *
  * Scoring is always by authored option ID — A/B/C letters are display-only.
+ * Exposure is authored per crossing and never displayed before commit.
  */
 
 const LETTERS = ["A", "B", "C"] as const;
@@ -44,7 +65,7 @@ const CONSEQUENCE_MS = 750;
 const LANDMARK_KIND: Record<CircleIqLandmark["type"], string> = {
   ridge: "high ground",
   compound: "buildings",
-  open: "exposed ground",
+  open: "low ground",
   road: "road",
   cover: "natural cover",
   water: "water",
@@ -52,6 +73,39 @@ const LANDMARK_KIND: Record<CircleIqLandmark["type"], string> = {
 
 function routePathD(points: readonly CircleIqRoutePoint[]): string {
   return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+}
+
+/** Cut a polyline at `fraction` of its length — the caught-open stop point. */
+function partialPoints(points: readonly CircleIqRoutePoint[], fraction: number): CircleIqRoutePoint[] {
+  if (points.length < 2) return [...points];
+  const clamped = Math.min(Math.max(fraction, 0), 1);
+  const lengths: number[] = [];
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i]!.x - points[i - 1]!.x;
+    const dy = points[i]!.y - points[i - 1]!.y;
+    const len = Math.hypot(dx, dy);
+    lengths.push(len);
+    total += len;
+  }
+  if (total === 0) return [points[0]!];
+  const target = total * clamped;
+  const out: CircleIqRoutePoint[] = [points[0]!];
+  let walked = 0;
+  for (let i = 1; i < points.length; i++) {
+    const seg = lengths[i - 1]!;
+    if (walked + seg >= target) {
+      const t = seg === 0 ? 0 : (target - walked) / seg;
+      out.push({
+        x: points[i - 1]!.x + (points[i]!.x - points[i - 1]!.x) * t,
+        y: points[i - 1]!.y + (points[i]!.y - points[i - 1]!.y) * t,
+      });
+      return out;
+    }
+    walked += seg;
+    out.push(points[i]!);
+  }
+  return out;
 }
 
 function LandmarkShape({ landmark, pulse }: { landmark: CircleIqLandmark; pulse: boolean }) {
@@ -95,7 +149,7 @@ function LandmarkShape({ landmark, pulse }: { landmark: CircleIqLandmark; pulse:
             rx="42"
             ry="24"
             fill="none"
-            stroke="var(--color-destructive)"
+            stroke="var(--color-border-strong)"
             strokeWidth="1.5"
             strokeDasharray="5 5"
             opacity="0.55"
@@ -131,12 +185,173 @@ function LandmarkShape({ landmark, pulse }: { landmark: CircleIqLandmark; pulse:
   return <g className="ciq-landmark-pulse">{body}</g>;
 }
 
+function ScoutTarget({
+  reveal,
+  inspected,
+  disabled,
+  scoutsLeft,
+  onInspect,
+}: {
+  reveal: CircleIqReveal;
+  inspected: boolean;
+  disabled: boolean;
+  scoutsLeft: number;
+  onInspect: (revealId: string) => void;
+}) {
+  const actionable = !inspected && !disabled;
+  return (
+    <g
+      transform={`translate(${reveal.x} ${reveal.y})`}
+      tabIndex={actionable || inspected ? 0 : -1}
+      role="button"
+      data-map-target="pin"
+      aria-label={
+        inspected
+          ? `Inspected: ${reveal.title}. ${reveal.intel}`
+          : `Inspect ${reveal.title}. ${scoutsLeft} ${scoutsLeft === 1 ? "scout" : "scouts"} left.`
+      }
+      aria-pressed={inspected}
+      aria-disabled={!actionable && !inspected}
+      className="ciq-scout"
+      style={{ cursor: actionable ? "pointer" : "default", outline: "none" }}
+      onClick={() => onInspect(reveal.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onInspect(reveal.id);
+        }
+      }}
+    >
+      <title>{inspected ? `${reveal.title} (inspected)` : `Inspect ${reveal.title}`}</title>
+      {/* >=44px interaction area */}
+      <circle cx="0" cy="0" r="22" fill="transparent" pointerEvents="all" />
+      {/* Visible focus ring (keyboard) */}
+      <circle
+        cx="0"
+        cy="0"
+        r="17"
+        fill="none"
+        stroke="var(--color-primary)"
+        strokeWidth="2"
+        strokeDasharray="3 3"
+        className="ciq-scout-focus"
+        opacity="0"
+        pointerEvents="none"
+      />
+      {/* State ring: solid + check when inspected, dashed + ? otherwise. Never color alone. */}
+      <circle
+        cx="0"
+        cy="0"
+        r="12"
+        fill="var(--color-card)"
+        stroke={inspected ? "var(--color-primary)" : "var(--color-border-strong)"}
+        strokeWidth={inspected ? 2.5 : 2}
+        strokeDasharray={inspected ? undefined : "4 3"}
+        opacity={disabled && !inspected ? 0.45 : 1}
+        pointerEvents="none"
+      />
+      <text
+        x="0"
+        y="4.5"
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight="bold"
+        fill={inspected ? "var(--color-primary)" : "var(--color-foreground-muted)"}
+        pointerEvents="none"
+        aria-hidden="true"
+      >
+        {inspected ? "✓" : "?"}
+      </text>
+    </g>
+  );
+}
+
+function CrossingPin({
+  crossing,
+  letter,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  crossing: CircleIqCrossing;
+  letter: string;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: (crossingId: string) => void;
+}) {
+  const actionable = !disabled;
+  const activate = () => onSelect(crossing.id);
+  return (
+    <g
+      transform={`translate(${crossing.x} ${crossing.y})`}
+      tabIndex={actionable || selected ? 0 : -1}
+      role="button"
+      data-map-target="crossing"
+      aria-label={`Crossing ${letter}: ${crossing.label}. ${crossing.intel} Preview the crossing.`}
+      aria-pressed={selected}
+      aria-disabled={disabled}
+      className="ciq-crossing"
+      style={{ cursor: actionable ? "pointer" : "default", outline: "none" }}
+      onClick={activate}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          activate();
+        }
+      }}
+    >
+      <title>{`Crossing ${letter}: ${crossing.label}`}</title>
+      {/* >=44px interaction area — taps resolve via viewBox dispatch */}
+      <circle cx="0" cy="0" r="22" fill="transparent" pointerEvents="all" />
+      <circle
+        cx="0"
+        cy="0"
+        r="17"
+        fill="none"
+        stroke="var(--color-primary)"
+        strokeWidth="2"
+        strokeDasharray="3 3"
+        className="ciq-crossing-focus"
+        opacity="0"
+        pointerEvents="none"
+      />
+      {/* Diamond pin with letter glyph — distinct from round scout pins. */}
+      <rect
+        x="-11"
+        y="-11"
+        width="22"
+        height="22"
+        rx="6"
+        transform="rotate(45)"
+        fill={selected ? "var(--color-foreground)" : "var(--color-card)"}
+        stroke={selected ? "var(--color-foreground)" : "var(--color-border-strong)"}
+        strokeWidth={selected ? 2.5 : 2}
+        opacity={disabled && !selected ? 0.45 : 1}
+        pointerEvents="none"
+      />
+      <text
+        x="0"
+        y="4.5"
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight="bold"
+        fill={selected ? "var(--color-card)" : "var(--color-foreground-muted)"}
+        pointerEvents="none"
+        aria-hidden="true"
+      >
+        {letter}
+      </text>
+    </g>
+  );
+}
+
 function RouteOverlay({
   option,
   displayIndex,
   dimmed,
   highlighted,
   committed,
+  committedStrong,
   onPreview,
 }: {
   option: CircleIqOption;
@@ -144,12 +359,25 @@ function RouteOverlay({
   dimmed: boolean;
   highlighted: boolean;
   committed: boolean;
+  committedStrong: boolean | null;
   onPreview: (optionId: string) => void;
 }) {
   const { route } = option;
-  const stroke = route.style === "covered" ? "var(--color-primary)" : route.style === "open" ? "var(--color-destructive)" : "var(--color-foreground-muted)";
-  const opacity = committed ? 1 : highlighted ? 1 : dimmed ? 0.22 : 0.55;
+  const [focused, setFocused] = React.useState(false);
+  // V4 neutral preview: BEFORE commit every line uses the same neutral tone.
+  // Quality colors (primary/destructive) appear only on the committed line.
+  const stroke = committed
+    ? committedStrong === true
+      ? "var(--color-primary)"
+      : "var(--color-destructive)"
+    : highlighted || focused
+      ? "var(--color-foreground)"
+      : "var(--color-border-strong)";
+  const opacity = committed ? 1 : highlighted || focused ? 1 : dimmed ? 0.22 : 0.6;
+  const width = committed || highlighted || focused ? 3 : 2;
   const letter = LETTERS[displayIndex] ?? displayIndex + 1;
+  const label = `Preview route ${letter}`;
+  const activate = () => onPreview(option.id);
   if (route.style === "hold") {
     const at = route.points[0]!;
     return (
@@ -160,19 +388,32 @@ function RouteOverlay({
           r="16"
           fill="none"
           stroke={stroke}
-          strokeWidth={highlighted || committed ? 2.5 : 1.5}
+          strokeWidth={width}
           strokeDasharray="5 4"
         />
-        <path
-          d={`M ${at.x - 14} ${at.y - 14} L ${at.x + 14} ${at.y + 14} M ${at.x - 14} ${at.y - 14} L ${at.x + 14} ${at.y + 14}`}
-          stroke="transparent"
-          strokeWidth="24"
-          pointerEvents="stroke"
-          style={{ cursor: "pointer" }}
-          onClick={() => onPreview(option.id)}
+        <g
+          tabIndex={committed ? -1 : 0}
+          role="button"
+          data-map-target="corridor"
+          aria-label={label}
+          className="ciq-route-target"
+          style={{ cursor: committed ? "default" : "pointer", outline: "none" }}
+          onClick={activate}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              activate();
+            }
+          }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         >
-          <title>{`Preview option ${letter}`}</title>
-        </path>
+          <title>{label}</title>
+          <circle cx={at.x} cy={at.y} r="22" fill="transparent" pointerEvents="all" />
+          {focused && !committed ? (
+            <circle cx={at.x} cy={at.y} r="20" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeDasharray="3 3" pointerEvents="none" />
+          ) : null}
+        </g>
       </g>
     );
   }
@@ -180,19 +421,28 @@ function RouteOverlay({
   const end = route.points[route.points.length - 1]!;
   return (
     <g opacity={opacity}>
-      <path d={d} fill="none" stroke={stroke} strokeWidth={highlighted || committed ? 3 : 2} strokeLinecap="round" />
+      <path d={d} fill="none" stroke={stroke} strokeWidth={width} strokeLinecap="round" />
       <circle cx={end.x} cy={end.y} r="3.5" fill={stroke} />
-      <path
-        d={d}
-        fill="none"
-        stroke="transparent"
-        strokeWidth="22"
-        pointerEvents="stroke"
-        style={{ cursor: "pointer" }}
-        onClick={() => onPreview(option.id)}
+      <g
+        tabIndex={committed ? -1 : 0}
+        role="button"
+        data-map-target="corridor"
+        aria-label={label}
+        className="ciq-route-target"
+        style={{ cursor: committed ? "default" : "pointer", outline: "none" }}
+        onClick={activate}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            activate();
+          }
+        }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
       >
-        <title>{`Preview option ${letter}`}</title>
-      </path>
+        <title>{label}</title>
+        <path d={d} fill="none" stroke="transparent" strokeWidth="24" pointerEvents="stroke" />
+      </g>
     </g>
   );
 }
@@ -206,7 +456,9 @@ export function CircleIqShell() {
   const roundQueue = React.useMemo(() => orderRoundsForRun(CIRCLE_IQ_ROUNDS, seed), [seed]);
   const [index, setIndex] = React.useState(0);
   const [previewId, setPreviewId] = React.useState<string | null>(null);
+  const [crossingId, setCrossingId] = React.useState<string | null>(null);
   const [committedId, setCommittedId] = React.useState<string | null>(null);
+  const [committedCrossingId, setCommittedCrossingId] = React.useState<string | null>(null);
   const [consequence, setConsequence] = React.useState(false);
   const [verdict, setVerdict] = React.useState(false);
   const [strongReads, setStrongReads] = React.useState(0);
@@ -214,18 +466,32 @@ export function CircleIqShell() {
   const [misses, setMisses] = React.useState<readonly { optionId: string; roundId: string }[]>([]);
   const [finished, setFinished] = React.useState(false);
   const [reducedMotion, setReducedMotion] = React.useState(false);
+  const [scout, setScout] = React.useState(createScoutState);
+  const [scoutsUsedAtCommit, setScoutsUsedAtCommit] = React.useState(0);
+  const [lastIntel, setLastIntel] = React.useState<string | null>(null);
+  const [statusNote, setStatusNote] = React.useState<string | null>(null);
   const verdictRef = React.useRef<HTMLDivElement>(null);
-  const commitRef = React.useRef<HTMLButtonElement>(null);
   const consequenceRef = React.useRef<HTMLDivElement>(null);
+  const svgRef = React.useRef<SVGSVGElement | null>(null);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const round = roundQueue[index % roundQueue.length]!;
   const displayOptions = React.useMemo(() => orderOptionsForRound(round, seed, index), [round, seed, index]);
   const previewOption = displayOptions.find((o) => o.id === previewId) ?? null;
+  const selectedCrossing =
+    previewOption !== null && crossingId !== null
+      ? (previewOption.crossings?.find((c) => c.id === crossingId) ?? null)
+      : null;
+  const previewIsHold = previewOption !== null && previewOption.route.style === "hold";
   const committedOption = displayOptions.find((o) => o.id === committedId) ?? null;
+  const committedCrossing =
+    committedOption !== null && committedCrossingId !== null
+      ? (committedOption.crossings?.find((c) => c.id === committedCrossingId) ?? null)
+      : null;
   const lastRound = index === roundQueue.length - 1;
   const summary = summarizeScore(strongReads);
   const locked = committedId !== null;
+  const revealIds = React.useMemo(() => revealIdsFor(round), [round]);
 
   React.useEffect(() => {
     setRunSeed(createRunSeed());
@@ -249,14 +515,102 @@ export function CircleIqShell() {
     if (verdict && verdictRef.current) verdictRef.current.focus();
   }, [verdict]);
 
+  function inspect(revealId: string) {
+    if (locked || finished) return;
+    const result = inspectReveal(scout, revealId, revealIds, locked);
+    if (!result.consumed) return;
+    setScout(result.state);
+    const reveal = round.reveals.find((r) => r.id === revealId);
+    if (reveal) setLastIntel(`${reveal.title}: ${reveal.intel}`);
+  }
+
   function preview(optionId: string) {
     if (locked || finished) return;
+    // Corridor switches always clear the crossing — a crossing belongs
+    // to exactly one corridor.
+    if (optionId !== previewId) setCrossingId(null);
     setPreviewId(optionId);
+    const option = displayOptions.find((o) => o.id === optionId);
+    if (option) {
+      const letter = LETTERS[displayOptions.findIndex((o) => o.id === optionId)] ?? "";
+      setStatusNote(
+        option.route.style === "hold"
+          ? `Corridor ${letter} selected: ${option.label}. Holding needs no crossing — preview and commit.`
+          : `Corridor ${letter} selected: ${option.label}. Now pick where along it to cross.`,
+      );
+    }
+  }
+
+  /**
+   * Single shared crossing transition — map pins and the native
+   * crossing list invoke exactly this. Fail-closed via selectCrossing:
+   * unknown ids, missing corridors, hold corridors, and locked rounds
+   * all no-op without touching state.
+   */
+  function chooseCrossing(id: string) {
+    if (locked || finished) return;
+    const result = selectCrossing(round, previewId, id, locked);
+    if (!result.ok || result.crossingId === null) return;
+    setCrossingId(result.crossingId);
+    const crossing = crossingForOption(round, previewId!, result.crossingId);
+    if (crossing) {
+      const letter = LETTERS[displayOptions.findIndex((o) => o.id === previewId)] ?? "";
+      setStatusNote(
+        `Crossing selected on route ${letter}: ${crossing.label}. ${crossing.intel} Arrival marked on the map.`,
+      );
+    }
+  }
+
+  /**
+   * Map-level tap dispatch (responsive hardening). Direct hits on pins /
+   * corridors are handled by their own controls (guarded via
+   * data-map-target); taps landing anywhere else resolve to the nearest
+   * actionable target in viewBox space, so fat-finger taps near (but not
+   * exactly on) a 44px-intended target still land deterministically.
+   * Threshold misses are no-ops. Keyboard/SR paths are untouched.
+   */
+  function handleMapTap(event: React.MouseEvent<SVGSVGElement>) {
+    if (locked || finished) return;
+    if (event.target instanceof Element && event.target.closest("[data-map-target]") !== null) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const x = ((event.clientX - rect.left) / rect.width) * 360;
+    const y = ((event.clientY - rect.top) / rect.height) * 240;
+    const pins = round.reveals
+      .filter((r) => !scout.inspectedIds.includes(r.id) && scout.scoutsLeft > 0)
+      .map((r) => ({ id: r.id, x: r.x, y: r.y, target: "scout" as const }));
+    const crossingPins =
+      previewOption !== null && previewOption.crossings
+        ? previewOption.crossings.map((c) => ({ id: c.id, x: c.x, y: c.y, target: "crossing" as const }))
+        : [];
+    const corridors = displayOptions.map((o) => ({ optionId: o.id, points: o.route.points }));
+    const hit = resolveMapTap([...pins, ...crossingPins], corridors, x, y);
+    if (hit === null) return;
+    if (hit.kind === "pin") inspect(hit.id);
+    else if (hit.kind === "crossing") chooseCrossing(hit.id);
+    else preview(hit.optionId);
   }
 
   function commit() {
     if (previewId === null || locked || finished) return;
+    const option = displayOptions.find((o) => o.id === previewId);
+    if (!option) return;
+    // Move corridors need a crossing; Hold commits corridor-only.
+    if (option.route.style !== "hold") {
+      if (crossingId === null || !option.crossings?.some((c) => c.id === crossingId)) return;
+    }
     const result = scorePick(round, previewId, false);
+    setScoutsUsedAtCommit(SCOUTS_PER_ROUND - scout.scoutsLeft);
+    setCommittedId(previewId);
+    setCommittedCrossingId(option.route.style === "hold" ? null : crossingId);
+    setStatusNote(
+      option.route.style === "hold"
+        ? `Committed to hold: ${option.label}.`
+        : `Committed to route with crossing ${crossingForOption(round, previewId, crossingId ?? "")?.label ?? ""}.`,
+    );
+    setScoutsUsedAtCommit(SCOUTS_PER_ROUND - scout.scoutsLeft);
     setCommittedId(previewId);
     setConsequence(true);
     setAnsweredCount((c) => c + 1);
@@ -275,9 +629,15 @@ export function CircleIqShell() {
       timerRef.current = null;
     }
     setPreviewId(null);
+    setCrossingId(null);
     setCommittedId(null);
+    setCommittedCrossingId(null);
     setConsequence(false);
     setVerdict(false);
+    setScout(createScoutState());
+    setScoutsUsedAtCommit(0);
+    setLastIntel(null);
+    setStatusNote(null);
   }
 
   function next() {
@@ -306,13 +666,19 @@ export function CircleIqShell() {
     setRunSeed(createRunSeed());
     setIndex(0);
     setPreviewId(null);
+    setCrossingId(null);
     setCommittedId(null);
+    setCommittedCrossingId(null);
     setConsequence(false);
     setVerdict(false);
     setStrongReads(0);
     setAnsweredCount(0);
     setMisses([]);
     setFinished(false);
+    setScout(createScoutState());
+    setScoutsUsedAtCommit(0);
+    setLastIntel(null);
+    setStatusNote(null);
   }
 
   if (finished && isComplete(answeredCount)) {
@@ -328,7 +694,7 @@ export function CircleIqShell() {
             {summary.score} of {summary.total} good reads — nothing saved, replay freely.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 sm:px-6">
           <div aria-live="polite" className="rounded-[12px] border border-primary/25 bg-primary/[0.06] p-5 text-center">
             <p className="font-mono text-[11px] tracking-widest text-primary">FINAL READ</p>
             <p className="font-display mt-1 text-3xl font-normal tracking-tight">
@@ -357,7 +723,7 @@ export function CircleIqShell() {
           <button
             type="button"
             onClick={playAgain}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-full sm:w-auto bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Play again
           </button>
@@ -368,9 +734,9 @@ export function CircleIqShell() {
   }
 
   const pulsedLandmark = (() => {
-    const active = committedOption ?? previewOption;
-    if (!active || active.route.points.length === 0) return null;
-    const end = active.route.points[active.route.points.length - 1]!;
+    if (!committedOption || consequenceKindFor(committedOption) !== "arrived") return null;
+    if (committedOption.route.points.length === 0) return null;
+    const end = committedOption.route.points[committedOption.route.points.length - 1]!;
     let best: CircleIqLandmark | null = null;
     let bestDist = Number.POSITIVE_INFINITY;
     for (const landmark of round.landmarks) {
@@ -387,12 +753,39 @@ export function CircleIqShell() {
     committedOption && committedOption.route.points.length > 0
       ? committedOption.route.points[committedOption.route.points.length - 1]!
       : null;
+  const consequenceKind = committedOption ? consequenceKindFor(committedOption) : null;
+  // V5 Hybrid: the crossing resolves the authored arrival. Hold (and any
+  // legacy corridor without a crossing) reuses the legacy final frame.
+  const crossingCons = committedOption ? consequenceForCrossing(committedOption, committedCrossing) : null;
+  const crossingArrival = crossingCons?.arrival ?? null;
+  const crossingPoint =
+    committedCrossing !== null
+      ? { x: committedCrossing.x, y: committedCrossing.y }
+      : null;
+  // Caught-open stops partway: the final frame must show WHERE the move died.
+  const stopPoints =
+    committedOption && consequenceKind === "caught-open" && committedOption.route.style !== "hold" && crossingArrival === null
+      ? partialPoints(committedOption.route.points, 0.55)
+      : null;
+  const stopEnd = stopPoints !== null && stopPoints.length > 0 ? stopPoints[stopPoints.length - 1]! : null;
+  const legacyFinal =
+    consequenceKind === "caught-open" ? stopEnd : consequenceKind === "arrived" ? committedEnd : null;
+  const youFinal = crossingArrival ?? legacyFinal;
   const youDelta =
-    committedEnd !== null ? { dx: committedEnd.x - round.player.x, dy: committedEnd.y - round.player.y } : null;
+    youFinal !== null ? { dx: youFinal.x - round.player.x, dy: youFinal.y - round.player.y } : null;
+  const consequenceCopy = committedOption ? consequenceCopyFor(committedOption) : null;
+  // Traversal polyline for the consequence beat: YOU → crossing → arrival.
+  const traversalPoints: readonly CircleIqRoutePoint[] | null =
+    consequence && committedOption && crossingPoint !== null && crossingArrival !== null
+      ? [{ x: round.player.x, y: round.player.y }, crossingPoint, { x: crossingArrival.x, y: crossingArrival.y }]
+      : null;
+
+  const previewLetter =
+    previewOption !== null ? (LETTERS[displayOptions.findIndex((o) => o.id === previewOption.id)] ?? "") : "";
 
   return (
     <Card>
-      <style>{`@keyframes ciq-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes ciq-pulse{0%,100%{opacity:1}50%{opacity:.15}}@keyframes ciq-you{from{transform:translate(var(--ciq-dx,0px),var(--ciq-dy,0px))}to{transform:translate(0px,0px)}}@keyframes ciq-landmark{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}.ciq-route-draw{stroke-dasharray:1;animation:ciq-draw 700ms ease forwards}.ciq-exposure{animation:ciq-pulse 750ms ease-in-out 2}.ciq-you-move{animation:ciq-you 700ms ease forwards}.ciq-landmark-pulse{transform-box:fill-box;transform-origin:center;animation:ciq-landmark 700ms ease}@media (prefers-reduced-motion:reduce){.ciq-route-draw,.ciq-exposure,.ciq-you-move,.ciq-landmark-pulse{animation:none}}`}</style>
+      <style>{`@keyframes ciq-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes ciq-pulse{0%,100%{opacity:1}50%{opacity:.15}}@keyframes ciq-you{from{transform:translate(var(--ciq-dx,0px),var(--ciq-dy,0px))}to{transform:translate(0px,0px)}}@keyframes ciq-landmark{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}@keyframes ciq-tighten{from{transform:scale(1.25);opacity:.1}to{transform:scale(1);opacity:.16}}.ciq-route-draw{stroke-dasharray:1;animation:ciq-draw 700ms ease forwards}.ciq-exposure{animation:ciq-pulse 750ms ease-in-out 2}.ciq-you-move{animation:ciq-you 700ms ease forwards}.ciq-landmark-pulse{transform-box:fill-box;transform-origin:center;animation:ciq-landmark 700ms ease}.ciq-tighten{transform-box:fill-box;transform-origin:center;animation:ciq-tighten 700ms ease forwards}.ciq-scout:focus{outline:none}.ciq-scout:focus-visible .ciq-scout-focus{opacity:1}.ciq-crossing:focus{outline:none}.ciq-crossing:focus-visible .ciq-crossing-focus{opacity:1}.ciq-route-target:focus{outline:none}@media (prefers-reduced-motion:reduce){.ciq-route-draw,.ciq-exposure,.ciq-you-move,.ciq-landmark-pulse,.ciq-tighten{animation:none}}`}</style>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <p className="font-mono text-[11px] tracking-widest text-primary">
@@ -413,21 +806,51 @@ export function CircleIqShell() {
         <CardTitle className="pt-1 text-xl font-normal">{round.title}</CardTitle>
         <CardDescription className="leading-relaxed">{round.situation}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <figure className="overflow-hidden rounded-[12px] border border-border bg-surface-muted/40">
-          <svg viewBox="0 0 360 240" className="h-auto w-full max-h-[240px]" role="img" aria-label={`Tactical snapshot: ${round.title}. ${round.situation}`}>
+      <CardContent className="space-y-4 px-4 sm:px-6">
+        <div
+          className="flex flex-wrap items-center gap-2 text-sm"
+          role="status"
+          aria-live="polite"
+          aria-label={`${scout.scoutsLeft} of ${SCOUTS_PER_ROUND} scouts left`}
+        >
+          <span className="font-mono text-[11px] tracking-widest text-primary">SCOUTS: {scout.scoutsLeft}</span>
+          <span className="flex gap-1" aria-hidden="true">
+            {Array.from({ length: SCOUTS_PER_ROUND }, (_, i) => (
+              <span
+                key={i}
+                className={`inline-block size-3 rounded-full border ${
+                  i < scout.scoutsLeft ? "border-primary bg-primary" : "border-border bg-border"
+                }`}
+              />
+            ))}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {locked ? "Locked after commit." : scout.scoutsLeft === 0 ? "No scouts left." : "Inspect up to two targets."}
+          </span>
+        </div>
+
+        <figure className="-mx-1 overflow-hidden rounded-[12px] border border-border bg-surface-muted/40 sm:mx-0">
+          <svg ref={svgRef} onClick={handleMapTap} viewBox="0 0 360 240" className="h-auto w-full max-h-[240px]" role="img" aria-label={`Tactical snapshot: ${round.title}. ${round.situation}`}>
             <circle
-              cx={round.zone.center.x}
-              cy={round.zone.center.y}
-              r={round.zone.radius}
+              cx={consequence && consequenceKind !== "arrived" && committedOption ? round.next.center.x : round.zone.center.x}
+              cy={consequence && consequenceKind !== "arrived" && committedOption ? round.next.center.y : round.zone.center.y}
+              r={consequence && consequenceKind !== "arrived" && committedOption ? round.next.radius : round.zone.radius}
               fill="none"
               stroke="var(--color-border-strong)"
               strokeWidth="1.5"
               strokeDasharray="7 6"
-              opacity={locked ? 0.25 : 0.7}
+              opacity={locked ? 0.3 : 0.7}
               style={{ transition: "opacity 700ms ease" }}
             />
-            <circle cx={round.next.center.x} cy={round.next.center.y} r={round.next.radius} fill="var(--color-primary)" opacity={locked ? 0.16 : 0.07} style={{ transition: "opacity 700ms ease" }} />
+            <circle
+              cx={round.next.center.x}
+              cy={round.next.center.y}
+              r={round.next.radius}
+              fill="var(--color-primary)"
+              opacity={locked && consequenceKind === "arrived" ? 0.16 : 0.07}
+              className={locked && consequenceKind === "arrived" && !reducedMotion ? "ciq-tighten" : undefined}
+              style={{ transition: "opacity 700ms ease" }}
+            />
             <circle
               cx={round.next.center.x}
               cy={round.next.center.y}
@@ -450,47 +873,207 @@ export function CircleIqShell() {
                   dimmed={anyActive && !active}
                   highlighted={previewId === option.id && committedId === null}
                   committed={committedId === option.id}
+                  committedStrong={committedId === option.id ? option.quality === "strong" : null}
                   onPreview={preview}
                 />
               );
             })}
-            {consequence && committedOption && committedOption.route.style !== "hold" ? (
+            {round.reveals.map((reveal) => (
+              <ScoutTarget
+                key={reveal.id}
+                reveal={reveal}
+                inspected={scout.inspectedIds.includes(reveal.id)}
+                disabled={locked || finished || (scout.scoutsLeft === 0 && !scout.inspectedIds.includes(reveal.id))}
+                scoutsLeft={scout.scoutsLeft}
+                onInspect={inspect}
+              />
+            ))}
+            {previewOption?.crossings?.map((crossing, crossingIndex) => (
+              <CrossingPin
+                key={crossing.id}
+                crossing={crossing}
+                letter={String.fromCharCode(65 + crossingIndex)}
+                selected={(locked ? committedCrossingId : crossingId) === crossing.id}
+                disabled={locked || finished}
+                onSelect={chooseCrossing}
+              />
+            ))}
+            {previewOption && selectedCrossing && !locked ? (
               <g aria-hidden="true">
                 <path
-                  d={routePathD(committedOption.route.points)}
+                  d={routePathD([
+                    { x: round.player.x, y: round.player.y },
+                    { x: selectedCrossing.x, y: selectedCrossing.y },
+                    { x: selectedCrossing.arrival.x, y: selectedCrossing.arrival.y },
+                  ])}
                   fill="none"
-                  stroke={committedOption.route.style === "covered" ? "var(--color-primary)" : "var(--color-destructive)"}
+                  stroke="var(--color-foreground)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeDasharray="6 4"
+                  opacity="0.9"
+                />
+                <circle
+                  cx={selectedCrossing.arrival.x}
+                  cy={selectedCrossing.arrival.y}
+                  r="6"
+                  fill="none"
+                  stroke="var(--color-foreground)"
+                  strokeWidth="2"
+                  strokeDasharray="3 3"
+                />
+              </g>
+            ) : null}
+            {consequence && committedOption && consequenceKind === "arrived" && committedOption.route.style !== "hold" ? (
+              <g aria-hidden="true">
+                <path
+                  d={routePathD(traversalPoints ?? committedOption.route.points)}
+                  fill="none"
+                  stroke="var(--color-primary)"
                   strokeWidth="3.5"
                   strokeLinecap="round"
                   pathLength={1}
                   strokeDashoffset={0}
                   className={reducedMotion ? undefined : "ciq-route-draw"}
                 />
-                {committedOption.route.style === "open" ? (
-                  <path
-                    d={routePathD(committedOption.route.points)}
-                    fill="none"
-                    stroke="var(--color-destructive)"
-                    strokeWidth="6"
-                    strokeLinecap="round"
-                    opacity="0.35"
-                    className={reducedMotion ? undefined : "ciq-exposure"}
-                  />
+                {traversalPoints && crossingPoint ? (
+                  <g>
+                    <circle
+                      cx={crossingPoint.x}
+                      cy={crossingPoint.y}
+                      r="10"
+                      fill="none"
+                      stroke={crossingCons?.spotted ? "var(--color-destructive)" : "var(--color-primary)"}
+                      strokeWidth="2.5"
+                      className={reducedMotion ? undefined : "ciq-exposure"}
+                    />
+                    {crossingCons?.spotted ? (
+                      <text x={crossingPoint.x} y={crossingPoint.y - 16} textAnchor="middle" fontSize="9" fill="var(--color-destructive)" fontFamily="monospace" letterSpacing="2">
+                        SPOTTED
+                      </text>
+                    ) : null}
+                    <circle
+                      cx={crossingArrival!.x}
+                      cy={crossingArrival!.y}
+                      r="6"
+                      fill="none"
+                      stroke="var(--color-primary)"
+                      strokeWidth="2"
+                    />
+                  </g>
                 ) : null}
               </g>
             ) : null}
+            {consequence && committedOption && consequenceKind === "caught-open" && traversalPoints !== null && crossingPoint !== null && crossingArrival !== null ? (
+              <g aria-hidden="true">
+                <path
+                  d={routePathD(committedOption.route.style === "hold" ? [] : committedOption.route.points)}
+                  fill="none"
+                  stroke="var(--color-border-strong)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray="4 4"
+                  opacity="0.6"
+                />
+                <path
+                  d={routePathD(traversalPoints)}
+                  fill="none"
+                  stroke={crossingCons?.spotted ? "var(--color-destructive)" : "var(--color-primary)"}
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  pathLength={1}
+                  strokeDashoffset={0}
+                  className={reducedMotion ? undefined : "ciq-route-draw"}
+                />
+                <circle
+                  cx={crossingPoint.x}
+                  cy={crossingPoint.y}
+                  r="10"
+                  fill="none"
+                  stroke={crossingCons?.spotted ? "var(--color-destructive)" : "var(--color-primary)"}
+                  strokeWidth="2.5"
+                  className={reducedMotion ? undefined : "ciq-exposure"}
+                />
+                {crossingCons?.spotted ? (
+                  <g>
+                    <line x1={crossingPoint.x - 8} y1={crossingPoint.y - 8} x2={crossingPoint.x + 8} y2={crossingPoint.y + 8} stroke="var(--color-destructive)" strokeWidth="3" strokeLinecap="round" />
+                    <line x1={crossingPoint.x + 8} y1={crossingPoint.y - 8} x2={crossingPoint.x - 8} y2={crossingPoint.y + 8} stroke="var(--color-destructive)" strokeWidth="3" strokeLinecap="round" />
+                    <text x={crossingPoint.x} y={crossingPoint.y - 16} textAnchor="middle" fontSize="9" fill="var(--color-destructive)" fontFamily="monospace" letterSpacing="2">
+                      SPOTTED
+                    </text>
+                  </g>
+                ) : null}
+                <circle
+                  cx={crossingArrival.x}
+                  cy={crossingArrival.y}
+                  r="6"
+                  fill="none"
+                  stroke={crossingCons?.spotted ? "var(--color-destructive)" : "var(--color-primary)"}
+                  strokeWidth="2"
+                />
+              </g>
+            ) : null}
+            {consequence && committedOption && consequenceKind === "caught-open" && stopPoints !== null && traversalPoints === null ? (
+              <g aria-hidden="true">
+                <path
+                  d={routePathD(committedOption.route.points)}
+                  fill="none"
+                  stroke="var(--color-border-strong)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray="4 4"
+                  opacity="0.6"
+                />
+                <path
+                  d={routePathD(stopPoints)}
+                  fill="none"
+                  stroke="var(--color-destructive)"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  pathLength={1}
+                  strokeDashoffset={0}
+                  className={reducedMotion ? undefined : "ciq-route-draw"}
+                />
+                <path
+                  d={routePathD(stopPoints)}
+                  fill="none"
+                  stroke="var(--color-destructive)"
+                  strokeWidth="7"
+                  strokeLinecap="round"
+                  opacity="0.3"
+                  className={reducedMotion ? undefined : "ciq-exposure"}
+                />
+                {stopEnd ? (
+                  <g>
+                    <line x1={stopEnd.x - 8} y1={stopEnd.y - 8} x2={stopEnd.x + 8} y2={stopEnd.y + 8} stroke="var(--color-destructive)" strokeWidth="3" strokeLinecap="round" />
+                    <line x1={stopEnd.x + 8} y1={stopEnd.y - 8} x2={stopEnd.x - 8} y2={stopEnd.y + 8} stroke="var(--color-destructive)" strokeWidth="3" strokeLinecap="round" />
+                  </g>
+                ) : null}
+              </g>
+            ) : null}
+            {consequence && committedOption && consequenceKind === "left-behind" ? (
+              <g aria-hidden="true">
+                <circle cx={round.player.x} cy={round.player.y - 26} r="10" fill="var(--color-card)" stroke="var(--color-destructive)" strokeWidth="2" />
+                <text x={round.player.x} y={round.player.y - 22} textAnchor="middle" fontSize="11" fontWeight="bold" fill="var(--color-destructive)">
+                  !
+                </text>
+                <text x={round.player.x} y={round.player.y - 40} textAnchor="middle" fontSize="9" fill="var(--color-destructive)" fontFamily="monospace" letterSpacing="2">
+                  LATE
+                </text>
+              </g>
+            ) : null}
             <circle cx={round.player.x} cy={round.player.y} r="11" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" opacity="0.4" />
-            {youDelta !== null && consequence ? (
+            {consequence && youDelta !== null && youFinal !== null ? (
               <circle
-                cx={committedEnd!.x}
-                cy={committedEnd!.y}
-                r="6"
-                fill="var(--color-primary)"
+                cx={youFinal.x}
+                cy={youFinal.y}
+                r="7"
+                fill={consequenceKind === "arrived" ? "var(--color-primary)" : "var(--color-destructive)"}
                 className={reducedMotion ? undefined : "ciq-you-move"}
-                style={{ ["--ciq-dx" as string]: `${round.player.x - committedEnd!.x}px`, ["--ciq-dy" as string]: `${round.player.y - committedEnd!.y}px` }}
+                style={{ ["--ciq-dx" as string]: `${round.player.x - youFinal.x}px`, ["--ciq-dy" as string]: `${round.player.y - youFinal.y}px` }}
               />
             ) : (
-              <circle cx={round.player.x} cy={round.player.y} r="6" fill="var(--color-primary)" />
+              <circle cx={round.player.x} cy={round.player.y} r="7" fill="var(--color-primary)" />
             )}
             {round.landmarks.map((landmark) => (
               <text
@@ -525,7 +1108,69 @@ export function CircleIqShell() {
               <span className="font-mono font-bold">{landmark.label}</span> · {LANDMARK_KIND[landmark.type]}
             </li>
           ))}
+          <li className="flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="-12 -12 24 24" aria-hidden="true">
+              <rect x="-8" y="-8" width="16" height="16" rx="4" transform="rotate(45)" fill="var(--color-card)" stroke="var(--color-border-strong)" strokeWidth="2" />
+            </svg>
+            <span><span className="font-mono font-bold">A/B</span> · crossing point</span>
+          </li>
+          <li className="flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="-12 -12 24 24" aria-hidden="true">
+              <circle cx="0" cy="0" r="6" fill="none" stroke="var(--color-foreground)" strokeWidth="2" strokeDasharray="3 3" />
+            </svg>
+            <span><span className="font-mono font-bold">Ring</span> · arrival mark</span>
+          </li>
         </ul>
+
+        <section aria-label="Investigate">
+          <div className="flex items-baseline justify-between gap-2">
+            <h3 className="font-mono text-[11px] tracking-widest text-primary">INSPECT</h3>
+            <p className="text-xs text-muted-foreground">
+              {locked ? "Scouting locked after commit." : "Two facts you can uncover before committing."}
+            </p>
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {round.reveals.map((reveal) => {
+              const inspected = scout.inspectedIds.includes(reveal.id);
+              const disabled = locked || finished || (!inspected && scout.scoutsLeft === 0);
+              return (
+                <div key={reveal.id} className={`rounded-[12px] border px-3 py-2 ${inspected ? "border-primary/40 bg-primary/[0.05]" : "border-border bg-card"}`}>
+                  <button
+                    type="button"
+                    onClick={() => inspect(reveal.id)}
+                    disabled={disabled}
+                    aria-pressed={inspected}
+                    aria-label={
+                      inspected
+                        ? `${reveal.title}, inspected. ${reveal.intel}`
+                        : `Inspect ${reveal.title}${disabled && !locked ? ", no scouts left" : ""}`
+                    }
+                    className="flex min-h-[44px] w-full items-center gap-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`flex size-6 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-bold ${
+                        inspected ? "border-primary bg-primary text-primary-foreground" : "border-border-strong text-muted-foreground"
+                      }`}
+                    >
+                      {inspected ? "✓" : "?"}
+                    </span>
+                    <span className="font-medium">{reveal.title}</span>
+                    <span className="ml-auto font-mono text-[10px] tracking-widest text-muted-foreground">
+                      {inspected ? "FOUND" : scout.scoutsLeft === 0 ? "—" : "1 SCOUT"}
+                    </span>
+                  </button>
+                  {inspected ? (
+                    <p className="pb-1 pl-8 pr-1 text-sm leading-relaxed text-muted-foreground">{reveal.intel}</p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+          <p aria-live="polite" className="sr-only">
+            {statusNote ?? lastIntel ?? `${scout.scoutsLeft} of ${SCOUTS_PER_ROUND} scouts left.`}
+          </p>
+        </section>
 
         <p className="text-sm font-semibold leading-relaxed">{round.question}</p>
         <div className="grid gap-2" role="group" aria-label="Rotation options">
@@ -566,37 +1211,101 @@ export function CircleIqShell() {
           })}
         </div>
 
+        {previewOption && previewOption.crossings && previewOption.crossings.length > 0 && !locked ? (
+          <section aria-label="Crossings">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className="font-mono text-[11px] tracking-widest text-primary">CROSS WHERE?</h3>
+              <p className="text-xs text-muted-foreground">
+                {selectedCrossing ? `${selectedCrossing.label} — arrival marked on the map.` : "Pick where along this route to cross."}
+              </p>
+            </div>
+            <div className="mt-2 grid gap-2" role="group" aria-label="Crossing points">
+              {previewOption.crossings.map((crossing, crossingIndex) => {
+                const letter = String.fromCharCode(65 + crossingIndex);
+                const active = crossingId === crossing.id;
+                return (
+                  <div
+                    key={crossing.id}
+                    className={`rounded-[12px] border px-3 py-2 ${active ? "border-primary/40 bg-primary/[0.05]" : "border-border bg-card"}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => chooseCrossing(crossing.id)}
+                      aria-pressed={active}
+                      aria-label={`Crossing ${letter}: ${crossing.label}. ${crossing.intel} Preview the crossing.`}
+                      className="flex min-h-[44px] w-full items-center gap-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`flex size-6 shrink-0 items-center justify-center rounded-[6px] border font-mono text-xs font-bold ${
+                          active ? "border-primary bg-primary text-primary-foreground" : "border-border-strong text-muted-foreground"
+                        }`}
+                      >
+                        {letter}
+                      </span>
+                      <span className="font-medium">{crossing.label}</span>
+                      <span className="ml-auto font-mono text-[10px] tracking-widest text-muted-foreground">
+                        {active ? "SET" : "CROSS"}
+                      </span>
+                    </button>
+                    {active ? (
+                      <p className="pb-1 pl-8 pr-1 text-sm leading-relaxed text-muted-foreground">
+                        {crossing.intel} Arrival marked on the map.
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
         {previewOption && !locked ? (
-          <p aria-live="polite" className="rounded-[8px] border border-primary/20 bg-primary/[0.05] px-3 py-2 text-sm">
-            <span className="font-mono text-[11px] tracking-widest text-primary">PREVIEW · </span>
+          <p aria-live="polite" className="rounded-[8px] border border-border bg-surface-muted/40 px-3 py-2 text-sm">
+            <span className="font-mono text-[11px] tracking-widest text-primary">
+              PREVIEW · ROUTE {previewLetter}
+              {selectedCrossing ? ` · CROSSING ${String.fromCharCode(65 + (previewOption.crossings?.findIndex((c) => c.id === selectedCrossing.id) ?? 0))} · ` : " · "}
+            </span>
             <span className="text-foreground">{previewOption.route.caption}</span>
-            <span className="text-muted-foreground"> Commit to lock this call, or pick another line.</span>
+            {selectedCrossing ? (
+              <span className="text-foreground"> {selectedCrossing.intel} Arrival marked on the map.</span>
+            ) : null}
+            <span className="text-muted-foreground">
+              {" "}
+              {previewIsHold || selectedCrossing ? "Commit to lock this call, or pick another line." : "Pick a crossing on the map or list to finish the preview."}
+            </span>
           </p>
         ) : null}
 
         {!locked ? (
           <button
-            ref={commitRef}
             type="button"
             onClick={commit}
-            disabled={previewOption === null}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={previewOption === null || (!previewIsHold && selectedCrossing === null)}
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-full sm:w-auto bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           >
             Commit to this call <ArrowRight className="h-4 w-4" aria-hidden />
           </button>
         ) : null}
 
-        {consequence && committedOption ? (
+        {consequence && committedOption && consequenceCopy ? (
           <div
             ref={verdict ? undefined : consequenceRef}
             tabIndex={-1}
             aria-live="polite"
+            aria-label={`Consequence: ${consequenceCopy.line}`}
             className="rounded-[12px] border border-border bg-surface-muted/40 p-4 text-sm leading-relaxed focus:outline-none"
           >
-            <p className="font-mono text-[11px] tracking-widest text-primary">CONSEQUENCE</p>
-            <p className="mt-1 text-muted-foreground">
-              {committedOption.route.caption} The zone tightens toward NEXT.
-            </p>
+            <p className="font-mono text-[11px] tracking-widest text-primary">CONSEQUENCE · {consequenceCopy.heading.toUpperCase()}</p>
+            <p className="mt-1 text-foreground">{consequenceCopy.line}</p>
+            {crossingCons?.spotted && committedCrossing ? (
+              <p className="mt-1 font-semibold text-foreground">Spotted at {committedCrossing.label} — the crossing draws fire.</p>
+            ) : null}
+            {crossingCons?.note && committedCrossing ? (
+              <p className="mt-1 text-muted-foreground">
+                You crossed at {committedCrossing.label}. {crossingCons.note}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -612,24 +1321,32 @@ export function CircleIqShell() {
                 {committedOption.quality === "strong" ? "Good read" : "Riskier read"}
               </Badge>
             </p>
+            {committedCrossing && crossingCons?.note ? (
+              <p className="mt-2 text-foreground">
+                You crossed at {committedCrossing.label} and {committedCrossing.exposure === "low" ? "held the move together" : "paid for the crossing"}. {crossingCons.note}
+              </p>
+            ) : null}
             <p className="mt-2 font-medium">Why:</p>
             <p className="mt-1 text-muted-foreground">{committedOption.explanation}</p>
             <p className="mt-3 rounded-[8px] border border-primary/20 bg-primary/[0.05] px-3 py-2">
               <span className="font-mono text-[11px] tracking-widest text-primary">READ THIS · </span>
               <span className="text-foreground">{round.principle}</span>
             </p>
+            <p className="mt-2 font-mono text-[11px] tracking-widest text-muted-foreground">
+              SCOUT NOTE · {scoutNote(scoutsUsedAtCommit)}
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={next}
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-full sm:w-auto bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {lastRound ? "See result" : "Next round"} <ArrowRight className="h-4 w-4" aria-hidden />
               </button>
               <button
                 type="button"
                 onClick={restart}
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-border bg-card px-5 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-full sm:w-auto border border-border bg-card px-5 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Restart
               </button>
