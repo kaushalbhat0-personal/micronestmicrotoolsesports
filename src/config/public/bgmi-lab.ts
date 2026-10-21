@@ -141,15 +141,62 @@ export const BGMI_LAB_TOOLS: readonly BgmiLabTool[] = [
     slug: "igl-decision-drill",
     name: "IGL Decision Drill",
     tagline: "Make the call under pressure.",
-    description: "Free BGMI IGL drill: short scenarios with trade-offs. Planned entry — not yet playable.",
+    description:
+      "Free BGMI IGL drill: 6 synthetic tactical scenarios with real trade-offs. Read the situation, commit to a call, and learn the reasoning. No signup, nothing saved.",
     icon: "Crosshair",
-    status: "planned",
+    status: "available",
     category: "practice",
     scenarioKind: "synthetic",
+    answer:
+      "The IGL Decision Drill is a free BGMI practice drill with 6 synthetic tactical scenarios. Each scenario gives you an in-game leader's snapshot — teams left, position, terrain, zone, resources, threats, and timing — and asks you to commit to a fight, avoid, hold, or rotate call, then explains the reasoning behind the stronger call. Nothing is saved, and it does not predict real matches.",
+    shareText:
+      "I tested my IGL calls in pressure scenarios — a free BGMI decision drill. Can you make the call?",
     ogMotif: "IGL CALLS · BGMI LAB",
-    methodology: "Planned drill presenting fight, split, or reset decisions with explained outcomes.",
-    instructions: ["Planned: decision scenarios are being designed."],
-    faqs: [{ question: "When will this drill be available?", answer: "It is planned. Circle IQ is the available drill today." }],
+    methodology:
+      "Each scenario presents a synthetic pressure snapshot: seven brief fields plus up to two inspectable intel facts. You commit to one fight, avoid, hold, or rotate call; the debrief shows the authored consequence, the rationale for the stronger call, why the alternatives fall short here, one transferable principle, and an uncertainty note. The stronger-call count tracks alignment with the scenario rationale — not skill, and not real-match outcomes.",
+    instructions: [
+      "Read the tactical brief: teams left, position, terrain, zone, resources, threats, and timing.",
+      "Reveal up to two intel facts for extra context before you decide.",
+      "Commit to one call — fight, avoid, hold, or rotate. The decision locks on commit.",
+      "Read the debrief — consequence, rationale, principle, and uncertainty — then run the next scenario.",
+    ],
+    faqs: [
+      {
+        question: "Is the IGL Decision Drill free?",
+        answer: "Yes. It is free to use with no signup and no saved score.",
+      },
+      {
+        question: "How is my score calculated?",
+        answer:
+          "Each of the 6 scenarios has one stronger call. Picking it earns one stronger call, for 6 possible in a full run. The count is ephemeral and nothing is saved.",
+      },
+      {
+        question: "Does the IGL Decision Drill predict real match outcomes?",
+        answer:
+          "No. Every scenario is synthetic and illustrative — it trains decision reasoning, not zone or outcome forecasting.",
+      },
+      {
+        question: "Is there one universally right answer?",
+        answer:
+          "No. Each scenario names the stronger call for its specific situation and explains the trade-offs, including where that call could still fail. The drill teaches reasoning, not certainty.",
+      },
+      {
+        question: "How is this different from Circle IQ?",
+        answer:
+          "Circle IQ practices zone rotations from map snapshots. The IGL Decision Drill practices tactical commitment under incomplete information — fight, avoid, hold, or rotate — across six pressure scenarios with no map.",
+      },
+      {
+        question: "Where do the scenarios come from?",
+        answer:
+          "They are authored synthetic situations written for training, not records of real matches. The Tournament Hub holds the published record of real tournaments if you want to study those separately.",
+      },
+    ],
+    examples: [
+      "Example: two squads trading nearby while the zone pulls away — the stronger call slips out early instead of third-partying a fight that is not yours.",
+      "Example: a split squad with one pair safe — the stronger call regroups as four before the rescue turns into a 2v4.",
+    ],
+    tournamentContext:
+      "IGL calls shape BGMI matches every week — see how real teams handled theirs in the BGMI Tournament Hub standings and match results.",
     disclaimer: DISCLAIMER,
     relatedHubHref: "/bgmi-tournaments",
     relatedSimulatorHref: "/bgmi-qualification",

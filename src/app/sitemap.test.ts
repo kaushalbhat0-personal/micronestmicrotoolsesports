@@ -51,7 +51,7 @@ describe("sitemap — RCCF-CLEANUP-02 (released tools only) + RCCF-TOOLBOX-IA-02
       expect(urls).toContain(`/bgmi-lab/${tool.slug}`);
     }
     // Explicit pins for the shipped drills keep the intent readable.
-    for (const path of ["/bgmi-lab/circle-iq", "/bgmi-lab/rotation-replay", "/bgmi-lab/zone-patterns", "/bgmi-lab/tournament-scenario-generator"]) {
+    for (const path of ["/bgmi-lab/circle-iq", "/bgmi-lab/igl-decision-drill", "/bgmi-lab/rotation-replay", "/bgmi-lab/zone-patterns", "/bgmi-lab/tournament-scenario-generator"]) {
       expect(urls).toContain(path);
     }
     expect(urls).toContain("/paid-tools");

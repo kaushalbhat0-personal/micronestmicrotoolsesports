@@ -26,6 +26,7 @@ describe("bgmi-lab registry — structural separation", () => {
   it("exposes circle-iq, zone-patterns, rotation-replay, and tournament-scenario-generator as available", () => {
     expect(BGMI_LAB_TOOLS.filter((t) => t.status === "available").map((t) => t.slug)).toEqual([
       "circle-iq",
+      "igl-decision-drill",
       "zone-patterns",
       "rotation-replay",
       "tournament-scenario-generator",

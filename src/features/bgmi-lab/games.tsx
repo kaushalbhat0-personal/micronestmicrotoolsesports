@@ -29,6 +29,10 @@ const TournamentScenarioGeneratorIsland = dynamic(() =>
   )
 );
 
+const IglDecisionIsland = dynamic(() =>
+  import("@/features/bgmi-lab/components/igl-decision-shell").then((m) => m.IglDecisionShell)
+);
+
 const ZonePatternExplorerIsland = dynamic(() =>
   import("@/features/bgmi-lab/components/zone-pattern-explorer-shell").then((m) => m.ZonePatternExplorerShell)
 );
@@ -39,6 +43,7 @@ const LAB_GAME_LOADERS: Record<string, ComponentType> = {
   "rotation-replay": RotationReplayIsland,
   "tournament-scenario-generator": TournamentScenarioGeneratorIsland,
   "zone-patterns": ZonePatternExplorerIsland,
+  "igl-decision-drill": IglDecisionIsland,
 };
 
 export function resolveLabGame(slug: string): ComponentType | null {

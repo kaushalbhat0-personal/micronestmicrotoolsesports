@@ -19,7 +19,7 @@ describe("bgmi-lab loader map — registry to island resolution", () => {
       expect(island).toBeTruthy();
     }
     // Explicit pins for the shipped experiences keep the intent readable.
-    for (const slug of ["circle-iq", "rotation-replay", "zone-patterns", "tournament-scenario-generator"]) {
+    for (const slug of ["circle-iq", "igl-decision-drill", "rotation-replay", "zone-patterns", "tournament-scenario-generator"]) {
       expect(getBgmiLabTool(slug)?.status).toBe("available");
       expect(hasLabGame(slug)).toBe(true);
     }
