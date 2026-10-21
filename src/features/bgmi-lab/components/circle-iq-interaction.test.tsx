@@ -151,7 +151,7 @@ describe("circle-iq V3 interaction — preview before commit", () => {
   it("disables commit before any preview and previews without scoring or revealing", () => {
     const { host, unmount } = renderShell();
     try {
-      const commit = findButton(host, "Commit to this call");
+      const commit = findButton(host, "Lock the call");
       expect(commit).toBeDefined();
       expect(commit!.disabled).toBe(true);
 
@@ -161,15 +161,15 @@ describe("circle-iq V3 interaction — preview before commit", () => {
       // decision comes first (hold corridors skip it).
       const crossings = crossingListButtons(host);
       if (crossings.length > 0) {
-        expect(findButton(host, "Commit to this call")!.disabled).toBe(true);
+        expect(findButton(host, "Lock the call")!.disabled).toBe(true);
         expect(host.textContent).toContain("Pick a crossing");
         click(crossings[0]!);
-        expect(findButton(host, "Commit to this call")!.disabled).toBe(false);
+        expect(findButton(host, "Lock the call")!.disabled).toBe(false);
       } else {
-        expect(findButton(host, "Commit to this call")!.disabled).toBe(false);
+        expect(findButton(host, "Lock the call")!.disabled).toBe(false);
       }
       // Preview caption appears, but nothing is scored or revealed.
-      expect(host.textContent).toContain("PREVIEW");
+      expect(host.textContent).toContain("CALL · ROUTE");
       expect(host.textContent).not.toContain("Good read");
       expect(host.textContent).not.toContain("Riskier read");
       expect(host.textContent).not.toContain("CONSEQUENCE");
@@ -203,7 +203,7 @@ describe("circle-iq V3 interaction — commit then consequence then verdict", ()
     try {
       click(optionButtons(host)[0]!);
       ensureCrossing(host);
-      click(findButton(host, "Commit to this call")!);
+      click(findButton(host, "Lock the call")!);
       // Consequence state is visible; the verdict is not.
       expect(host.textContent).toContain("CONSEQUENCE");
       expect(host.textContent).not.toContain("Why:");
@@ -225,7 +225,7 @@ describe("circle-iq V3 interaction — commit then consequence then verdict", ()
     try {
       click(optionButtons(host)[0]!);
       ensureCrossing(host);
-      click(findButton(host, "Commit to this call")!);
+      click(findButton(host, "Lock the call")!);
       // Locked: further taps cannot change the pick.
       click(optionButtons(host)[0]!);
       act(() => {
@@ -233,7 +233,7 @@ describe("circle-iq V3 interaction — commit then consequence then verdict", ()
       });
       const good = host.textContent?.includes("Good read") ?? false;
       expect(host.textContent).toContain(good ? "1 GOOD READ" : "0 GOOD READS");
-      expect(findButton(host, "Commit to this call")).toBeUndefined();
+      expect(findButton(host, "Lock the call")).toBeUndefined();
     } finally {
       unmount();
     }
@@ -251,7 +251,7 @@ describe("circle-iq V3 interaction — commit then consequence then verdict", ()
     try {
       click(optionButtons(host)[0]!);
       ensureCrossing(host);
-      click(findButton(host, "Commit to this call")!);
+      click(findButton(host, "Lock the call")!);
       act(() => {
         vi.advanceTimersByTime(0);
       });
@@ -271,7 +271,7 @@ describe("circle-iq V3 interaction — full run on buttons alone, then replay", 
       for (let round = 1; round <= 8; round++) {
         click(optionButtons(host)[0]!);
         ensureCrossing(host);
-        click(findButton(host, "Commit to this call")!);
+        click(findButton(host, "Lock the call")!);
         act(() => {
           vi.advanceTimersByTime(800);
         });
@@ -375,7 +375,7 @@ describe("circle-iq V4 interaction — scout budget and inspect list", () => {
       click(inspectButtons(host)[0]!);
       click(optionButtons(host)[0]!);
       ensureCrossing(host);
-      click(findButton(host, "Commit to this call")!);
+      click(findButton(host, "Lock the call")!);
       for (const b of inspectButtons(host)) expect(b.disabled).toBe(true);
       act(() => {
         vi.advanceTimersByTime(800);
@@ -391,7 +391,7 @@ describe("circle-iq V4 interaction — neutral preview, commit, differentiated c
     const { host, unmount } = renderShell();
     try {
       click(optionButtons(host)[0]!);
-      const preview = [...host.querySelectorAll("p")].find((p) => p.textContent?.includes("PREVIEW"))!;
+      const preview = [...host.querySelectorAll("p")].find((p) => p.textContent?.includes("CALL · ROUTE"))!;
       expect(preview).toBeDefined();
       expect(preview.textContent).not.toMatch(PRE_COMMIT_LEAK);
       // Corridor-only preview asks for the crossing; the completed
@@ -400,11 +400,11 @@ describe("circle-iq V4 interaction — neutral preview, commit, differentiated c
       if (crossings.length > 0) {
         expect(preview.textContent).toMatch(/Pick a crossing/);
         click(crossings[0]!);
-        const done = [...host.querySelectorAll("p")].find((p) => p.textContent?.includes("PREVIEW"))!;
-        expect(done.textContent).toMatch(/Commit to lock this call/);
+        const done = [...host.querySelectorAll("p")].find((p) => p.textContent?.includes("CALL · ROUTE"))!;
+        expect(done.textContent).toMatch(/Lock it, or pick another line/);
         expect(done.textContent).not.toMatch(PRE_COMMIT_LEAK);
       } else {
-        expect(preview.textContent).toMatch(/Commit to lock this call/);
+        expect(preview.textContent).toMatch(/Lock it, or pick another line/);
       }
     } finally {
       unmount();
@@ -421,7 +421,7 @@ describe("circle-iq V4 interaction — neutral preview, commit, differentiated c
       expect(host.textContent).toContain("SCOUTS: 0");
       click(optionButtons(host)[0]!);
       ensureCrossing(host);
-      click(findButton(host, "Commit to this call")!);
+      click(findButton(host, "Lock the call")!);
       expect(host.textContent).toContain("CONSEQUENCE");
       expect(host.textContent).toMatch(/CONSEQUENCE · (ARRIVED|CAUGHT OUT|LEFT BEHIND)/);
       expect(host.textContent).not.toContain("Why:");
@@ -443,7 +443,7 @@ describe("circle-iq V4 interaction — neutral preview, commit, differentiated c
       click(inspectButtons(first.host)[0]!);
       click(optionButtons(first.host)[0]!);
       ensureCrossing(first.host);
-      click(findButton(first.host, "Commit to this call")!);
+      click(findButton(first.host, "Lock the call")!);
       act(() => {
         vi.advanceTimersByTime(800);
       });
@@ -456,7 +456,7 @@ describe("circle-iq V4 interaction — neutral preview, commit, differentiated c
     try {
       click(optionButtons(second.host)[0]!);
       ensureCrossing(second.host);
-      click(findButton(second.host, "Commit to this call")!);
+      click(findButton(second.host, "Lock the call")!);
       act(() => {
         vi.advanceTimersByTime(800);
       });
@@ -517,7 +517,7 @@ describe("circle-iq responsive hardening — map tap dispatch", () => {
       let previewCaption = "";
       for (const mid of mids) {
         tapMap(svg, mid.x, mid.y, width, height);
-        const m = /PREVIEW · ROUTE ([ABC]) · ([^.]+)/.exec(host.textContent ?? "");
+        const m = /CALL · ROUTE ([ABC]) · ([^.]+)/.exec(host.textContent ?? "");
         if (m) {
           previewLetter = m[1]!;
           previewCaption = m[2]!;
@@ -546,7 +546,7 @@ describe("circle-iq responsive hardening — map tap dispatch", () => {
       stubMapRect(svg, 280);
       tapMap(svg, -100, -100, 280, (280 * 240) / 360);
       expect(host.textContent).toContain("SCOUTS: 2");
-      expect(host.textContent).not.toContain("PREVIEW");
+      expect(host.textContent).not.toContain("CALL · ROUTE");
       expect(optionButtons(host).every((o) => o.getAttribute("aria-pressed") === "false")).toBe(true);
     } finally {
       unmount();
@@ -567,7 +567,7 @@ describe("circle-iq V4 interaction — keyboard and reduced motion", () => {
       const routes = routeTargets(host);
       expect(routes.length).toBeGreaterThanOrEqual(2);
       keyEnter(routes[0]!);
-      expect(host.textContent).toContain("PREVIEW");
+      expect(host.textContent).toContain("CALL · ROUTE");
 
       // Keyboard-only crossing: focus the first crossing pin and confirm.
       const crossings = crossingTargets(host);
@@ -576,7 +576,7 @@ describe("circle-iq V4 interaction — keyboard and reduced motion", () => {
         expect(crossingListButtons(host)[0]!.getAttribute("aria-pressed")).toBe("true");
       }
 
-      click(findButton(host, "Commit to this call")!);
+      click(findButton(host, "Lock the call")!);
       act(() => {
         vi.advanceTimersByTime(800);
       });
@@ -603,7 +603,7 @@ describe("circle-iq V4 interaction — keyboard and reduced motion", () => {
       click(inspectButtons(host)[0]!);
       click(optionButtons(host)[0]!);
       ensureCrossing(host);
-      click(findButton(host, "Commit to this call")!);
+      click(findButton(host, "Lock the call")!);
       act(() => {
         vi.advanceTimersByTime(0);
       });

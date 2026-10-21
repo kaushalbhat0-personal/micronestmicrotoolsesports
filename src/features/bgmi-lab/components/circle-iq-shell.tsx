@@ -244,7 +244,7 @@ function ScoutTarget({
       <circle
         cx="0"
         cy="0"
-        r="12"
+        r="13"
         fill="var(--color-card)"
         stroke={inspected ? "var(--color-primary)" : "var(--color-border-strong)"}
         strokeWidth={inspected ? 2.5 : 2}
@@ -258,7 +258,7 @@ function ScoutTarget({
         textAnchor="middle"
         fontSize="11"
         fontWeight="bold"
-        fill={inspected ? "var(--color-primary)" : "var(--color-foreground-muted)"}
+        fill={inspected ? "var(--color-primary-ink)" : "var(--color-foreground-muted)"}
         pointerEvents="none"
         aria-hidden="true"
       >
@@ -319,10 +319,10 @@ function CrossingPin({
       />
       {/* Diamond pin with letter glyph — distinct from round scout pins. */}
       <rect
-        x="-11"
-        y="-11"
-        width="22"
-        height="22"
+        x="-12"
+        y="-12"
+        width="24"
+        height="24"
         rx="6"
         transform="rotate(45)"
         fill={selected ? "var(--color-foreground)" : "var(--color-card)"}
@@ -376,7 +376,7 @@ function RouteOverlay({
       ? "var(--color-foreground)"
       : "var(--color-border-strong)";
   const opacity = committed ? 1 : highlighted || focused ? 1 : dimmed ? 0.22 : 0.6;
-  const width = committed || highlighted || focused ? 3 : 2;
+  const width = committed || highlighted || focused ? 3.5 : 2;
   const letter = LETTERS[displayIndex] ?? displayIndex + 1;
   const label = `Preview route ${letter}`;
   const activate = () => onPreview(option.id);
@@ -421,9 +421,32 @@ function RouteOverlay({
   }
   const d = routePathD(route.points);
   const end = route.points[route.points.length - 1]!;
+  const laneOpen = option.route.style === "open" && !committed;
+  const laneCovered = option.route.style === "covered" && !committed;
   return (
     <g opacity={opacity}>
-      <path d={d} fill="none" stroke={stroke} strokeWidth={width} strokeLinecap="round" />
+      {option.route.style === "open" && !committed ? (
+        <path d={d} fill="none" stroke="var(--color-foreground)" strokeWidth="9" strokeLinecap="round" opacity="0.06" pointerEvents="none" />
+      ) : null}
+      <path
+        d={d}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={width}
+        strokeLinecap="round"
+        strokeDasharray={laneOpen ? "7 4" : undefined}
+      />
+      {laneCovered ? (
+        <path
+          d={d}
+          fill="none"
+          stroke="url(#ciq-hatch)"
+          strokeWidth="8"
+          strokeLinecap="round"
+          opacity={highlighted || focused ? 0.85 : 0.5}
+          pointerEvents="none"
+        />
+      ) : null}
       <circle cx={end.x} cy={end.y} r="3.5" fill={stroke} />
       <g
         tabIndex={committed ? -1 : 0}
@@ -474,6 +497,7 @@ export function CircleIqShell() {
   const [statusNote, setStatusNote] = React.useState<string | null>(null);
   const verdictRef = React.useRef<HTMLDivElement>(null);
   const consequenceRef = React.useRef<HTMLDivElement>(null);
+  const boardWrapRef = React.useRef<HTMLElement>(null);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -610,6 +634,9 @@ export function CircleIqShell() {
     setScoutsUsedAtCommit(SCOUTS_PER_ROUND - scout.scoutsLeft);
     setCommittedId(previewId);
     setCommittedCrossingId(option.route.style === "hold" ? null : crossingId);
+    if (boardWrapRef.current && typeof boardWrapRef.current.scrollIntoView === "function") {
+      boardWrapRef.current.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest" });
+    }
     setStatusNote(
       option.route.style === "hold"
         ? `Committed to hold: ${option.label}.`
@@ -701,7 +728,7 @@ export function CircleIqShell() {
         </CardHeader>
         <CardContent className="space-y-4 px-4 sm:px-6">
           <div aria-live="polite" className="rounded-[12px] border border-primary/25 bg-primary/[0.06] p-5 text-center">
-            <p className="font-mono text-[11px] tracking-widest text-primary">FINAL READ</p>
+            <p className="font-mono text-[11px] tracking-widest text-primary-ink">FINAL READ</p>
             <p className="font-display mt-1 text-3xl font-normal tracking-tight">
               {summary.score} / {summary.total}
             </p>
@@ -709,10 +736,10 @@ export function CircleIqShell() {
             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{summary.body}</p>
           </div>
           <div className="rounded-[12px] border border-border bg-surface-muted/40 p-4 text-sm leading-relaxed">
-            <p className="font-mono text-[11px] tracking-widest text-primary">YOUR TENDENCY</p>
+            <p className="font-mono text-[11px] tracking-widest text-primary-ink">YOUR TENDENCY</p>
             <p className="mt-1 font-medium">{tendencyLine(tendency)}</p>
             <p className="mt-2 rounded-[8px] border border-primary/20 bg-primary/[0.05] px-3 py-2">
-              <span className="font-mono text-[11px] tracking-widest text-primary">CARRY THIS FORWARD · </span>
+              <span className="font-mono text-[11px] tracking-widest text-primary-ink">CARRY THIS FORWARD · </span>
               <span className="text-foreground">{firstMissRound?.principle ?? summary.body}</span>
             </p>
           </div>
@@ -785,8 +812,16 @@ export function CircleIqShell() {
       ? [{ x: round.player.x, y: round.player.y }, crossingPoint, { x: crossingArrival.x, y: crossingArrival.y }]
       : null;
 
+  // Terrain dressing (aria-hidden, derived from authored landmarks only):
+  // faint contour bands + tree ticks around the ridge landmark, if any.
+  const ridgeLandmark = round.landmarks.find((l) => l.type === "ridge") ?? null;
+
   const previewLetter =
     previewOption !== null ? (LETTERS[displayOptions.findIndex((o) => o.id === previewOption.id)] ?? "") : "";
+  const crossingLetter =
+    previewOption?.crossings && selectedCrossing
+      ? (String.fromCharCode(65 + Math.max(0, previewOption.crossings.findIndex((c) => c.id === selectedCrossing.id))) ?? "")
+      : "";
 
   return (
     <>
@@ -799,7 +834,7 @@ export function CircleIqShell() {
       <style>{`@keyframes ciq-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes ciq-pulse{0%,100%{opacity:1}50%{opacity:.15}}@keyframes ciq-you{from{transform:translate(var(--ciq-dx,0px),var(--ciq-dy,0px))}to{transform:translate(0px,0px)}}@keyframes ciq-landmark{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}@keyframes ciq-tighten{from{transform:scale(1.25);opacity:.1}to{transform:scale(1);opacity:.16}}.ciq-route-draw{stroke-dasharray:1;animation:ciq-draw 700ms ease forwards}.ciq-exposure{animation:ciq-pulse 750ms ease-in-out 2}.ciq-you-move{animation:ciq-you 700ms ease forwards}.ciq-landmark-pulse{transform-box:fill-box;transform-origin:center;animation:ciq-landmark 700ms ease}.ciq-tighten{transform-box:fill-box;transform-origin:center;animation:ciq-tighten 700ms ease forwards}.ciq-scout:focus{outline:none}.ciq-scout:focus-visible .ciq-scout-focus{opacity:1}.ciq-crossing:focus{outline:none}.ciq-crossing:focus-visible .ciq-crossing-focus{opacity:1}.ciq-route-target:focus{outline:none}@media (prefers-reduced-motion:reduce){.ciq-route-draw,.ciq-exposure,.ciq-you-move,.ciq-landmark-pulse,.ciq-tighten{animation:none}}`}</style>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <p className="font-mono text-[11px] tracking-widest text-primary">
+          <p className="font-mono text-[11px] tracking-widest text-primary-ink">
             ROUND {String(index + 1).padStart(2, "0")} / {String(roundQueue.length).padStart(2, "0")}
           </p>
           <p className="font-mono text-[11px] tracking-widest text-muted-foreground" aria-live="polite">
@@ -824,7 +859,7 @@ export function CircleIqShell() {
           aria-live="polite"
           aria-label={`${scout.scoutsLeft} of ${SCOUTS_PER_ROUND} scouts left`}
         >
-          <span className="font-mono text-[11px] tracking-widest text-primary">SCOUTS: {scout.scoutsLeft}</span>
+          <span className="font-mono text-[11px] tracking-widest text-primary-ink">SCOUTS: {scout.scoutsLeft}</span>
           <span className="flex gap-1" aria-hidden="true">
             {Array.from({ length: SCOUTS_PER_ROUND }, (_, i) => (
               <span
@@ -840,17 +875,41 @@ export function CircleIqShell() {
           </span>
         </div>
 
-        <figure className="-mx-1 overflow-hidden rounded-[12px] border border-border bg-surface-muted/40 sm:mx-0">
-          <svg ref={svgRef} onClick={handleMapTap} viewBox="0 0 360 240" className="h-auto w-full max-h-[240px]" role="img" aria-label={`Tactical snapshot: ${round.title}. ${round.situation}`}>
+        <figure ref={boardWrapRef} className="relative -mx-1 overflow-hidden rounded-[12px] border border-border bg-surface-muted/40 sm:mx-0">
+          <span aria-hidden="true" className="absolute left-3 top-2.5 z-10 rounded-full border border-border bg-card/90 px-2 py-0.5 font-mono text-[10px] tracking-widest text-muted-foreground">
+            {locked ? (verdict ? "CONSEQUENCE" : "COMMITTED — WATCH") : previewOption ? "PREVIEW" : "TACTICAL BOARD"}
+          </span>
+          <svg ref={svgRef} onClick={handleMapTap} viewBox="0 0 360 240" className="h-auto w-full max-h-[320px] sm:max-h-[360px]" role="img" aria-label={`Tactical snapshot: ${round.title}. ${round.situation}`}>
+            <defs aria-hidden="true">
+              <pattern id="ciq-hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="7" stroke="var(--color-foreground)" strokeWidth="1.4" opacity="0.3" />
+              </pattern>
+            </defs>
+            {ridgeLandmark ? (
+              <g aria-hidden="true">
+                <ellipse cx={ridgeLandmark.x} cy={ridgeLandmark.y} rx="72" ry="40" fill="none" stroke="var(--color-foreground)" strokeWidth="1" opacity="0.1" />
+                <ellipse cx={ridgeLandmark.x} cy={ridgeLandmark.y} rx="52" ry="28" fill="none" stroke="var(--color-foreground)" strokeWidth="1" opacity="0.12" />
+                {[-2, -1, 0, 1, 2].map((i) => (
+                  <path
+                    key={i}
+                    d={`M ${ridgeLandmark.x + i * 18 - 6} ${ridgeLandmark.y - 24} l 6 -10 l 6 10 z`}
+                    fill="none"
+                    stroke="var(--color-foreground)"
+                    strokeWidth="1.4"
+                    opacity="0.4"
+                  />
+                ))}
+              </g>
+            ) : null}
             <circle
               cx={consequence && consequenceKind !== "arrived" && committedOption ? round.next.center.x : round.zone.center.x}
               cy={consequence && consequenceKind !== "arrived" && committedOption ? round.next.center.y : round.zone.center.y}
               r={consequence && consequenceKind !== "arrived" && committedOption ? round.next.radius : round.zone.radius}
               fill="none"
               stroke="var(--color-border-strong)"
-              strokeWidth="1.5"
+              strokeWidth="1.25"
               strokeDasharray="7 6"
-              opacity={locked ? 0.3 : 0.7}
+              opacity={locked ? 0.25 : 0.55}
               style={{ transition: "opacity 700ms ease" }}
             />
             <circle
@@ -858,7 +917,7 @@ export function CircleIqShell() {
               cy={round.next.center.y}
               r={round.next.radius}
               fill="var(--color-primary)"
-              opacity={locked && consequenceKind === "arrived" ? 0.16 : 0.07}
+              opacity={locked && consequenceKind === "arrived" ? 0.22 : 0.14}
               className={locked && consequenceKind === "arrived" && !reducedMotion ? "ciq-tighten" : undefined}
               style={{ transition: "opacity 700ms ease" }}
             />
@@ -868,7 +927,17 @@ export function CircleIqShell() {
               r={round.next.radius}
               fill="none"
               stroke="var(--color-primary)"
-              strokeWidth="2"
+              strokeWidth="2.5"
+            />
+            <circle
+              cx={round.next.center.x}
+              cy={round.next.center.y}
+              r={round.next.radius + 8}
+              fill="none"
+              stroke="var(--color-primary)"
+              strokeWidth="1"
+              strokeDasharray="3 4"
+              opacity="0.6"
             />
             {round.landmarks.map((landmark) => (
               <LandmarkShape key={landmark.id} landmark={landmark} pulse={pulsedLandmark?.id === landmark.id} />
@@ -881,7 +950,7 @@ export function CircleIqShell() {
                   key={option.id}
                   option={option}
                   displayIndex={optionIndex}
-                  dimmed={anyActive && !active}
+                  dimmed={locked ? committedId !== option.id : anyActive && !active}
                   highlighted={previewId === option.id && committedId === null}
                   committed={committedId === option.id}
                   committedStrong={committedId === option.id ? option.quality === "strong" : null}
@@ -1103,7 +1172,7 @@ export function CircleIqShell() {
             <text x={round.player.x} y={round.player.y - 18} textAnchor="middle" fontSize="10" fill="var(--color-foreground-muted)" fontFamily="monospace" letterSpacing="2">
               YOU
             </text>
-            <text x={round.next.center.x} y={round.next.center.y + 3} textAnchor="middle" fontSize="10" fill="var(--color-primary)" fontFamily="monospace" letterSpacing="2">
+            <text x={round.next.center.x} y={round.next.center.y + 3} textAnchor="middle" fontSize="10" fill="var(--color-primary-ink)" fontFamily="monospace" letterSpacing="2">
               NEXT
             </text>
           </svg>
@@ -1111,6 +1180,19 @@ export function CircleIqShell() {
             Dashed circle marks the current zone, solid circle marks the next zone. Your position is marked YOU.{" "}
             {round.landmarks.map((l) => `${l.label} (${LANDMARK_KIND[l.type]})`).join(". ")}.
           </figcaption>
+          {statusNote && !locked ? (
+            <p aria-hidden="true" className="border-t border-border bg-card/70 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+              {statusNote}
+            </p>
+          ) : null}
+          {verdict && committedOption && consequenceCopy ? (
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-2 bottom-2 rounded-[10px] border border-border bg-card/95 p-2.5 shadow-md">
+              <p className="font-mono text-[10px] tracking-widest text-primary-ink-ink">
+                {committedOption.quality === "strong" ? "GOOD READ" : "RISKIER READ"} · {consequenceCopy.heading.toUpperCase()}
+              </p>
+              <p className="mt-0.5 text-[13px] font-medium leading-snug">{consequenceCopy.line}</p>
+            </div>
+          ) : null}
         </figure>
 
         <ul className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground" aria-label="Diagram key">
@@ -1135,7 +1217,7 @@ export function CircleIqShell() {
 
         <section aria-label="Investigate">
           <div className="flex items-baseline justify-between gap-2">
-            <h3 className="font-mono text-[11px] tracking-widest text-primary">INSPECT</h3>
+            <h3 className="font-mono text-[11px] tracking-widest text-primary-ink">INSPECT</h3>
             <p className="text-xs text-muted-foreground">
               {locked ? "Scouting locked after commit." : "Two facts you can uncover before committing."}
             </p>
@@ -1225,7 +1307,7 @@ export function CircleIqShell() {
         {previewOption && previewOption.crossings && previewOption.crossings.length > 0 && !locked ? (
           <section aria-label="Crossings">
             <div className="flex items-baseline justify-between gap-2">
-              <h3 className="font-mono text-[11px] tracking-widest text-primary">CROSS WHERE?</h3>
+              <h3 className="font-mono text-[11px] tracking-widest text-primary-ink">CROSS WHERE?</h3>
               <p className="text-xs text-muted-foreground">
                 {selectedCrossing ? `${selectedCrossing.label} — arrival marked on the map.` : "Pick where along this route to cross."}
               </p>
@@ -1272,31 +1354,31 @@ export function CircleIqShell() {
         ) : null}
 
         {previewOption && !locked ? (
-          <p aria-live="polite" className="rounded-[8px] border border-border bg-surface-muted/40 px-3 py-2 text-sm">
-            <span className="font-mono text-[11px] tracking-widest text-primary">
-              PREVIEW · ROUTE {previewLetter}
-              {selectedCrossing ? ` · CROSSING ${String.fromCharCode(65 + (previewOption.crossings?.findIndex((c) => c.id === selectedCrossing.id) ?? 0))} · ` : " · "}
-            </span>
-            <span className="text-foreground">{previewOption.route.caption}</span>
-            {selectedCrossing ? (
-              <span className="text-foreground"> {selectedCrossing.intel} Arrival marked on the map.</span>
-            ) : null}
+          <p aria-live="polite" className="rounded-[8px] border border-foreground/25 bg-card px-3 py-2 text-sm">
+            <span className="font-mono text-[11px] tracking-widest text-primary-ink">
+              CALL · ROUTE {previewLetter} ·{" "}
+              {selectedCrossing ? (
+                <>CROSSING {crossingLetter} · </>
+              ) : null}
+            </span>{" "}
+            <span className="text-foreground">{previewOption.route.caption}</span>{" "}
             <span className="text-muted-foreground">
-              {" "}
-              {previewIsHold || selectedCrossing ? "Commit to lock this call, or pick another line." : "Pick a crossing on the map or list to finish the preview."}
+              {previewIsHold || selectedCrossing ? "Lock it, or pick another line." : "Pick a crossing on the board or list to finish the call."}
             </span>
           </p>
         ) : null}
 
         {!locked ? (
-          <button
-            type="button"
-            onClick={commit}
-            disabled={previewOption === null || (!previewIsHold && selectedCrossing === null)}
-            className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-full sm:w-auto bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-[var(--color-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Commit to this call <ArrowRight className="h-4 w-4" aria-hidden />
-          </button>
+          <div className="flex">
+            <button
+              type="button"
+              onClick={commit}
+              disabled={previewOption === null || (!previewIsHold && selectedCrossing === null)}
+              className="inline-flex min-h-[44px] w-auto items-center justify-center gap-1.5 rounded-[10px] bg-foreground px-5 text-sm font-semibold text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Lock the call <ArrowRight className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
         ) : null}
 
         {consequence && committedOption && consequenceCopy ? (
@@ -1307,7 +1389,7 @@ export function CircleIqShell() {
             aria-label={`Consequence: ${consequenceCopy.line}`}
             className="rounded-[12px] border border-border bg-surface-muted/40 p-4 text-sm leading-relaxed focus:outline-none"
           >
-            <p className="font-mono text-[11px] tracking-widest text-primary">CONSEQUENCE · {consequenceCopy.heading.toUpperCase()}</p>
+            <p className="font-mono text-[11px] tracking-widest text-primary-ink">CONSEQUENCE · {consequenceCopy.heading.toUpperCase()}</p>
             <p className="mt-1 text-foreground">{consequenceCopy.line}</p>
             {crossingCons?.spotted && committedCrossing ? (
               <p className="mt-1 font-semibold text-foreground">Spotted at {committedCrossing.label} — the crossing draws fire.</p>
@@ -1328,9 +1410,13 @@ export function CircleIqShell() {
             className="rounded-[12px] border border-border bg-surface-muted/40 p-4 text-sm leading-relaxed focus:outline-none"
           >
             <p>
-              <Badge variant={committedOption.quality === "strong" ? "success" : "secondary"}>
-                {committedOption.quality === "strong" ? "Good read" : "Riskier read"}
-              </Badge>
+              {committedOption.quality === "strong" ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-success-deep px-2.5 py-0.5 text-xs font-semibold leading-none text-white">
+                  Good read
+                </span>
+              ) : (
+                <Badge variant="secondary">Riskier read</Badge>
+              )}
             </p>
             {committedCrossing && crossingCons?.note ? (
               <p className="mt-2 text-foreground">
@@ -1340,7 +1426,7 @@ export function CircleIqShell() {
             <p className="mt-2 font-medium">Why:</p>
             <p className="mt-1 text-muted-foreground">{committedOption.explanation}</p>
             <p className="mt-3 rounded-[8px] border border-primary/20 bg-primary/[0.05] px-3 py-2">
-              <span className="font-mono text-[11px] tracking-widest text-primary">READ THIS · </span>
+              <span className="font-mono text-[11px] tracking-widest text-primary-ink">READ THIS · </span>
               <span className="text-foreground">{round.principle}</span>
             </p>
             <p className="mt-2 font-mono text-[11px] tracking-widest text-muted-foreground">

@@ -63,6 +63,13 @@
   --color-platform-twitch: hsl(264 35% 48%);
   --color-platform-kick: hsl(142 40% 42%);
 
+  /* Circle IQ V6 contrast corrections (scoped purpose: small-text AA).
+     Terracotta primary (≈3.0:1 on white) must not set 11–12px micro-labels;
+     primary-ink clears AA for small text. Success-deep clears AA for the
+     small verdict badge (base success ≈4.3:1). */
+  --color-primary-ink: hsl(24 82% 35%);
+  --color-success-deep: hsl(158 45% 29%);
+
   /* Radius */
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;

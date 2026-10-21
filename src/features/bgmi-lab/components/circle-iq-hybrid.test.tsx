@@ -143,13 +143,13 @@ function selectHoldCorridor(host: HTMLElement): number {
   const options = optionButtons(host);
   for (let i = 0; i < options.length; i++) {
     click(options[i]!);
-    if (crossingListButtons(host).length === 0 && findButton(host, "Commit to this call")?.disabled === false) return i;
+    if (crossingListButtons(host).length === 0 && findButton(host, "Lock the call")?.disabled === false) return i;
   }
   return -1;
 }
 
 function commitReady(host: HTMLElement) {
-  const commit = findButton(host, "Commit to this call");
+  const commit = findButton(host, "Lock the call");
   expect(commit, "commit must be reachable").toBeDefined();
   expect(commit!.disabled, "commit must be enabled").toBe(false);
   click(commit!);
@@ -173,7 +173,7 @@ describe("circle-iq V5 hybrid — full corridor → crossing → commit → debr
       expect(moveIndex, "round must offer a move corridor").toBeGreaterThanOrEqual(0);
       expect(host.textContent).toContain("CROSS WHERE?");
       // Corridor alone is not committable.
-      expect(findButton(host, "Commit to this call")!.disabled).toBe(true);
+      expect(findButton(host, "Lock the call")!.disabled).toBe(true);
 
       const crossings = crossingListButtons(host);
       expect(crossings.length).toBe(2);
@@ -311,7 +311,7 @@ describe("circle-iq V5 hybrid — crossing state rules", () => {
       click(crossingListButtons(host)[0]!);
       commitReady(host);
       // Commit control leaves normal flow (no sticky/floating commit).
-      expect(findButton(host, "Commit to this call")).toBeUndefined();
+      expect(findButton(host, "Lock the call")).toBeUndefined();
       // Crossing list is gone; pins are disabled; scouts are locked.
       expect(crossingListButtons(host)).toHaveLength(0);
       for (const p of crossingPins(host)) expect(p.getAttribute("aria-disabled")).toBe("true");
@@ -357,7 +357,7 @@ describe("circle-iq V5 hybrid — full run, restart, replay, share", () => {
         click(crossingListButtons(host)[0]!);
       } else {
         // Hold round: committable without a crossing.
-        expect(findButton(host, "Commit to this call")!.disabled).toBe(false);
+        expect(findButton(host, "Lock the call")!.disabled).toBe(false);
       }
       commitReady(host);
       act(() => {
@@ -384,7 +384,7 @@ describe("circle-iq V5 hybrid — full run, restart, replay, share", () => {
       expect(host.textContent).not.toContain("FINAL READ");
       expect(host.textContent).toContain("0 GOOD READS");
       expect(host.textContent).not.toContain("Arrival marked on the map.");
-      expect(findButton(host, "Commit to this call")!.disabled).toBe(true);
+      expect(findButton(host, "Lock the call")!.disabled).toBe(true);
     } finally {
       unmount();
     }
@@ -455,7 +455,7 @@ describe("circle-iq V5 hybrid — responsive crossing taps", () => {
       expect(buttons[0]!.getAttribute("aria-pressed")).toBe("true");
       expect(crossingPins(host)[0]!.getAttribute("aria-pressed")).toBe("true");
       expect(host.textContent).toContain("Arrival marked on the map.");
-      expect(findButton(host, "Commit to this call")!.disabled).toBe(false);
+      expect(findButton(host, "Lock the call")!.disabled).toBe(false);
     } finally {
       unmount();
     }
@@ -484,13 +484,14 @@ describe("circle-iq V5 hybrid — responsive crossing taps", () => {
     }
   });
 
-  it("keeps commit full-width in normal flow with no sticky positioning", () => {
+  it("keeps commit compact and content-sized with no sticky positioning", () => {
     const { host, unmount } = renderShell();
     try {
       expect(selectMoveCorridor(host)).toBeGreaterThanOrEqual(0);
       click(crossingListButtons(host)[0]!);
-      const commit = findButton(host, "Commit to this call")!;
-      expect(commit.className).toContain("w-full");
+      const commit = findButton(host, "Lock the call")!;
+      expect(commit.className).toContain("w-auto");
+      expect(commit.className).toContain("min-h-[44px]");
       expect(commit.className).not.toMatch(/fixed|sticky/);
     } finally {
       unmount();
@@ -583,7 +584,7 @@ describe("circle-iq V5 hybrid — keyboard, exposure leak guards, reduced motion
       const routes = routeTargets(host);
       expect(routes.length).toBeGreaterThanOrEqual(2);
       keyDown(routes[0]!, "Enter");
-      expect(host.textContent).toContain("PREVIEW");
+      expect(host.textContent).toContain("CALL · ROUTE");
       const pins = crossingPins(host);
       if (pins.length > 0) {
         expect(pins[0]!.getAttribute("tabindex")).toBe("0");
@@ -628,7 +629,7 @@ describe("circle-iq V5 hybrid — keyboard, exposure leak guards, reduced motion
       expect(host.textContent).not.toContain("SPOTTED");
       expect(host.textContent).not.toContain("You crossed at");
       expect(host.textContent).not.toMatch(/low exposure|high exposure/i);
-      const preview = [...host.querySelectorAll("p")].find((p) => p.textContent?.includes("PREVIEW"))!;
+      const preview = [...host.querySelectorAll("p")].find((p) => p.textContent?.includes("CALL · ROUTE"))!;
       expect(preview.textContent).not.toMatch(PRE_COMMIT_LEAK);
       expect(preview.textContent).not.toMatch(CROSSING_LEAK);
       for (const b of crossingListButtons(host)) {

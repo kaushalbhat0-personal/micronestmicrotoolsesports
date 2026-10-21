@@ -45,7 +45,7 @@ describe("circle-iq production guard — demo shell must never ship again", () =
     expect(html).toContain('aria-pressed="false"');
     expect(html.match(/<button/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     // Preview exists but nothing is scored or revealed before commit.
-    expect(html).toContain("Commit to this call");
+    expect(html).toContain("Lock the call");
     expect(html).not.toContain("Good read");
     expect(html).not.toContain("Riskier read");
     expect(html).not.toContain("READ THIS");
