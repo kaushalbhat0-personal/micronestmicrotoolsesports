@@ -4,8 +4,10 @@ import { appendPublicUrl } from "@/lib/share/whatsapp";
  * BGMI Lab share-message composer — pure, no React, no browser APIs.
  *
  * Builds the honest result message from the actual score plus the
- * registry `shareText` and the canonical game URL. No claims, no
- * tracking parameters, no result-specific URLs. Reused by ShareRow
+ * registry `shareText` and the share URL. Callers (ShareRow) pass a
+ * result-aware share URL (`canonical + ?result=S-T`) as `canonicalUrl`
+ * so all three channels carry the same recipient-visible payload.
+ * No claims, no tracking parameters. Reused by ShareRow
  * (and future Lab games) so copy never drifts between channels.
  */
 

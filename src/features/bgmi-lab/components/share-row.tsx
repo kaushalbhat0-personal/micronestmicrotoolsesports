@@ -4,13 +4,17 @@ import * as React from "react";
 import { Check, Link2, MessageCircle, Share2 } from "lucide-react";
 import { buildWhatsAppShareUrl } from "@/lib/share/whatsapp";
 import { buildLabShareMessage, isShareAbort } from "../share-message";
+import { buildLabResultShareUrl } from "../share-result-url";
 
 /**
  * ShareRow — completion-screen share controls for BGMI Lab games.
  *
  * Props-only and game-agnostic: consumes score/total/shareText/canonicalUrl,
- * never scoring internals. Renders inside the game result (within
- * AdSafeGameLayout): native Share when available, Copy link with persistent
+ * never scoring internals. The shared/copied URL is the canonical game URL
+ * plus a display-only `?result=S-T` payload so recipients see the sender's
+ * claimed result before starting their own fresh run. The message carries
+ * the same result-aware URL on its `View online:` line. Renders inside
+ * the game result (within AdSafeGameLayout): native Share when available, Copy link with persistent
  * success state, and a direct WhatsApp deep link. Fully client-side —
  * no network calls, no storage, no analytics, no accounts.
  */
@@ -42,10 +46,11 @@ export function ShareRow({ gameName, score, total, shareText, canonicalUrl, resu
     setMounted(true);
   }, []);
 
+  const shareUrl = buildLabResultShareUrl(canonicalUrl, score, total);
   const message = buildLabShareMessage(
     resultNoun === undefined
-      ? { gameName, score, total, shareText, canonicalUrl }
-      : { gameName, score, total, shareText, canonicalUrl, resultNoun }
+      ? { gameName, score, total, shareText, canonicalUrl: shareUrl }
+      : { gameName, score, total, shareText, canonicalUrl: shareUrl, resultNoun }
   );
   const canNativeShare =
     mounted && typeof navigator !== "undefined" && typeof navigator.share === "function";
@@ -53,7 +58,7 @@ export function ShareRow({ gameName, score, total, shareText, canonicalUrl, resu
   async function nativeShare() {
     if (!canNativeShare) return;
     try {
-      await navigator.share({ title: `${gameName} — MicroNest BGMI Lab`, text: message, url: canonicalUrl });
+      await navigator.share({ title: `${gameName} — MicroNest BGMI Lab`, text: message, url: shareUrl });
     } catch (error) {
       if (isShareAbort(error)) return;
       setShareUnavailable(true);
@@ -63,7 +68,7 @@ export function ShareRow({ gameName, score, total, shareText, canonicalUrl, resu
   async function copyLink() {
     setCopyFailed(false);
     try {
-      await navigator.clipboard.writeText(canonicalUrl);
+      await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
     } catch {
       setCopyFailed(true);
@@ -105,7 +110,7 @@ export function ShareRow({ gameName, score, total, shareText, canonicalUrl, resu
       {copyFailed ? (
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
           Copy didn&apos;t work in this browser — copy this link manually:{" "}
-          <span className="break-all font-mono">{canonicalUrl}</span>
+          <span className="break-all font-mono">{shareUrl}</span>
         </p>
       ) : null}
       <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">

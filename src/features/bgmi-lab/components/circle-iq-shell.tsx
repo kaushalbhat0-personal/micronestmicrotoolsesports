@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import {
   CIRCLE_IQ_ROUNDS,
+  CIRCLE_IQ_TOTAL,
   SCOUTS_PER_ROUND,
   consequenceCopyFor,
   consequenceForCrossing,
@@ -32,6 +33,7 @@ import {
   type CircleIqRoutePoint,
 } from "../data/circle-iq-logic";
 import { ShareRow } from "./share-row";
+import { SharedResultBanner, useSharedLabResult } from "./shared-result-banner";
 import { getBgmiLabTool } from "@/config/public/bgmi-lab";
 import { labAbsoluteUrl } from "@/lib/marketing/public-tool-content";
 
@@ -492,6 +494,9 @@ export function CircleIqShell() {
   const summary = summarizeScore(strongReads);
   const locked = committedId !== null;
   const revealIds = React.useMemo(() => revealIdsFor(round), [round]);
+  // Recipient-only challenge hint from `?result=S-T`. Display-only:
+  // never touches scoring, completion, or run order below.
+  const { shared, dismiss } = useSharedLabResult(CIRCLE_IQ_TOTAL);
 
   React.useEffect(() => {
     setRunSeed(createRunSeed());
@@ -784,6 +789,12 @@ export function CircleIqShell() {
     previewOption !== null ? (LETTERS[displayOptions.findIndex((o) => o.id === previewOption.id)] ?? "") : "";
 
   return (
+    <>
+      {shared ? (
+        <div className="mb-4">
+          <SharedResultBanner gameName="Circle IQ" shared={shared} onDismiss={dismiss} />
+        </div>
+      ) : null}
     <Card>
       <style>{`@keyframes ciq-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes ciq-pulse{0%,100%{opacity:1}50%{opacity:.15}}@keyframes ciq-you{from{transform:translate(var(--ciq-dx,0px),var(--ciq-dy,0px))}to{transform:translate(0px,0px)}}@keyframes ciq-landmark{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}@keyframes ciq-tighten{from{transform:scale(1.25);opacity:.1}to{transform:scale(1);opacity:.16}}.ciq-route-draw{stroke-dasharray:1;animation:ciq-draw 700ms ease forwards}.ciq-exposure{animation:ciq-pulse 750ms ease-in-out 2}.ciq-you-move{animation:ciq-you 700ms ease forwards}.ciq-landmark-pulse{transform-box:fill-box;transform-origin:center;animation:ciq-landmark 700ms ease}.ciq-tighten{transform-box:fill-box;transform-origin:center;animation:ciq-tighten 700ms ease forwards}.ciq-scout:focus{outline:none}.ciq-scout:focus-visible .ciq-scout-focus{opacity:1}.ciq-crossing:focus{outline:none}.ciq-crossing:focus-visible .ciq-crossing-focus{opacity:1}.ciq-route-target:focus{outline:none}@media (prefers-reduced-motion:reduce){.ciq-route-draw,.ciq-exposure,.ciq-you-move,.ciq-landmark-pulse,.ciq-tighten{animation:none}}`}</style>
       <CardHeader>
@@ -1358,5 +1369,6 @@ export function CircleIqShell() {
         </p>
       </CardContent>
     </Card>
+    </>
   );
 }

@@ -8,12 +8,14 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import {
   TOURNAMENT_SCENARIO_GENERATOR_SCENARIOS,
+  TOURNAMENT_SCENARIO_GENERATOR_TOTAL,
   isGeneratorComplete,
   scoreGeneratorPick,
   summarizeGenerator,
   type TournamentGeneratorOption,
 } from "../data/tournament-scenario-generator-logic";
 import { ShareRow } from "./share-row";
+import { SharedResultBanner, useSharedLabResult } from "./shared-result-banner";
 import { getBgmiLabTool } from "@/config/public/bgmi-lab";
 import { labAbsoluteUrl } from "@/lib/marketing/public-tool-content";
 
@@ -48,6 +50,9 @@ export function TournamentScenarioGeneratorShell() {
   const pickedOption = scenario.options.find((o) => o.id === picked) ?? null;
   const lastScenario = index === TOURNAMENT_SCENARIO_GENERATOR_SCENARIOS.length - 1;
   const summary = summarizeGenerator(stronger);
+  // Recipient-only challenge hint from `?result=S-T`. Display-only:
+  // never touches picks, counts, or completion state below.
+  const { shared, dismiss } = useSharedLabResult(TOURNAMENT_SCENARIO_GENERATOR_TOTAL);
 
   function pick(optionId: string) {
     if (picked !== null || finished) return;
@@ -125,6 +130,17 @@ export function TournamentScenarioGeneratorShell() {
   }
 
   return (
+    <>
+      {shared ? (
+        <div className="mb-4">
+          <SharedResultBanner
+            gameName="Tournament Scenario Generator"
+            shared={shared}
+            resultNoun="stronger practice reads"
+            onDismiss={dismiss}
+          />
+        </div>
+      ) : null}
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
@@ -261,5 +277,6 @@ export function TournamentScenarioGeneratorShell() {
         </p>
       </CardContent>
     </Card>
+    </>
   );
 }
