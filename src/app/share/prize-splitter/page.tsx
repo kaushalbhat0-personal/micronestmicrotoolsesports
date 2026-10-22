@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { PrintButton } from "./print-button";
 import { decodeShareState } from "@/features/prize-splitter/services/share";
+import { shareLinkErrorCopy } from "@/features/prize-splitter/services/share-error-copy";
 import { calculateSplit, formatMoney } from "@/features/prize-splitter/services/calculation";
 import { Check, AlertCircle, Calculator } from "lucide-react";
 
@@ -66,12 +67,7 @@ export default async function SharePrizeSplitterPage({
   const decoded = decodeShareState(s);
 
   if (!decoded.ok || !decoded.state) {
-    const reason =
-      decoded.error === "version"
-        ? "This share link uses an unsupported version. Please generate a new link."
-        : decoded.error === "too long"
-          ? "This share link is too large."
-          : "This share link is malformed or has been tampered with.";
+    const reason = shareLinkErrorCopy(decoded.error);
 
     return (
       <div className="flex min-h-screen flex-col bg-background">
@@ -82,8 +78,7 @@ export default async function SharePrizeSplitterPage({
               <CardTitle className="text-sm flex items-center gap-2"><AlertCircle className="h-4 w-4 text-destructive" /> Invalid share link</CardTitle>
               <CardDescription>{reason}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">Error: {decoded.error}</p>
+            <CardContent>
               <Link href="/tools/prize-pool-splitter" className="inline-flex h-10 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground">Create your own split</Link>
             </CardContent>
           </Card>

@@ -18,7 +18,8 @@ export async function generateMetadata({
   const { tournament: tournamentSlug, stage: stageSlug } = await params;
   const supabase = await createClient();
   const detail = await getStageDetail(supabase, tournamentSlug, stageSlug).catch(() => null);
-  const title = detail ? `${detail.tournament.name} — ${detail.stage.name}` : `${tournamentSlug} ${stageSlug}`;
+  // Never echo unvalidated slugs into metadata: unknown slugs 404.
+  const title = detail ? `${detail.tournament.name} — ${detail.stage.name}` : "Tournament stage";
   return {
     title: `${title} Standings & Match Results | MicroNest BGMI Tournament Hub`,
     description: `See ${title} standings, per-map results, and last-updated source revision — updated after completed matches. Source: Liquipedia.`,

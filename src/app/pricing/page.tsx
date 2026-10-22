@@ -30,14 +30,16 @@ export const metadata: Metadata = {
 
 export default async function PricingPage() {
   let plans: Awaited<ReturnType<typeof listActivePlans>> = [];
-  let loadError: string | null = null;
+  let loadFailed = false;
   try {
     const supabase = await createClient();
     const all = await listActivePlans(supabase);
     // Only INR active plans (expected), filter defensively
     plans = all.filter((p) => p.currency === "INR" && p.is_active);
   } catch (err) {
-    loadError = err instanceof Error ? err.message : "Unable to load pricing";
+    // Server-side only: never render raw provider/database errors to users.
+    console.error("[pricing] failed to load plans", err instanceof Error ? err.message : err);
+    loadFailed = true;
   }
 
   const hasPlans = plans.length >= 12;
@@ -72,14 +74,14 @@ export default async function PricingPage() {
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground leading-relaxed">Use currently available tools for sponsorships, prize pools, match drafts, tied standings, and payout tracking — without paying for software you don’t need.</p>
           </div>
 
-          {loadError && (
+          {loadFailed && (
             <div className="mx-auto mt-8 max-w-3xl rounded-[12px] border border-destructive/20 bg-destructive-soft p-4 text-sm text-destructive-foreground">
-              Pricing is temporarily unavailable — please try again or contact <a href="mailto:info.micronest@gmail.com" className="underline">info.micronest@gmail.com</a>. ({loadError})
+              Pricing is temporarily unavailable — please try again shortly or contact <a href="mailto:info.micronest@gmail.com" className="underline">info.micronest@gmail.com</a>.
             </div>
           )}
-          {missing.length > 0 && !loadError && (
+          {missing.length > 0 && !loadFailed && (
             <div className="mx-auto mt-8 max-w-3xl rounded-[12px] border border-warning/20 bg-warning-soft p-4 text-sm">
-              Pricing catalog incomplete — missing: {missing.join(", ")}. Contact <a href="mailto:info.micronest@gmail.com" className="underline">info.micronest@gmail.com</a>.
+              Some pricing options are temporarily unavailable. Please contact <a href="mailto:info.micronest@gmail.com" className="underline">info.micronest@gmail.com</a> if you need help choosing a plan.
             </div>
           )}
 
@@ -87,7 +89,7 @@ export default async function PricingPage() {
             {hasPlans ? (
               <PricingClient plans={plans} />
             ) : (
-              !loadError && (
+              !loadFailed && (
                 <Card className="mx-auto max-w-2xl">
                   <CardHeader>
                     <CardTitle className="text-sm">Pricing unavailable</CardTitle>
@@ -204,7 +206,7 @@ export default async function PricingPage() {
           <div className="mx-auto max-w-3xl rounded-[20px] border border-border bg-card p-6 sm:p-8">
             <h2 className="font-display text-xl font-normal tracking-tight">How pricing works</h2>
             <ol className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground list-decimal pl-5">
-              <li>Choose a tool or All Access — each pricing card maps to a server-authoritative plan (slug + billing period).</li>
+              <li>Choose a tool or All Access — every plan shows its name, price in INR, and billing period before you pay.</li>
               <li>Create or sign into your MicroNest workspace — purchase is attached to the organization/workspace you select at checkout.</li>
               <li>Complete payment through the secure checkout flow — you’ll see plan name, amount in INR, currency, and billing period before confirming.</li>
               <li>Access is provisioned for the purchased billing period — check Dashboard → Settings → Billing for “Active until”.</li>

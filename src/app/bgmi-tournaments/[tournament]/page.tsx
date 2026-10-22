@@ -15,7 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ tournamen
   const { tournament: slug } = await params;
   const supabase = await createClient();
   const tournament = await getTournament(supabase, slug).catch(() => null);
-  const name = tournament?.name ?? slug;
+  // Never echo an unvalidated slug into metadata: unknown slugs 404.
+  const name = tournament?.name ?? "Tournament";
   return {
     title: `${name} — Standings & Results | MicroNest BGMI Tournament Hub`,
     description: `See ${name} standings, stages, and match results — updated after completed matches. Source: Liquipedia.`,
