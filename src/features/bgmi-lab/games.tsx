@@ -37,9 +37,14 @@ const ZonePatternExplorerIsland = dynamic(() =>
   import("@/features/bgmi-lab/components/zone-pattern-explorer-shell").then((m) => m.ZonePatternExplorerShell)
 );
 
+const LootDashIsland = dynamic(() =>
+  import("@/features/bgmi-lab/components/loot-dash-shell").then((m) => m.LootDashShell)
+);
+
 /** Only routable-with-island slugs appear here. Planned tools have no entry. */
 const LAB_GAME_LOADERS: Record<string, ComponentType> = {
   "circle-iq": CircleIqIsland,
+  "loot-dash": LootDashIsland,
   "rotation-replay": RotationReplayIsland,
   "tournament-scenario-generator": TournamentScenarioGeneratorIsland,
   "zone-patterns": ZonePatternExplorerIsland,

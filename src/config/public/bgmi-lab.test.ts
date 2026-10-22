@@ -6,13 +6,14 @@ import { BGMI_LAB_TOOLS, getAvailableBgmiLabTools, getBgmiLabTool, isLabSlugRout
 const SOURCE = readFileSync(join(process.cwd(), "src/config/public/bgmi-lab.ts"), "utf8");
 
 describe("bgmi-lab registry — structural separation", () => {
-  it("registers the eight Lab tools with the canonical scenario-generator slug", () => {
+  it("registers the nine Lab tools with the canonical scenario-generator slug", () => {
     expect(BGMI_LAB_TOOLS.map((t) => t.slug).sort()).toEqual(
       [
         "circle-iq",
         "final-circle",
         "igl-decision-drill",
         "lift-the-trophy",
+        "loot-dash",
         "rotation-iq",
         "rotation-replay",
         "tournament-scenario-generator",
@@ -30,6 +31,7 @@ describe("bgmi-lab registry — structural separation", () => {
       "zone-patterns",
       "rotation-replay",
       "tournament-scenario-generator",
+      "loot-dash",
     ]);
   });
 
@@ -90,6 +92,7 @@ describe("bgmi-lab registry — structural separation", () => {
       "zone-patterns": "learn",
       "rotation-replay": "learn",
       "lift-the-trophy": "fun",
+      "loot-dash": "fun",
     };
     for (const [slug, category] of Object.entries(expected)) {
       expect(getBgmiLabTool(slug)?.category).toBe(category);

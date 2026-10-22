@@ -415,6 +415,65 @@ export const BGMI_LAB_TOOLS: readonly BgmiLabTool[] = [
     ],
   },
   {
+    slug: "loot-dash",
+    name: "Loot Dash",
+    tagline: "45 seconds of grab, dodge, and combo.",
+    description:
+      "Loot Dash is a free original MicroNest arcade game: steer through a tactical field for 45 seconds, grab supplies, dodge danger rings, and chain combos. Personal practice feedback only — no signup, nothing saved.",
+    icon: "Trophy",
+    status: "available",
+    category: "fun",
+    scenarioKind: "synthetic",
+    answer:
+      "Loot Dash is a free original MicroNest arcade game in BGMI Lab. You steer a marker through a field for 45 seconds, collecting supply, cache, and medkit tokens while avoiding danger rings. Pickups chained close together build a combo bonus; three ring hits ends the run early. Scores are personal practice feedback — not a skill rating — and nothing is saved.",
+    shareText:
+      "I ran Loot Dash — a free 45-second MicroNest arcade dash. Can you beat my route?",
+    ogMotif: "LOOT DASH · BGMI LAB",
+    methodology:
+      "Each run lasts 45 seconds in a fixed 360 by 480 arena. Supplies are worth 10 points and caches 25. A medkit heals one hit and adds 5 points, or scores 15 points at full health. Consecutive pickups within 4 seconds raise a combo that adds 2 bonus points per step (a chained full-health medkit earns 15 plus the combo bonus); touching a danger ring resets the combo, costs one of 3 lives, and grants brief protection. Three hits ends the run early. Hazard count and drift speed ramp at 15 and 30 seconds. Layouts are seeded per run, so every attempt differs.",
+    instructions: [
+      "Press Start Run — steer with WASD, arrow keys, or by dragging on the arena (Space pauses).",
+      "Collect supply, cache, and medkit tokens; chain pickups within 4 seconds to build a combo.",
+      "Avoid the dashed danger rings — three hits ends the run early.",
+      "Survive the 45 seconds, read your result, and press Play Again for a fresh seeded route.",
+    ],
+    faqs: [
+      {
+        question: "Is Loot Dash free?",
+        answer: "Yes. Loot Dash is free to use with no signup and no saved score.",
+      },
+      {
+        question: "How is my Loot Dash score calculated?",
+        answer:
+          "Supplies earn 10 points and caches 25. A medkit heals one hit and adds 5 points, or scores 15 points at full health (plus any combo bonus). Pickups chained within 4 seconds build a combo worth 2 bonus points per step. The score is ephemeral — nothing is saved and there is no leaderboard.",
+      },
+      {
+        question: "Does Loot Dash predict real BGMI matches?",
+        answer:
+          "No. Loot Dash is an original arcade game with illustrative tokens and rings — it trains movement and timing, not zone prediction.",
+      },
+      {
+        question: "Does Loot Dash rate my gaming skill?",
+        answer:
+          "No. The result (clean, steady, or messy run) is personal practice feedback about one 45-second route, not a skill rating or competitive claim.",
+      },
+      {
+        question: "How is Loot Dash different from Circle IQ?",
+        answer:
+          "Circle IQ is a tactical decision drill — study a snapshot and commit to a rotation call. Loot Dash is a real-time arcade game — steer, collect, and dodge against the clock. Both are free and save nothing.",
+      },
+    ],
+    examples: [
+      "Example: chaining four supplies inside 4 seconds turns 40 points into 52 with the combo bonus.",
+      "Example: grabbing a medkit after two hits restores a life, letting the run reach the full 45 seconds.",
+    ],
+    tournamentContext:
+      "Looting routes and ring awareness decide BGMI tournament placements every week — see how real teams handle them in the BGMI Tournament Hub standings and match results.",
+    disclaimer: DISCLAIMER,
+    relatedHubHref: "/bgmi-tournaments",
+    relatedSimulatorHref: "/bgmi-qualification",
+  },
+  {
     slug: "lift-the-trophy",
     name: "Lift the Trophy",
     tagline: "A light-hearted BGMI celebration.",
