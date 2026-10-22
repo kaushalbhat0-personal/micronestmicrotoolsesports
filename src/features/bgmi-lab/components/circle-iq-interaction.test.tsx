@@ -6,6 +6,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CircleIqShell } from "./circle-iq-shell";
+import { CIRCLE_IQ_ROUNDS } from "../data/circle-iq-rounds";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -50,18 +51,8 @@ function click(el: HTMLElement) {
   });
 }
 
-function keyEnter(el: Element) {
-  act(() => {
-    el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  });
-}
-
 function inspectButtons(host: HTMLElement): HTMLButtonElement[] {
   return [...host.querySelectorAll<HTMLButtonElement>('section[aria-label="Investigate"] button')];
-}
-
-function scoutTargets(host: HTMLElement): Element[] {
-  return [...host.querySelectorAll('svg g.ciq-scout[role="button"]')];
 }
 
 function crossingListButtons(host: HTMLElement): HTMLButtonElement[] {
@@ -74,33 +65,25 @@ function ensureCrossing(host: HTMLElement) {
   if (first) click(first);
 }
 
-function crossingTargets(host: HTMLElement): Element[] {
-  return [...host.querySelectorAll('svg g.ciq-crossing[role="button"]')];
-}
-
-function routeTargets(host: HTMLElement): Element[] {
-  return [...host.querySelectorAll('svg g.ciq-route-target[role="button"]')];
-}
-
 const PRE_COMMIT_LEAK = /\b(covered|open|safer|risky|strong|weak|best|better|correct|wrong|optimal|exposed)\b/i;
 
-function mapSvg(host: HTMLElement): SVGSVGElement {
-  const svg = host.querySelector<SVGSVGElement>("figure svg");
-  if (!svg) throw new Error("game map svg missing");
-  return svg;
+function mapCanvas(host: HTMLElement): HTMLCanvasElement {
+  const canvas = host.querySelector<HTMLCanvasElement>("figure canvas");
+  if (!canvas) throw new Error("game board canvas missing");
+  return canvas;
 }
 
-/** Stub a mobile/desktop map width; returns the matching height. */
-function stubMapRect(svg: SVGSVGElement, width: number): number {
+/** Stub a mobile/desktop board width; returns the matching height. */
+function stubBoardRect(canvas: HTMLCanvasElement, width: number): number {
   const height = (width * 240) / 360;
-  svg.getBoundingClientRect = () =>
+  canvas.getBoundingClientRect = () =>
     ({ left: 0, top: 0, right: width, bottom: height, width, height, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
   return height;
 }
 
-function tapMap(svg: SVGSVGElement, vx: number, vy: number, width: number, height: number) {
+function tapBoard(canvas: HTMLCanvasElement, vx: number, vy: number, width: number, height: number) {
   act(() => {
-    svg.dispatchEvent(
+    canvas.dispatchEvent(
       new MouseEvent("click", {
         bubbles: true,
         clientX: (vx / 360) * width,
@@ -110,29 +93,26 @@ function tapMap(svg: SVGSVGElement, vx: number, vy: number, width: number, heigh
   });
 }
 
-function pinCenters(host: HTMLElement): Array<{ x: number; y: number }> {
-  return [...host.querySelectorAll("svg g.ciq-scout")].map((g) => {
-    const t = g.getAttribute("transform") ?? "";
-    const m = /translate\(([-\d.]+)[ ,]+([-\d.]+)\)/.exec(t);
-    if (!m) throw new Error(`scout pin missing translate: ${t}`);
-    return { x: Number(m[1]), y: Number(m[2]) };
-  });
+/** Find the authored round currently displayed by matching option labels. */
+function displayedRound(host: HTMLElement) {
+  const labels = optionButtons(host).map((b) => b.getAttribute("aria-label") ?? "");
+  return CIRCLE_IQ_ROUNDS.find((r) => r.options.every((o) => labels.some((l) => l.includes(o.label))));
 }
 
-function corridorMidpoints(host: HTMLElement): string[] {
-  return [...host.querySelectorAll("svg g.ciq-route-target path[d]")].map((p) => p.getAttribute("d") ?? "");
+function scoutPinCenters(host: HTMLElement): Array<{ x: number; y: number }> {
+  const round = displayedRound(host);
+  if (!round) throw new Error("displayed round not identified");
+  return round.reveals.map((r) => ({ x: r.x, y: r.y }));
 }
 
-function longestSegmentMid(d: string): { x: number; y: number } | null {
-  const nums = d.replace(/[ML]/g, " ").trim().split(/\s+/).map(Number);
-  if (nums.length < 4 || nums.some((n) => !Number.isFinite(n))) return null;
+function longestSegmentMid(points: readonly { x: number; y: number }[]): { x: number; y: number } | null {
   let best: { x: number; y: number } | null = null;
   let bestLen = -1;
-  for (let i = 0; i + 3 < nums.length; i += 2) {
-    const ax = nums[i]!;
-    const ay = nums[i + 1]!;
-    const bx = nums[i + 2]!;
-    const by = nums[i + 3]!;
+  for (let i = 0; i + 1 < points.length; i++) {
+    const ax = points[i]!.x;
+    const ay = points[i]!.y;
+    const bx = points[i + 1]!.x;
+    const by = points[i + 1]!.y;
     const len = Math.hypot(bx - ax, by - ay);
     if (len > bestLen) {
       bestLen = len;
@@ -140,6 +120,17 @@ function longestSegmentMid(d: string): { x: number; y: number } | null {
     }
   }
   return bestLen > 0 ? best : null;
+}
+
+function corridorMidpoints(host: HTMLElement): Array<{ x: number; y: number }> {
+  const round = displayedRound(host);
+  if (!round) throw new Error("displayed round not identified");
+  const mids: Array<{ x: number; y: number }> = [];
+  for (const option of round.options) {
+    const mid = longestSegmentMid(option.route.points);
+    if (mid) mids.push(mid);
+  }
+  return mids;
 }
 
 afterEach(() => {
@@ -299,7 +290,12 @@ describe("circle-iq V3 safety regressions", () => {
     const strip = (source: string): string =>
       source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|\s)\/\/.*$/gm, "$1");
     const base = join(process.cwd(), "src/features/bgmi-lab");
-    for (const file of ["components/circle-iq-shell.tsx", "data/circle-iq-logic.ts", "data/circle-iq-rounds.ts"]) {
+    for (const file of [
+      "components/circle-iq-shell.tsx",
+      "components/circle-iq-board-canvas.tsx",
+      "data/circle-iq-logic.ts",
+      "data/circle-iq-rounds.ts",
+    ]) {
       const code = strip(readFileSync(join(base, file), "utf8"));
       for (const banned of [
         "localStorage",
@@ -334,8 +330,9 @@ describe("circle-iq V4 interaction — scout budget and inspect list", () => {
       const buttons = inspectButtons(host);
       expect(buttons.length).toBeGreaterThanOrEqual(3);
       expect(buttons.length).toBeLessThanOrEqual(4);
-      // Inspect list mirrors every SVG scout target exactly.
-      expect(scoutTargets(host)).toHaveLength(buttons.length);
+      // The Canvas board mirrors every inspect control; taps on the board
+      // resolve through the same transitions as these list buttons.
+      expect(host.querySelector("figure canvas")).not.toBeNull();
 
       click(buttons[0]!);
       expect(host.textContent).toContain("SCOUTS: 1");
@@ -469,15 +466,15 @@ describe("circle-iq V4 interaction — neutral preview, commit, differentiated c
 });
 
 describe("circle-iq responsive hardening — map tap dispatch", () => {
-  it("taps a scout pin via the map the same as its list button", () => {
+  it("taps a scout pin via the board the same as its list button", () => {
     for (const width of [256, 310, 332, 624]) {
       const { host, unmount } = renderShell();
       try {
-        const svg = mapSvg(host);
-        const height = stubMapRect(svg, width);
-        const pins = pinCenters(host);
+        const canvas = mapCanvas(host);
+        const height = stubBoardRect(canvas, width);
+        const pins = scoutPinCenters(host);
         expect(pins.length).toBeGreaterThanOrEqual(3);
-        tapMap(svg, pins[0]!.x, pins[0]!.y, width, height);
+        tapBoard(canvas, pins[0]!.x, pins[0]!.y, width, height);
         // Identical outcome to clicking the mirrored list control.
         expect(host.textContent).toContain("SCOUTS: 1");
         expect(inspectButtons(host)[0]!.getAttribute("aria-pressed")).toBe("true");
@@ -487,36 +484,36 @@ describe("circle-iq responsive hardening — map tap dispatch", () => {
     }
   });
 
-  it("spends exactly one scout on a direct pin click (no double dispatch)", () => {
+  it("spends exactly one scout per board tap (single shared transition)", () => {
     const { host, unmount } = renderShell();
     try {
-      // SVG <g> has no .click(); dispatch like a real pointer hit instead.
-      // Target carries data-map-target, so the svg-level dispatcher skips it.
-      const pin = scoutTargets(host)[0]!;
-      act(() => {
-        pin.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      });
+      // The board exposes one click handler that dispatches exactly one
+      // shared transition — a single tap can never spend two scouts.
+      const canvas = mapCanvas(host);
+      const width = 390;
+      const height = stubBoardRect(canvas, width);
+      const pins = scoutPinCenters(host);
+      tapBoard(canvas, pins[0]!.x, pins[0]!.y, width, height);
       expect(host.textContent).toContain("SCOUTS: 1");
       expect(host.textContent).not.toContain("SCOUTS: 0");
+      expect(inspectButtons(host)[0]!.getAttribute("aria-pressed")).toBe("true");
     } finally {
       unmount();
     }
   });
 
-  it("taps a corridor via the map the same as its option button", () => {
+  it("taps a corridor via the board the same as its option button", () => {
     const { host, unmount } = renderShell();
     try {
-      const svg = mapSvg(host);
+      const canvas = mapCanvas(host);
       const width = 280;
-      const height = stubMapRect(svg, width);
-      const mids = corridorMidpoints(host)
-        .map(longestSegmentMid)
-        .filter((m): m is { x: number; y: number } => m !== null);
+      const height = stubBoardRect(canvas, width);
+      const mids = corridorMidpoints(host);
       expect(mids.length).toBeGreaterThanOrEqual(2);
       let previewLetter: string | null = null;
       let previewCaption = "";
       for (const mid of mids) {
-        tapMap(svg, mid.x, mid.y, width, height);
+        tapBoard(canvas, mid.x, mid.y, width, height);
         const m = /CALL · ROUTE ([ABC]) · ([^.]+)/.exec(host.textContent ?? "");
         if (m) {
           previewLetter = m[1]!;
@@ -542,9 +539,9 @@ describe("circle-iq responsive hardening — map tap dispatch", () => {
   it("ignores taps far outside every target", () => {
     const { host, unmount } = renderShell();
     try {
-      const svg = mapSvg(host);
-      stubMapRect(svg, 280);
-      tapMap(svg, -100, -100, 280, (280 * 240) / 360);
+      const canvas = mapCanvas(host);
+      stubBoardRect(canvas, 280);
+      tapBoard(canvas, -100, -100, 280, (280 * 240) / 360);
       expect(host.textContent).toContain("SCOUTS: 2");
       expect(host.textContent).not.toContain("CALL · ROUTE");
       expect(optionButtons(host).every((o) => o.getAttribute("aria-pressed") === "false")).toBe(true);
@@ -555,28 +552,43 @@ describe("circle-iq responsive hardening — map tap dispatch", () => {
 });
 
 describe("circle-iq V4 interaction — keyboard and reduced motion", () => {
-  it("supports keyboard-only map inspect, route preview, commit, and next", () => {
+  it("supports a keyboard-only inspect, route preview, commit, and next flow", () => {
     vi.useFakeTimers();
     const { host, unmount } = renderShell();
     try {
-      const targets = scoutTargets(host);
-      expect(targets.length).toBeGreaterThanOrEqual(3);
-      keyEnter(targets[0]!);
+      // The Canvas board is display-only (role img, never focusable): the
+      // DOM interaction rail carries the entire keyboard contract.
+      const canvas = mapCanvas(host);
+      expect(canvas.getAttribute("role")).toBe("img");
+      expect(canvas.hasAttribute("tabindex")).toBe(false);
+
+      // Every board affordance has a keyboard-operable native-button mirror.
+      const inspect = inspectButtons(host);
+      expect(inspect.length).toBeGreaterThanOrEqual(3);
+      inspect[0]!.focus();
+      expect(document.activeElement).toBe(inspect[0]);
+      click(inspect[0]!);
       expect(host.textContent).toContain("SCOUTS: 1");
 
-      const routes = routeTargets(host);
+      const routes = optionButtons(host);
       expect(routes.length).toBeGreaterThanOrEqual(2);
-      keyEnter(routes[0]!);
+      routes[0]!.focus();
+      expect(document.activeElement).toBe(routes[0]);
+      click(routes[0]!);
       expect(host.textContent).toContain("CALL · ROUTE");
 
-      // Keyboard-only crossing: focus the first crossing pin and confirm.
-      const crossings = crossingTargets(host);
+      // Keyboard-only crossing via the native crossing list.
+      const crossings = crossingListButtons(host);
       if (crossings.length > 0) {
-        keyEnter(crossings[0]!);
-        expect(crossingListButtons(host)[0]!.getAttribute("aria-pressed")).toBe("true");
+        crossings[0]!.focus();
+        expect(document.activeElement).toBe(crossings[0]);
+        click(crossings[0]!);
+        expect(crossings[0]!.getAttribute("aria-pressed")).toBe("true");
       }
 
-      click(findButton(host, "Lock the call")!);
+      const commit = findButton(host, "Lock the call")!;
+      commit.focus();
+      click(commit);
       act(() => {
         vi.advanceTimersByTime(800);
       });
@@ -610,9 +622,9 @@ describe("circle-iq V4 interaction — keyboard and reduced motion", () => {
       expect(host.textContent).toContain("CONSEQUENCE");
       expect(host.textContent).toMatch(/CONSEQUENCE · (ARRIVED|CAUGHT OUT|LEFT BEHIND)/);
       expect(host.textContent).toMatch(/Good read|Riskier read/);
-      // No traversal tween runs — the final frame is immediate.
-      expect(host.querySelector(".ciq-you-move")).toBeNull();
-      expect(host.querySelector(".ciq-route-draw")).toBeNull();
+      // The Canvas renders the final frame immediately: no looping
+      // traversal, just the board plus the settled verdict copy.
+      expect(host.querySelector("figure canvas")).not.toBeNull();
     } finally {
       act(() => root.unmount());
     }

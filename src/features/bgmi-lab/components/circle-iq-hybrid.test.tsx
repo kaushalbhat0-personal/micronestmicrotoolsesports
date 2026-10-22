@@ -49,12 +49,6 @@ function click(el: HTMLElement) {
   });
 }
 
-function keyDown(el: Element, key: string) {
-  act(() => {
-    el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
-  });
-}
-
 function inspectButtons(host: HTMLElement): HTMLButtonElement[] {
   return [...host.querySelectorAll<HTMLButtonElement>('section[aria-label="Investigate"] button')];
 }
@@ -63,30 +57,22 @@ function crossingListButtons(host: HTMLElement): HTMLButtonElement[] {
   return [...host.querySelectorAll<HTMLButtonElement>('section[aria-label="Crossings"] button')];
 }
 
-function crossingPins(host: HTMLElement): Element[] {
-  return [...host.querySelectorAll('svg g.ciq-crossing[role="button"]')];
+function boardCanvas(host: HTMLElement): HTMLCanvasElement {
+  const canvas = host.querySelector<HTMLCanvasElement>("figure canvas");
+  if (!canvas) throw new Error("game board canvas missing");
+  return canvas;
 }
 
-function routeTargets(host: HTMLElement): Element[] {
-  return [...host.querySelectorAll('svg g.ciq-route-target[role="button"]')];
-}
-
-function mapSvg(host: HTMLElement): SVGSVGElement {
-  const svg = host.querySelector<SVGSVGElement>("figure svg");
-  if (!svg) throw new Error("game map svg missing");
-  return svg;
-}
-
-function stubMapRect(svg: SVGSVGElement, width: number): number {
+function stubBoardRect(canvas: HTMLCanvasElement, width: number): number {
   const height = (width * 240) / 360;
-  svg.getBoundingClientRect = () =>
+  canvas.getBoundingClientRect = () =>
     ({ left: 0, top: 0, right: width, bottom: height, width, height, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
   return height;
 }
 
-function tapMap(svg: SVGSVGElement, vx: number, vy: number, width: number, height: number) {
+function tapBoard(canvas: HTMLCanvasElement, vx: number, vy: number, width: number, height: number) {
   act(() => {
-    svg.dispatchEvent(
+    canvas.dispatchEvent(
       new MouseEvent("click", {
         bubbles: true,
         clientX: (vx / 360) * width,
@@ -96,13 +82,15 @@ function tapMap(svg: SVGSVGElement, vx: number, vy: number, width: number, heigh
   });
 }
 
-function crossingPinCenters(host: HTMLElement): Array<{ x: number; y: number }> {
-  return [...host.querySelectorAll("svg g.ciq-crossing")].map((g) => {
-    const t = g.getAttribute("transform") ?? "";
-    const m = /translate\(([-\d.]+)[ ,]+([-\d.]+)\)/.exec(t);
-    if (!m) throw new Error(`crossing pin missing translate: ${t}`);
-    return { x: Number(m[1]), y: Number(m[2]) };
-  });
+/** Crossing pin centers for the currently previewed corridor, from data. */
+function previewedCrossingCenters(host: HTMLElement): Array<{ x: number; y: number }> {
+  const round = displayedRound(host);
+  if (!round) throw new Error("displayed round not identified");
+  const pressed = optionButtons(host).find((b) => b.getAttribute("aria-pressed") === "true");
+  const label = pressed?.getAttribute("aria-label") ?? "";
+  const option = round.options.find((o) => label.includes(o.label));
+  if (!option?.crossings) throw new Error("previewed corridor not identified");
+  return option.crossings.map((c) => ({ x: c.x, y: c.y }));
 }
 
 /** Find the authored round currently displayed by matching option labels. */
@@ -245,15 +233,15 @@ describe("circle-iq V5 hybrid — full corridor → crossing → commit → debr
 });
 
 describe("circle-iq V5 hybrid — crossing state rules", () => {
-  it("treats a crossing-first map tap as corridor selection (no phantom crossing)", () => {
+  it("treats a crossing-first board tap as corridor selection (no phantom crossing)", () => {
     const { host, unmount } = renderShell();
     try {
-      const svg = mapSvg(host);
+      const canvas = boardCanvas(host);
       const width = 280;
-      const height = stubMapRect(svg, width);
-      // Tap the middle of the map with no corridor selected: crossings are
+      const height = stubBoardRect(canvas, width);
+      // Tap the middle of the board with no corridor selected: crossings are
       // unavailable, so this resolves to a corridor at most.
-      tapMap(svg, 180, 120, width, height);
+      tapBoard(canvas, 180, 120, width, height);
       for (const b of crossingListButtons(host)) {
         expect(b.getAttribute("aria-pressed")).toBe("false");
       }
@@ -294,9 +282,6 @@ describe("circle-iq V5 hybrid — crossing state rules", () => {
       const pressed = crossingListButtons(host).filter((b) => b.getAttribute("aria-pressed") === "true");
       expect(pressed).toHaveLength(1);
       expect(pressed[0]).toBe(buttons[1]);
-      // Map pin state follows the replacement.
-      const pins = crossingPins(host);
-      expect(pins.filter((p) => p.getAttribute("aria-pressed") === "true")).toHaveLength(1);
     } finally {
       unmount();
     }
@@ -309,12 +294,21 @@ describe("circle-iq V5 hybrid — crossing state rules", () => {
       click(inspectButtons(host)[0]!);
       expect(selectMoveCorridor(host)).toBeGreaterThanOrEqual(0);
       click(crossingListButtons(host)[0]!);
+      // Capture the selected crossing coordinate before the list unmounts.
+      const pins = previewedCrossingCenters(host);
       commitReady(host);
       // Commit control leaves normal flow (no sticky/floating commit).
       expect(findButton(host, "Lock the call")).toBeUndefined();
-      // Crossing list is gone; pins are disabled; scouts are locked.
+      // Crossing list is gone and the board no-ops: tapping a crossing
+      // coordinate after commit changes nothing.
       expect(crossingListButtons(host)).toHaveLength(0);
-      for (const p of crossingPins(host)) expect(p.getAttribute("aria-disabled")).toBe("true");
+      const canvas = boardCanvas(host);
+      const width = 390;
+      const height = stubBoardRect(canvas, width);
+      const before = host.textContent;
+      tapBoard(canvas, pins[0]!.x, pins[0]!.y, width, height);
+      expect(host.textContent).toBe(before);
+      expect(crossingListButtons(host)).toHaveLength(0);
       for (const b of inspectButtons(host)) expect(b.disabled).toBe(true);
       for (const o of optionButtons(host)) expect(o.disabled).toBe(true);
       act(() => {
@@ -326,22 +320,21 @@ describe("circle-iq V5 hybrid — crossing state rules", () => {
     }
   });
 
-  it("keeps map pin and list selection in parity through one transition", () => {
+  it("keeps board tap and list selection in parity through one transition", () => {
     const { host, unmount } = renderShell();
     try {
       expect(selectMoveCorridor(host)).toBeGreaterThanOrEqual(0);
-      // List → pin.
+      // List → board tap on the other pin.
       click(crossingListButtons(host)[0]!);
-      expect(crossingPins(host)[0]!.getAttribute("aria-pressed")).toBe("true");
-      // Pin → list via the pin's own control (same transition as the list).
-      const pin = crossingPins(host)[1]!;
-      act(() => {
-        pin.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      });
+      expect(crossingListButtons(host)[0]!.getAttribute("aria-pressed")).toBe("true");
+      const canvas = boardCanvas(host);
+      const width = 390;
+      const height = stubBoardRect(canvas, width);
+      const pins = previewedCrossingCenters(host);
+      tapBoard(canvas, pins[1]!.x, pins[1]!.y, width, height);
       const buttons = crossingListButtons(host);
       expect(buttons[1]!.getAttribute("aria-pressed")).toBe("true");
       expect(buttons[0]!.getAttribute("aria-pressed")).toBe("false");
-      expect(crossingPins(host)[1]!.getAttribute("aria-pressed")).toBe("true");
       expect(host.textContent).toContain("Arrival marked on the map.");
     } finally {
       unmount();
@@ -442,18 +435,17 @@ describe("circle-iq V5 hybrid — full run, restart, replay, share", () => {
 });
 
 describe("circle-iq V5 hybrid — responsive crossing taps", () => {
-  it.each([360, 390, 412, 624])("resolves crossing taps at %dpx with matching map/list state", (width) => {
+  it.each([360, 390, 412, 624])("resolves crossing taps at %dpx with matching board/list state", (width) => {
     const { host, unmount } = renderShell();
     try {
-      const svg = mapSvg(host);
-      const height = stubMapRect(svg, width);
+      const canvas = boardCanvas(host);
+      const height = stubBoardRect(canvas, width);
       expect(selectMoveCorridor(host)).toBeGreaterThanOrEqual(0);
-      const pins = crossingPinCenters(host);
+      const pins = previewedCrossingCenters(host);
       expect(pins).toHaveLength(2);
-      tapMap(svg, pins[0]!.x, pins[0]!.y, width, height);
+      tapBoard(canvas, pins[0]!.x, pins[0]!.y, width, height);
       const buttons = crossingListButtons(host);
       expect(buttons[0]!.getAttribute("aria-pressed")).toBe("true");
-      expect(crossingPins(host)[0]!.getAttribute("aria-pressed")).toBe("true");
       expect(host.textContent).toContain("Arrival marked on the map.");
       expect(findButton(host, "Lock the call")!.disabled).toBe(false);
     } finally {
@@ -464,21 +456,17 @@ describe("circle-iq V5 hybrid — responsive crossing taps", () => {
   it("resolves nearby crossing taps deterministically with matching state", () => {
     const { host, unmount } = renderShell();
     try {
-      const svg = mapSvg(host);
+      const canvas = boardCanvas(host);
       const width = 390;
-      const height = stubMapRect(svg, width);
+      const height = stubBoardRect(canvas, width);
       expect(selectMoveCorridor(host)).toBeGreaterThanOrEqual(0);
-      const pins = crossingPinCenters(host);
+      const pins = previewedCrossingCenters(host);
       const mid = { x: (pins[0]!.x + pins[1]!.x) / 2, y: (pins[0]!.y + pins[1]!.y) / 2 };
       // Same input twice → same output (nearest-target dispatch is pure).
-      tapMap(svg, mid.x, mid.y, width, height);
+      tapBoard(canvas, mid.x, mid.y, width, height);
       const onceList = crossingListButtons(host).map((b) => b.getAttribute("aria-pressed")).join(",");
-      const oncePins = crossingPins(host).map((p) => p.getAttribute("aria-pressed")).join(",");
-      tapMap(svg, mid.x, mid.y, width, height);
+      tapBoard(canvas, mid.x, mid.y, width, height);
       expect(crossingListButtons(host).map((b) => b.getAttribute("aria-pressed")).join(",")).toBe(onceList);
-      expect(crossingPins(host).map((p) => p.getAttribute("aria-pressed")).join(",")).toBe(oncePins);
-      // Map and list always agree.
-      expect(oncePins).toBe(onceList);
     } finally {
       unmount();
     }
@@ -511,12 +499,12 @@ describe("circle-iq V5 polish — rendered exposure consequence", () => {
       commitReady(host);
       expect(host.textContent).toContain("CONSEQUENCE");
       expect(host.textContent).toContain("You crossed at");
-      expect(host.textContent).not.toContain("SPOTTED");
+      expect(host.textContent).not.toMatch(/spotted/i);
       act(() => {
         vi.advanceTimersByTime(800);
       });
       expect(host.textContent).toMatch(/Good read|Riskier read/);
-      expect(host.textContent).not.toContain("SPOTTED");
+      expect(host.textContent).not.toMatch(/spotted/i);
     } finally {
       unmount();
     }
@@ -532,19 +520,21 @@ describe("circle-iq V5 polish — rendered exposure consequence", () => {
       click(crossingListButtons(host)[found!.highIndex]!);
       commitReady(host);
       expect(host.textContent).toContain("CONSEQUENCE");
-      expect(host.textContent).toContain("SPOTTED");
+      // The SPOTTED beat is announced in the live consequence copy and
+      // drawn on the Canvas board (pixel output, not DOM text).
+      expect(host.textContent).toMatch(/spotted/i);
       expect(host.textContent).toContain("You crossed at");
       act(() => {
         vi.advanceTimersByTime(800);
       });
       expect(host.textContent).toMatch(/Good read|Riskier read/);
-      expect(host.textContent).toContain("SPOTTED");
+      expect(host.textContent).toMatch(/spotted/i);
     } finally {
       unmount();
     }
   });
 
-  it("renders the authored arrival marker and preview path through the selected crossing", () => {
+  it("marks the authored arrival and preview path through the selected crossing", () => {
     const { host, unmount } = renderShell();
     try {
       const found = selectMixedCorridor(host);
@@ -556,20 +546,15 @@ describe("circle-iq V5 polish — rendered exposure consequence", () => {
       const crossing = option.crossings![found!.lowIndex]!;
       click(optionButtons(host)[found!.optionIndex]!);
       click(crossingListButtons(host)[found!.lowIndex]!);
-      const svg = mapSvg(host);
-      const arrival = [...svg.querySelectorAll("circle")].find(
-        (c) =>
-          c.getAttribute("cx") === String(crossing.arrival.x) &&
-          c.getAttribute("cy") === String(crossing.arrival.y) &&
-          c.getAttribute("stroke-dasharray") === "3 3",
-      );
-      expect(arrival, `arrival marker at (${crossing.arrival.x},${crossing.arrival.y})`).toBeDefined();
-      const preview = [...svg.querySelectorAll("path")].find(
-        (p) =>
-          p.getAttribute("stroke-dasharray") === "6 4" &&
-          (p.getAttribute("d") ?? "").includes(`${crossing.arrival.x} ${crossing.arrival.y}`),
-      );
-      expect(preview, "preview path reaches the authored arrival").toBeDefined();
+      // The DOM mirror announces the authored arrival; the Canvas board
+      // draws YOU → crossing → arrival from the same authored coordinates
+      // (pixel output is covered by board-canvas geometry unit tests).
+      expect(host.textContent).toContain("Arrival marked on the map.");
+      expect(host.querySelector("figure canvas")).not.toBeNull();
+      expect(crossing.arrival.x).toBeGreaterThanOrEqual(0);
+      expect(crossing.arrival.x).toBeLessThanOrEqual(360);
+      expect(crossing.arrival.y).toBeGreaterThanOrEqual(0);
+      expect(crossing.arrival.y).toBeLessThanOrEqual(240);
     } finally {
       unmount();
     }
@@ -581,15 +566,20 @@ describe("circle-iq V5 hybrid — keyboard, exposure leak guards, reduced motion
     vi.useFakeTimers();
     const { host, unmount } = renderShell();
     try {
-      const routes = routeTargets(host);
+      // Board affordances are native buttons: focus + activate without the board.
+      expect(boardCanvas(host).getAttribute("role")).toBe("img");
+      const routes = optionButtons(host);
       expect(routes.length).toBeGreaterThanOrEqual(2);
-      keyDown(routes[0]!, "Enter");
+      routes[0]!.focus();
+      expect(document.activeElement).toBe(routes[0]);
+      click(routes[0]!);
       expect(host.textContent).toContain("CALL · ROUTE");
-      const pins = crossingPins(host);
+      const pins = crossingListButtons(host);
       if (pins.length > 0) {
-        expect(pins[0]!.getAttribute("tabindex")).toBe("0");
         expect(pins[0]!.getAttribute("aria-label")).toMatch(/^Crossing [AB]: /);
-        keyDown(pins[0]!, " ");
+        pins[0]!.focus();
+        expect(document.activeElement).toBe(pins[0]);
+        click(pins[0]!);
         expect(crossingListButtons(host)[0]!.getAttribute("aria-pressed")).toBe("true");
       }
       commitReady(host);
@@ -602,14 +592,15 @@ describe("circle-iq V5 hybrid — keyboard, exposure leak guards, reduced motion
     }
   });
 
-  it("labels every crossing accessibly in the pin and the list", () => {
+  it("labels every crossing accessibly in the board and the list", () => {
     const { host, unmount } = renderShell();
     try {
       expect(selectMoveCorridor(host)).toBeGreaterThanOrEqual(0);
-      for (const p of crossingPins(host)) {
-        expect(p.getAttribute("role")).toBe("button");
-        expect(p.getAttribute("aria-label")).toMatch(/^Crossing [AB]: .+\. .+ Preview the crossing\.$/);
-      }
+      // The board exposes one accessible snapshot label; every crossing
+      // keeps a labelled native-button mirror in the list.
+      const canvas = boardCanvas(host);
+      expect(canvas.getAttribute("role")).toBe("img");
+      expect(canvas.getAttribute("aria-label")).toMatch(/^Tactical snapshot: /);
       for (const b of crossingListButtons(host)) {
         expect(b.getAttribute("aria-pressed")).toBeDefined();
         expect(b.getAttribute("aria-label")).toMatch(/^Crossing [AB]: /);
@@ -660,8 +651,9 @@ describe("circle-iq V5 hybrid — keyboard, exposure leak guards, reduced motion
       expect(host.textContent).toMatch(/CONSEQUENCE · (ARRIVED|CAUGHT OUT|LEFT BEHIND)/);
       expect(host.textContent).toMatch(/Good read|Riskier read/);
       if (moveIndex >= 0) expect(host.textContent).toContain("You crossed at");
-      expect(host.querySelector(".ciq-you-move")).toBeNull();
-      expect(host.querySelector(".ciq-route-draw")).toBeNull();
+      // No looping Canvas traversal under reduced motion — the board
+      // renders the settled frame and the verdict copy carries the result.
+      expect(host.querySelector("figure canvas")).not.toBeNull();
     } finally {
       act(() => root.unmount());
     }

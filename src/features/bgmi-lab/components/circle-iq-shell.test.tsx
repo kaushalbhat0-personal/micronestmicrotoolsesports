@@ -32,7 +32,9 @@ describe("circle-iq production guard — demo shell must never ship again", () =
     expect(CIRCLE_IQ_TOTAL).toBe(8);
     expect(CIRCLE_IQ_ROUNDS).toHaveLength(8);
     expect(html).toContain("ROUND 01 / 08");
-    expect(html).toContain("<svg");
+    // Canvas board renderer (data-board affordance) replaces the SVG board.
+    expect(html).toContain("<canvas");
+    expect(html).toContain('data-board="circle-iq"');
     expect(html).toContain('role="group"');
     expect(html).toContain("Rotation options");
     // Native decision buttons with display-only letter badges. The first
@@ -68,22 +70,36 @@ describe("circle-iq production guard — demo shell must never ship again", () =
     const codeOnly = shellSrc
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/(^|\s)\/\/.*$/gm, "$1");
+    const boardSrc = readFileSync(
+      join(process.cwd(), "src/features/bgmi-lab/components/circle-iq-board-canvas.tsx"),
+      "utf8",
+    )
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|\s)\/\/.*$/gm, "$1");
     for (const banned of ["localStorage", "sessionStorage", "fetch(", "/api/", "analytics", "leaderboard"]) {
       expect(codeOnly).not.toContain(banned);
+      expect(boardSrc, `board renderer must not contain ${banned}`).not.toContain(banned);
     }
   });
 });
 
 describe("circle-iq responsive hardening — layout contract", () => {
   const shellSrc = readFileSync(join(process.cwd(), "src/features/bgmi-lab/components/circle-iq-shell.tsx"), "utf8");
+  const boardSrc = readFileSync(
+    join(process.cwd(), "src/features/bgmi-lab/components/circle-iq-board-canvas.tsx"),
+    "utf8",
+  );
   const adSafeSrc = readFileSync(
     join(process.cwd(), "src/components/marketing/bgmi-lab/ad-safe-game-layout.tsx"),
     "utf8",
   );
 
-  it("keeps the SVG fluid with mobile-relief insets and no fixed widths", () => {
-    expect(shellSrc).toContain('viewBox="0 0 360 240"');
-    expect(shellSrc).toContain("h-auto w-full");
+  it("keeps the Canvas board fluid with mobile-relief insets and no fixed widths", () => {
+    // One logical coordinate space shared by every viewport width.
+    expect(boardSrc).toContain("BOARD_WIDTH = 360");
+    expect(boardSrc).toContain("BOARD_HEIGHT = 240");
+    expect(shellSrc).toContain("CircleIqBoardCanvas");
+    expect(boardSrc).toContain("h-auto w-full");
     // Mobile map relief lives inside the island (AdSafe boundary untouched).
     expect(shellSrc).toContain("-mx-1");
     expect(shellSrc).toContain("sm:mx-0");
@@ -108,7 +124,7 @@ describe("circle-iq responsive hardening — layout contract", () => {
     expect(shellSrc).toContain("w-full");
     expect(shellSrc).toContain("sm:w-auto");
     expect(shellSrc).toContain("justify-center");
-    expect(shellSrc).toContain("data-map-target");
+    expect(boardSrc).toContain('data-board="circle-iq"');
     expect(shellSrc).toContain("resolveMapTap");
   });
 
