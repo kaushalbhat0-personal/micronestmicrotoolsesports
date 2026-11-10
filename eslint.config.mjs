@@ -10,21 +10,28 @@ const __dirname = path.dirname(__filename);
 
 const compat = new FlatCompat({ baseDirectory: __dirname });
 
-// NOTE (RCCF-TOOLCHAIN-LINT-01): plugin configs are referenced directly
+// NOTE: plugin configs are referenced directly
 // ("plugin:@next/next/…", "plugin:react/…") instead of the
 // "next/core-web-vitals" / "next/typescript" bundle entries. Those bundles
 // resolve through eslint-config-next/index.js, which unconditionally requires
 // @rushstack/eslint-patch — a legacy eslintrc-era shim that cannot detect
 // ESLint 9 when the flat config is loaded via import() and aborts the entire
-// lint run ("the calling module was not recognized"). The patch is inert
-// under flat config (module resolution is handled by FlatCompat/ESLint
-// itself), so bypassing that entry removes the failure without changing the
+// lint run. Bypassing that entry removes the failure without changing the
 // enforced rule sets.
 
+// @next/eslint-plugin-next v16 ships native flat configs
+// (configs.recommended / configs["core-web-vitals"]), used directly above.
+// Loading them through FlatCompat's eslintrc path fails: the flat configs
+// carry a top-level "name" property that the eslintrc validator rejects.
+// The react/hooks/typescript bundles below remain eslintrc-style and load
+// via FlatCompat.
+
+import nextPlugin from "@next/eslint-plugin-next";
+
 const eslintConfig = [
+  nextPlugin.configs.recommended,
+  nextPlugin.configs["core-web-vitals"],
   ...compat.extends(
-    "plugin:@next/next/recommended",
-    "plugin:@next/next/core-web-vitals",
     "plugin:react/recommended",
     "plugin:react-hooks/recommended",
     "plugin:@typescript-eslint/recommended"
@@ -42,11 +49,13 @@ const eslintConfig = [
       "jsx-a11y": jsxA11yPlugin,
     },
     rules: {
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
       "@typescript-eslint/no-unused-expressions": "warn",
       "@typescript-eslint/no-explicit-any": "warn",
       "no-console": ["warn", { allow: ["warn", "error"] }],
-      // Carried over from the eslint-config-next defaults (new JSX transform, no propTypes).
       "react/no-unknown-property": "off",
       "react/react-in-jsx-scope": "off",
       "react/prop-types": "off",
@@ -64,25 +73,17 @@ const eslintConfig = [
     },
   },
   {
-    // Super Admin: prevent service_role client in future admin client components
-    files: ["src/app/(admin)/**/*"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "@/lib/supabase/admin",
-              importNames: ["createAdminClient"],
-              message: "createAdminClient is server-only and must be used only after requireSuperAdmin(). Do not import in admin client components.",
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    ignores: [".next/**", "node_modules/**", "out/**", "dist/**", "next-env.d.ts", "ref/**"],
+    ignores: [
+      ".next/**",
+      "node_modules/**",
+      "out/**",
+      "dist/**",
+      "coverage/**",
+      "playwright-report/**",
+      "test-results/**",
+      "next-env.d.ts",
+      "ref/**",
+    ],
   },
 ];
 

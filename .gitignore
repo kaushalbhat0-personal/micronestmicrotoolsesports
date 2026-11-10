@@ -35,4 +35,5 @@ coverage
 
 # build cache
 tsconfig.tsbuildinfo
-.env*
+playwright-report/
+test-results/

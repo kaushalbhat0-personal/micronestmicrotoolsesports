@@ -1,72 +1,56 @@
-# MicroNest Esports — Greenfield Workspace
+# MicroNest Esports
 
-Esports discovery and opportunity platform. This branch (`new-platform`)
-is a clean greenfield workspace prepared for a platform rebuild.
+**Discover the people, teams, organizations and brands shaping esports.**
 
-## Archive
+MicroNest Esports is a discovery and opportunity platform connecting
+players, teams, organizations, and brands through recruitment and
+partnership opportunities. News, tournaments, and mini games are
+supporting sections.
 
-The complete legacy implementation is preserved as reference material under:
+## Status
 
-`ref/legacy-platform/`
+Greenfield foundation. Application shell, health check, error boundaries,
+layout, and Supabase client boundaries only. No discovery features
+implemented yet.
 
-- `ref/legacy-platform/src/` — legacy application code (including tests).
-- `ref/legacy-platform/public/` — legacy assets.
-- `ref/legacy-platform/docs/` — legacy product documentation and mockups.
-- `ref/legacy-platform/demos/` — legacy demo tooling.
-- `ref/legacy-platform/scripts/` — legacy product scripts.
-- `ref/legacy-platform/ARCHITECTURE.md` — legacy architecture.
-- `ref/legacy-platform/README.md` — legacy readme.
-- `ref/legacy-platform/middleware.ts` — legacy Next.js middleware.
-- `ref/legacy-platform/vercel.json` — legacy cron configuration.
-- `ref/legacy-platform/.github/workflows/` — legacy ingestion workflows.
+## Quickstart
 
-Do not import legacy application code into the new `src/`. The archive is
-reference-only and is excluded from TypeScript compilation and lint.
+1. Copy `.env.example` to `.env.local` and fill values (never commit secrets).
+2. `npm install`
+3. `npm run dev`
 
-## Backend foundation
+## Scripts
 
-The existing `supabase/` directory (configuration, migrations, seed) is
-retained unchanged at the repository root as the backend starting point.
-No new Supabase project was created. No migrations, auth changes, or
-resets were made in this task.
+- `npm run dev` — local development server.
+- `npm run build` — production build.
+- `npm run typecheck` — strict TypeScript check.
+- `npm run lint` — ESLint.
+- `npm run test` — Vitest unit lane (excludes `*.integration.test.ts`).
+- `npm run test:all` — all unit tests.
+- `npm run db:types` — regenerate `src/types/database.ts` from the local
+  Supabase stack (requires `supabase start`).
 
-Environment files (`.env`, `.env.example`) were left untouched.
+## Structure
 
-## New structure (minimal)
+- `src/app/` — App Router shell (layout, home, health check, error boundaries).
+- `src/components/ui/` — shared primitives (shadcn-style foundations).
+- `src/components/shared/` — site chrome (header, footer, container).
+- `src/features/` — domain features (not implemented yet).
+- `src/lib/` — browser-safe utilities and Supabase browser/server clients.
+- `src/server/` — server-only code (service-role admin client, server env).
+- `src/config/`, `src/types/` — site config and generated database types.
+- `supabase/` — fresh greenfield backend (new migration lineage).
+- `ref/legacy-project/` — read-only legacy reference. Never import from it.
+- `docs/product-discovery/` — approved product and backend architecture.
 
-- `src/` — new application, initially only `app/layout.tsx` and
-  `app/page.tsx` (placeholder, no product features).
-- `public/` — new platform assets (currently empty placeholder).
-- `docs/` — new product and architecture docs (currently `README.md` only).
-- `supabase/` — existing backend foundation, unchanged.
-- `.github/` — reviewed workflows (legacy automation deactivated, see
-  `.github/workflows/README.md`).
-- `vercel.json` — minimal greenfield config with no cron jobs. Legacy
-  cron config preserved at `ref/legacy-platform/vercel.json`.
+## Supabase boundaries
 
-## Toolchain
-
-Retained: `package.json`, `package-lock.json`, `tsconfig.json`,
-`next.config.ts`, `postcss.config.mjs`, `eslint.config.mjs`,
-`.prettierrc`, `.prettierignore`, `.gitignore`, `next-env.d.ts`,
-`vitest.config.ts`.
-
-- `tsconfig.json` excludes `ref/**` so archived legacy source is not
-  compiled as part of the new application.
-- `eslint.config.mjs` ignores `ref/**` for the same reason (rules
-  unchanged).
-- `next.config.ts` is unchanged (legacy `/tools/*` redirects retained for
-  now, documented as legacy reference).
-- `npm run demo:generate` and `npm run dodo:validate-products` reference
-  archived `demos/` and `scripts/` targets and are expected to fail until
-  greenfield tooling is defined. `npm run db:types` targets the archived
-  `src/types/database.ts` path and is likewise expected to need revision.
-
-No product features (Player Finder, Team Finder, Org Finder, Brand Finder
-or others) have been implemented. No dependencies were installed or
-upgraded.
+- Browser: `src/lib/supabase/client.ts` (anon key only).
+- Server: `src/lib/supabase/server.ts` (cookie-scoped, anon key only).
+- Admin: `src/server/supabase-admin.ts` (service-role, server-only, throws
+  in the browser).
 
 ## Validation
 
-See the task final report for branch, checkpoint, archive verification,
-Supabase preservation, environment inventory, and validation results.
+See the greenfield foundation report for branch, Supabase identity,
+archive verification, environment inventory, and validation results.
