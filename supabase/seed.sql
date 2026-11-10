@@ -1,0 +1,3 @@
+-- MicroNest Esports greenfield seed.
+-- Local development only. No legacy data carried forward.
+-- Intentionally empty: foundational rows (if any) arrive via migrations.
