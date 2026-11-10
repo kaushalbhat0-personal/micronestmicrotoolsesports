@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { RotateCcw, Pause, Play } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { useArcadeCanvas } from "@/lib/arcade/use-arcade-canvas";
 import {
   LOOT_DASH_HEIGHT,
@@ -16,6 +16,7 @@ import {
   type LootDashSummary,
 } from "./loot-dash-sim";
 import { LOOT_DASH_BGMI_THEME, LOOT_DASH_PALETTE, gradeLootRun } from "./loot-dash-theme";
+import { resolveLootPointerTarget } from "./loot-dash-pointer";
 import {
   buildLootTerrain,
   createLootVisual,
@@ -52,6 +53,7 @@ export function LootDashShell({ durationSec = LOOT_DASH_TUNING.durationSec }: { 
   const [hud, setHud] = React.useState({ score: 0, timeLeft: durationSec, lives: LOOT_DASH_TUNING.lives, combo: 0 });
   const [result, setResult] = React.useState<LootDashSummary | null>(null);
   const [reducedMotion, setReducedMotion] = React.useState(false);
+  const [coarsePointer, setCoarsePointer] = React.useState(false);
 
   const simRef = React.useRef<{ state: LootDashState; rng: ArcadeRng } | null>(null);
   const keysRef = React.useRef<Set<string>>(new Set());
@@ -66,12 +68,25 @@ export function LootDashShell({ durationSec = LOOT_DASH_TUNING.durationSec }: { 
   hudRef.current = hud;
   const reducedRef = React.useRef(reducedMotion);
   reducedRef.current = reducedMotion;
+  const coarseRef = React.useRef(coarsePointer);
+  coarseRef.current = coarsePointer;
   const resultRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(query.matches);
     const onChange = (event: MediaQueryListEvent) => setReducedMotion(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  // Touch-follow lift: on coarse (touch) pointers the finger occludes the
+  // marker, so the follow target is lifted above the raw touch position
+  // (see loot-dash-pointer.ts). Fine pointers (mouse) are untouched.
+  React.useEffect(() => {
+    const query = window.matchMedia("(pointer: coarse)");
+    setCoarsePointer(query.matches);
+    const onChange = (event: MediaQueryListEvent) => setCoarsePointer(event.matches);
     query.addEventListener("change", onChange);
     return () => query.removeEventListener("change", onChange);
   }, []);
@@ -150,13 +165,17 @@ export function LootDashShell({ durationSec = LOOT_DASH_TUNING.durationSec }: { 
       if (keys.has("w") || keys.has("arrowup")) my -= 1;
       if (keys.has("s") || keys.has("arrowdown")) my += 1;
       const len = Math.hypot(mx, my);
+      const rawPointer = pointerRef.current;
+      // Control-space touch lift only — speed, radius, scoring, and clamping
+      // are untouched inside the sim. Keyboard input bypasses this entirely.
+      const target = resolveLootPointerTarget(rawPointer, coarseRef.current);
       const input: LootDashInput = {
         moveX: len > 0 ? mx / len : 0,
         moveY: len > 0 ? my / len : 0,
         hasKeys: len > 0,
-        pointerX: pointerRef.current.x,
-        pointerY: pointerRef.current.y,
-        pointerActive: pointerRef.current.active,
+        pointerX: target.x,
+        pointerY: target.y,
+        pointerActive: rawPointer.active,
       };
       // Presentation-only direction memory (wedge orientation + dust).
       if (len > 0) {
@@ -323,7 +342,7 @@ export function LootDashShell({ durationSec = LOOT_DASH_TUNING.durationSec }: { 
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <p className="font-mono text-[11px] tracking-widest text-primary-ink">
             {phase === "playing" ? "LIVE RUN" : phase === "paused" ? "PAUSED" : phase === "over" ? "RUN OVER" : "READY"}
@@ -332,10 +351,6 @@ export function LootDashShell({ durationSec = LOOT_DASH_TUNING.durationSec }: { 
             {hud.score} PTS
           </p>
         </div>
-        <CardTitle className="pt-1 text-xl font-normal">Loot Dash</CardTitle>
-        <CardDescription className="leading-relaxed">
-          Steer through the field for {durationSec} seconds — grab supplies, dodge danger rings, chain combos.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 px-4 sm:px-6">
         <div

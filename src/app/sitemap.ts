@@ -21,6 +21,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/paid-tools",
     "/bgmi-qualification",
     "/bgmi-tournaments",
+    // Finder discovery surface. Per-handle /players/* entries stay out of
+    // the sitemap in Phase B: profiles are noindex by default (opt-in via
+    // allow_indexing) and must never be thin-programmatic entries.
+    // Phase C: /find/teams joins the directory; /teams/[slug] stays out
+    // for the same noindex-by-default reason.
+    "/find/players",
+    "/find/teams",
     ...(await listPublishedBgmiTournamentPaths()).filter((p) => p !== "/bgmi-tournaments"),
     ...(await listPublishedMetaParserPaths()),
     "/pricing",

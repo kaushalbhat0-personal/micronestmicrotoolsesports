@@ -60,4 +60,16 @@ describe("sitemap — RCCF-CLEANUP-02 (released tools only) + RCCF-TOOLBOX-IA-02
       expect(urls).not.toContain(`/bgmi-lab/${tool.slug}`);
     }
   });
+
+  it("exposes the Finder discovery surface without per-profile or private URLs", async () => {
+    const urls = (await sitemap()).map((e) => new URL(e.url, "http://localhost:3000").pathname);
+    expect(urls).toContain("/find/players");
+    expect(urls).toContain("/find/teams");
+    for (const url of urls) {
+      expect(url).not.toMatch(/^\/players(\/|$)/);
+      expect(url).not.toMatch(/^\/teams(\/|$)/);
+      expect(url).not.toMatch(/^\/me(\/|$)/);
+      expect(url).not.toMatch(/^\/my-team(\/|$)/);
+    }
+  });
 });

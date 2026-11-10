@@ -58,6 +58,13 @@ export interface BgmiLabTool {
   readonly relatedSimulatorHref?: string;
   /** Concise direct-answer block (AEO) for available games. Plain factual prose. */
   readonly answer?: string;
+  /**
+   * Game-first layout: the interaction island renders immediately after the
+   * hero, with the answer block moved below it. Content is identical and
+   * server-rendered — only visual order changes, so crawlers see everything.
+   * Opt-in per game; defaults to the legacy answer-first order.
+   */
+  readonly gameFirst?: boolean;
   /** Future-ready share sentence (no share UX built yet). Canonical URL is appended at share time. */
   readonly shareText?: string;
   /** Motif line for the shared OG image generator. */
@@ -424,6 +431,7 @@ export const BGMI_LAB_TOOLS: readonly BgmiLabTool[] = [
     status: "available",
     category: "fun",
     scenarioKind: "synthetic",
+    gameFirst: true,
     answer:
       "Loot Dash is a free original MicroNest arcade game in BGMI Lab. You steer a marker through a field for 45 seconds, collecting supply, cache, and medkit tokens while avoiding danger rings. Pickups chained close together build a combo bonus; three ring hits ends the run early. Scores are personal practice feedback — not a skill rating — and nothing is saved.",
     shareText:

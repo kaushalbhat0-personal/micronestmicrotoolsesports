@@ -26,10 +26,17 @@ import { RelatedLabGames } from "./related-lab-games";
  * Section order is AdSense-deliberate: the game island is followed by a
  * full explanation section before any future ad-safe region, so a future
  * ad slot can never sit adjacent to gameplay controls.
+ *
+ * Game-first pages (registry `gameFirst`) render the island immediately
+ * after the hero with the answer block moved below it — PLAY → UNDERSTAND.
+ * All content stays server-rendered in the same page, so SEO/JSON-LD are
+ * unaffected; only visual order changes.
  */
 export function GamePageShell({ tool, island }: { tool: BgmiLabTool; island: ReactNode }) {
   const Icon = toolIcon(tool.icon);
   const scenarioLabel = tool.scenarioKind === "tournament-derived" ? "Tournament-derived" : "Practice scenario";
+  const gameFirst = tool.gameFirst === true;
+  const answer = tool.answer ? <AnswerBlock answer={tool.answer} /> : null;
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -55,10 +62,12 @@ export function GamePageShell({ tool, island }: { tool: BgmiLabTool; island: Rea
             <p className="text-sm leading-relaxed text-muted-foreground">{tool.description}</p>
           </div>
 
-          {tool.answer ? <AnswerBlock answer={tool.answer} /> : null}
+          {gameFirst ? null : answer}
 
           {/* Interaction island — dynamically loaded, ephemeral. */}
           <AdSafeGameLayout label={`Try ${tool.name}`}>{island}</AdSafeGameLayout>
+
+          {gameFirst ? answer : null}
 
           <Card>
             <CardHeader>

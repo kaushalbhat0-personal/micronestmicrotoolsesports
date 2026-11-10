@@ -125,6 +125,17 @@ describe("bgmi-lab registry — structural separation", () => {
     expect(getBgmiLabTool("final-circle")?.name).toBe("Final Circle");
   });
 
+  it("renders loot-dash game-first without touching other games", () => {
+    // Game-first is opt-in: only loot-dash moves its answer block below the
+    // island so the game lands in the first viewport. Every other tool keeps
+    // the legacy answer-first order (undefined counts as false).
+    expect(getBgmiLabTool("loot-dash")?.gameFirst).toBe(true);
+    for (const t of BGMI_LAB_TOOLS) {
+      if (t.slug === "loot-dash") continue;
+      expect(t.gameFirst ?? false).toBe(false);
+    }
+  });
+
   it("resolves routes only for available/experimental tools — derived from the registry", () => {
     // Registry-derived: adding a correctly registered available game
     // automatically enters routability coverage.

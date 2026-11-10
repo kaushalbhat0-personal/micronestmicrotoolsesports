@@ -296,6 +296,152 @@ export interface Payment {
   created_at: string;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Finder — user-scoped competitive discovery (Phase A foundation)
+// Ownership derives from profiles.id (= auth.users.id). No organization_id.
+export type FinderLevel =
+  | "casual"
+  | "community"
+  | "competitive"
+  | "higher-tier"
+  | "semi-pro"
+  | "professional";
+export type FinderGame = "bgmi";
+export type FinderVerificationStatus =
+  | "unverified"
+  | "pending"
+  | "verified"
+  | "rejected"
+  | "needs_review";
+export type FinderVerificationMethod = "manual_evidence" | "api";
+export type FinderTeamRole = "captain" | "co-captain" | "player" | "sub";
+export type FinderRecruitmentStatus = "open" | "paused" | "closed" | "filled";
+export type FinderApplicationStatus =
+  | "applied"
+  | "shortlisted"
+  | "accepted"
+  | "declined"
+  | "withdrawn";
+export type FinderReportTarget = "player" | "team" | "recruitment_post" | "application";
+export type FinderReportStatus = "open" | "reviewing" | "resolved" | "dismissed";
+
+export interface FinderProfile {
+  user_id: string;
+  handle: string;
+  display_name: string;
+  avatar_url: string | null;
+  region: string;
+  languages: string[];
+  timezone: string | null;
+  current_level: FinderLevel;
+  target_level: FinderLevel;
+  primary_role: string;
+  secondary_roles: string[];
+  availability: string[];
+  looking_for: boolean;
+  open_to_tryout: boolean;
+  bio: string | null;
+  allow_indexing: boolean;
+  is_searchable: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinderGameProfile {
+  id: string;
+  user_id: string;
+  game: FinderGame;
+  ign: string;
+  character_id: string;
+  verification_status: FinderVerificationStatus;
+  verification_method: FinderVerificationMethod | null;
+  verified_at: string | null;
+  evidence_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinderVerificationSubmission {
+  id: string;
+  user_id: string;
+  game_profile_id: string;
+  evidence_path: string;
+  status: "pending" | "approved" | "rejected" | "needs_review";
+  reason_code: string | null;
+  reviewer: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinderTeam {
+  id: string;
+  slug: string;
+  name: string;
+  logo_url: string | null;
+  game: FinderGame;
+  region: string;
+  description: string | null;
+  current_level: FinderLevel;
+  target_level: FinderLevel;
+  captain_user_id: string;
+  recruiting: boolean;
+  contact_mode: "application_only" | "external_link";
+  external_link: string | null;
+  is_public: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinderTeamMember {
+  team_id: string;
+  user_id: string;
+  role: FinderTeamRole;
+  game_role: string | null;
+  joined_at: string;
+}
+
+export interface FinderRecruitmentPost {
+  id: string;
+  team_id: string;
+  game: FinderGame;
+  role_needed: string;
+  slots: number;
+  current_level_min: FinderLevel;
+  target_level: FinderLevel;
+  region: string;
+  availability_required: string[];
+  experience_min: string | null;
+  tryout_required: boolean;
+  status: FinderRecruitmentStatus;
+  expires_at: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinderApplication {
+  id: string;
+  post_id: string;
+  applicant_user_id: string;
+  note: string | null;
+  status: FinderApplicationStatus;
+  decided_by: string | null;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export interface FinderReport {
+  id: string;
+  reporter_user_id: string;
+  target_type: FinderReportTarget;
+  target_id: string;
+  reason: string;
+  status: FinderReportStatus;
+  created_at: string;
+}
+
 // Joined helpers
 export type OrganizationWithRole = Organization & { role: OrganizationRole };
 export type EntitlementWithTool = ToolEntitlement & { tool: Tool | null };
