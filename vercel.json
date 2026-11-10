@@ -1,12 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/sentinel-scan",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/sentinel-retention",
-      "schedule": "0 4 * * *"
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "comment": "Greenfield: no cron jobs yet. Legacy cron config preserved in ref/legacy-platform/vercel.json."
 }
