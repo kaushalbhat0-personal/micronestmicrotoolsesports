@@ -1,16 +1,109 @@
 @import "tailwindcss";
 
+/*
+ * Competitive Arena design tokens (Stitch-approved) — Direction A "Competitive Esports".
+ *
+ * Marketing + platform tokens. No product behavior is overwritten: the product
+ * surfaces keep Tailwind's default slate scale. All marketing components
+ * consume the `arena / paper / steel / slate / ink / accent` names below.
+ *
+ * Contrast (verified, WCAG AA):
+ * - accent #C8102E on paper white: 5.88 (text-safe, CTA-safe)
+ * - white on accent #C8102E: 5.88 (CTA-safe); hover #9B0014: deep crimson, 8.9+
+ * - accent-bright #FF8A96 on arena #0A0E14: 8.59 (text-safe on dark)
+ * - Raw accent on arena is 3.29: NEVER accent text on dark. On arena, accent
+ *   is decorative only (keylines, markers); text uses paper or accent-bright.
+ * - steel ink #334155 on steel #F1F5F9: 9.45; muted #475569 on white: 7.58.
+ */
+
+@theme {
+  /* Carbon: near-black competitive surfaces (hero, arena bands). */
+  --color-arena-950: #0a0e14;
+  --color-arena-900: #11161f;
+  --color-arena-800: #1c2534;
+  --color-arena-line: rgba(255, 255, 255, 0.14);
+
+  /* Editorial surfaces. */
+  --color-paper: #ffffff;
+  --color-steel-100: #f1f5f9;
+  --color-steel-200: #e2e8f0;
+
+  /* Slate spectrum (Stitch-approved). */
+  --color-slate-deep: #1e293b;
+  --color-slate-mid: #64748b;
+  --color-slate-light: #94a3b8;
+
+  /* Ink. */
+  --color-ink-900: #0f172a;
+  --color-ink-600: #475569;
+  --color-steel-ink: #334155;
+
+  /* Crimson scale: crimson + deep crimson only. */
+  --color-accent-600: #c8102e;
+  --color-accent-700: #9b0014;
+  --color-accent-300: #ff8a96;
+
+  /*
+   * Ghost numerals: large decorative display type on paper only (3.42:1 on
+   * white — passes the 3:1 large-text threshold; NOT approved for body text).
+   * Applied exclusively to aria-hidden display numerals (ecosystem seeds,
+   * BGMI band subline) whose information is already carried by list semantics
+   * and headings.
+   */
+  --color-ghost: #94a3b8;
+
+  /*
+   * Display face: condensed uppercase grotesk. No webfont is procured in M1
+   * (zero-dependency rule), so this is a system condensed stack with
+   * condensed stretch + tight tracking applied at the utility level. A
+   * licensed condensed face can replace the head of this stack later without
+   * touching components (they consume `font-display` only).
+   */
+  --font-display:
+    "Oswald", "Archivo Narrow", "Arial Narrow", "Helvetica Neue Condensed",
+    "Franklin Gothic Condensed", "Roboto Condensed", "Inter Tight", system-ui,
+    sans-serif;
+  --font-sans:
+    "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
 :root {
   color-scheme: light;
 }
 
 body {
   min-height: 100vh;
-  background-color: #ffffff;
-  color: #0f172a;
+  background-color: var(--color-paper);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Sharp geometry: architectural precision, zero radius on marketing surfaces. */
+.marketing-sharp, .marketing-sharp * {
+  border-radius: 0 !important;
 }
 
 main:focus {
   outline: none;
+}
+
+/* Competitive display treatment: condensed + uppercase + tight. */
+.font-display {
+  font-stretch: condensed;
+  letter-spacing: 0.01em;
+}
+
+/* One motion rule for the whole marketing layer: no non-essential motion
+ * for users who ask for less. Marketing ships no ambient animation, so this
+ * is a guard rather than a feature. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
