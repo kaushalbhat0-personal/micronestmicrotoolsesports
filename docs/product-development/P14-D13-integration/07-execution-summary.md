@@ -9,7 +9,8 @@
 | Original HEAD | `3b7ad5b` |
 | Integration commit | `5a4a158e1a429727516631fef464cdbfac2260e2` |
 | Message | `feat(esports): add frictionless signup and profile onboarding` |
-| Remote branch | `origin/new-platform` @ `5a4a158` (verified match) |
+| Docs follow-up | `4439beb5826909d44d05b223b03e2aeb2c279dc6` (`docs(p14-d13): record…`) |
+| Final remote HEAD | `origin/new-platform` @ `4439beb` (verified match) |
 | `origin/main` / `origin/master` | Unchanged |
 
 ### Change summary
