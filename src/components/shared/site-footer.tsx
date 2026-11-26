@@ -19,6 +19,8 @@ const footerLinks = [
   { href: "/tools/roster-slot-builder", label: "Roster & Slot Builder" },
   { href: "/tools/tiebreak-qualifier", label: "Tie-Break & Qualification Simulator" },
   { href: "/about", label: "About MicroNest" },
+  { href: "/signup", label: "Sign up" },
+  { href: "/login", label: "Log in" },
 ] as const;
 
 export function SiteFooter() {
@@ -32,23 +34,20 @@ export function SiteFooter() {
               {siteConfig.name}
             </p>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-300">
-              Independent esports discovery directory and client-side utility
-              suite for competitive players, independent rosters, and
-              grassroots organizers — starting with BGMI.
+              Independent esports discovery directory and client-side utility suite for competitive
+              players, independent rosters, and grassroots organizers — starting with BGMI.
             </p>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-400">
-              Availability: player, team, organization, brand, tournament, news
-              and tools discovery routes are live. Publishing, ownership and
-              verification writes, opportunities and mini games are planned and
-              labelled — never sold as shipped. News content appears only after
-              editorial acceptance.
+              Availability: player, team, organization, brand, tournament, news and tools discovery
+              routes are live. Publishing, ownership and verification writes, opportunities and mini
+              games are planned and labelled — never sold as shipped. News content appears only
+              after editorial acceptance.
             </p>
             <p className="mt-3 max-w-md text-xs leading-relaxed text-slate-400">
-              MicroNest Esports is an independent community directory. BGMI
-              (Battlegrounds Mobile India) is a registered trademark of KRAFTON,
-              Inc. MicroNest is not affiliated with, sponsored by, or endorsed
-              by KRAFTON, Inc. or any official tournament body. All listings
-              are self-declared or illustrative.
+              MicroNest Esports is an independent community directory. BGMI (Battlegrounds Mobile
+              India) is a registered trademark of KRAFTON, Inc. MicroNest is not affiliated with,
+              sponsored by, or endorsed by KRAFTON, Inc. or any official tournament body. All
+              listings are self-declared or illustrative.
             </p>
           </div>
           <nav aria-label="Footer" className="min-w-0">

@@ -12,12 +12,18 @@ export function WorkspaceSignInPrompt() {
     <div className={shellClass}>
       <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Team workspace</h1>
       <p className="mt-3 text-sm text-slate-600">Sign in to manage your teams.</p>
-      <p className="mt-4">
+      <p className="mt-4 flex flex-wrap gap-3">
         <Link
           href={{ pathname: "/login", query: { next: "/workspace/teams" } }}
-          className="inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+          className="bg-accent-600 hover:bg-accent-700 focus-visible:outline-accent-600 inline-block px-4 py-2 text-sm font-bold tracking-wide text-white uppercase focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           Sign in
+        </Link>
+        <Link
+          href={{ pathname: "/signup", query: { next: "/workspace/teams" } }}
+          className="inline-block border border-slate-300 px-4 py-2 text-sm font-bold tracking-wide uppercase hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+        >
+          Create account
         </Link>
       </p>
       <p className="mt-4 text-sm text-slate-600">
@@ -31,11 +37,12 @@ export function WorkspaceUnavailable() {
   return (
     <div className={shellClass}>
       <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Team workspace</h1>
-      <div role="alert" className="mt-6 rounded-lg border border-slate-200 bg-white p-6 text-center">
+      <div
+        role="alert"
+        className="mt-6 rounded-lg border border-slate-200 bg-white p-6 text-center"
+      >
         <h2 className="text-lg font-semibold">Workspace unavailable</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Could not load your teams. Please try again.
-        </p>
+        <p className="mt-2 text-sm text-slate-600">Could not load your teams. Please try again.</p>
         <Link
           href="/workspace/teams"
           className="mt-4 inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white"
@@ -52,8 +59,7 @@ export function WorkspaceEmpty() {
     <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6 text-center">
       <h2 className="text-lg font-semibold">No teams yet</h2>
       <p className="mt-2 text-sm text-slate-600">
-        You do not own or manage any teams. When you create or captain a team, it will appear
-        here.
+        You do not own or manage any teams. When you create or captain a team, it will appear here.
       </p>
       <Link
         href="/teams/new"

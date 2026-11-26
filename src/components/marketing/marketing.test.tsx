@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { SiteFooter } from "@/components/shared/site-footer";
-import { SiteHeader } from "@/components/shared/site-header";
+import { SiteHeaderShell } from "@/components/shared/site-header-shell";
 import { ArenaHero } from "./arena-hero";
 import { AudiencePathways } from "./audience-pathways";
 import { ClosingCTA } from "./closing-cta";
@@ -32,10 +32,7 @@ function listMarketingSources(): { path: string; content: string }[] {
       const full = join(dir, name.name);
       if (name.isDirectory()) {
         walk(full);
-      } else if (
-        /\.(tsx?|mts|cts)$/.test(name.name) &&
-        !/\.test\.[jt]sx?$/.test(name.name)
-      ) {
+      } else if (/\.(tsx?|mts|cts)$/.test(name.name) && !/\.test\.[jt]sx?$/.test(name.name)) {
         entries.push({ path: full, content: readFileSync(full, "utf8") });
       }
     }
@@ -60,18 +57,14 @@ const sources = listMarketingSources();
 // User-facing copy is additionally audited via rendered HTML below, where no
 // such comments exist.
 function stripComments(content: string): string {
-  return content
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/(^|\s)\/\/.*$/gm, "$1");
+  return content.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|\s)\/\/.*$/gm, "$1");
 }
 
-const sourceText = sources
-  .map((s) => stripComments(s.content))
-  .join("\n");
+const sourceText = sources.map((s) => stripComments(s.content)).join("\n");
 
 const homeHtml = renderToStaticMarkup(<HomePage />);
 const aboutHtml = renderToStaticMarkup(<AboutPage />);
-const headerHtml = renderToStaticMarkup(<SiteHeader />);
+const headerHtml = renderToStaticMarkup(<SiteHeaderShell signedIn={false} />);
 const footerHtml = renderToStaticMarkup(<SiteFooter />);
 
 describe("Marketing module boundary — static, no product data access", () => {
@@ -90,7 +83,9 @@ describe("Marketing module boundary — static, no product data access", () => {
       expect(code, `${path}: server client`).not.toContain("createClient");
       expect(code, `${path}: raw table access`).not.toContain(".from(");
       expect(code, `${path}: private reader path`).not.toContain("features/player-profile/server");
-      expect(code, `${path}: private domain import`).not.toContain("features/player-profile/domain");
+      expect(code, `${path}: private domain import`).not.toContain(
+        "features/player-profile/domain"
+      );
       expect(code, `${path}: identifier leak`).not.toContain("game_user_id");
     }
   });
@@ -104,32 +99,20 @@ describe("Marketing module boundary — static, no product data access", () => {
   });
 });
 
-describe("No signup CTA until G1-8B", () => {
-  const forbidden = [/\bsign[\s-]?up\b/i, /get started/i, /join now/i, /create (an )?account/i, /\bregister\b/i];
-  it("marketing sources promise no registration", () => {
-    for (const pattern of forbidden) {
-      expect(sourceText, `marketing source matches ${pattern}`).not.toMatch(pattern);
-    }
+describe("Auth entry points — discoverable signup and login (P14-D10)", () => {
+  it("marketing sources link to real auth routes", () => {
+    expect(sourceText).toContain("/signup");
+    expect(sourceText).not.toMatch(/join now/i);
   });
 
-  it("rendered homepage, about, header and footer promise no registration", () => {
-    for (const pattern of forbidden) {
-      // "register" appears in legitimate "registered trademark of KRAFTON"
-      // footer copy — allow that single legal phrase.
-      if (pattern.source.includes("register")) {
-        const scrubbed = (html: string): string =>
-          html.replace(/registered trademark/gi, "");
-        expect(scrubbed(homeHtml), "home").not.toMatch(pattern);
-        expect(scrubbed(aboutHtml), "about").not.toMatch(pattern);
-        expect(scrubbed(headerHtml), "header").not.toMatch(pattern);
-        expect(scrubbed(footerHtml), "footer").not.toMatch(pattern);
-      } else {
-        expect(homeHtml, `home matches ${pattern}`).not.toMatch(pattern);
-        expect(aboutHtml, `about matches ${pattern}`).not.toMatch(pattern);
-        expect(headerHtml, `header matches ${pattern}`).not.toMatch(pattern);
-        expect(footerHtml, `footer matches ${pattern}`).not.toMatch(pattern);
-      }
+  it("rendered homepage, header and footer expose signup and login", () => {
+    expect(homeHtml).toContain("/signup");
+    for (const html of [headerHtml, footerHtml]) {
+      expect(html).toContain("/signup");
+      expect(html).toContain("/login");
     }
+    expect(homeHtml).not.toMatch(/join now/i);
+    expect(headerHtml).not.toMatch(/join now/i);
   });
 });
 
@@ -171,10 +154,12 @@ describe("Truthful labelling — no fabricated listings or verification claims",
 });
 
 describe("Marketing navigation", () => {
-  it("header links to shipped routes with an accessible mobile menu", () => {
+  it("header links to shipped routes with grouped Discover and auth actions", () => {
     expect(headerHtml).toContain('href="/players"');
     expect(headerHtml).toContain('href="/about"');
-    expect(headerHtml).toContain("Explore players");
+    expect(headerHtml).toContain("Discover");
+    expect(headerHtml).toContain("/signup");
+    expect(headerHtml).toContain("/login");
     expect(headerHtml).not.toContain("Opportunities");
     expect(headerHtml).toContain('aria-label="Primary"');
     expect(headerHtml).toContain('aria-controls="primary-menu"');
@@ -200,17 +185,12 @@ describe("Homepage render contract", () => {
   it("renders one competitive H1 with directory CTAs", () => {
     expect(homeHtml).toContain("<h1");
     expect(homeHtml).toContain("Where esports talent gets discovered");
-    expect(homeHtml).toContain("Explore players");
+    expect(homeHtml).toContain("Sign up free");
     expect(homeHtml).toContain("Discover tournaments");
   });
 
   it("renders every Stitch-approved section exactly once", () => {
-    for (const anchor of [
-      'id="discovery"',
-      'id="tournaments"',
-      'id="editorial"',
-      'id="tools"',
-    ]) {
+    for (const anchor of ['id="discovery"', 'id="tournaments"', 'id="editorial"', 'id="tools"']) {
       expect(homeHtml, `missing section ${anchor}`).toContain(anchor);
     }
   });

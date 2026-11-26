@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import type { Route } from "next";
+import Link from "next/link";
 import { getOwnProfile } from "@/features/player-profile/server/player-profile";
 import { getOwnGameProfiles } from "@/features/player-profile/server/game-profile";
 import { getHandleChangeState } from "@/features/player-profile/server/handle";
@@ -46,6 +48,14 @@ export default async function ProfileSettingsPage() {
         <p className="mt-3 text-sm text-slate-600">
           You do not have a player profile yet. Create one to manage discoverability, handle
           and deletion settings.
+        </p>
+        <p className="mt-4">
+          <Link
+            href={"/onboarding/profile" as Route}
+            className="bg-accent-600 hover:bg-accent-700 inline-flex min-h-[44px] items-center px-4 text-sm font-bold tracking-wide text-white uppercase"
+          >
+            Complete your profile
+          </Link>
         </p>
       </div>
     );
