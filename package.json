@@ -13,6 +13,7 @@
     "test": "vitest run --exclude \"**/*.integration.test.ts\"",
     "test:all": "vitest run",
     "test:integration": "vitest run --testTimeout=60000 --hookTimeout=180000 \"**/*.integration.test.ts\"",
+    "test:e2e": "playwright test",
     "test:watch": "vitest --exclude \"**/*.integration.test.ts\" --watch",
     "db:types": "supabase gen types typescript --local --schema public > src/types/database.ts",
     "format": "prettier --write .",
@@ -28,6 +29,7 @@
     "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "sharp": "^0.35.5",
     "tailwind-merge": "3.7.0",
     "zod": "4.6.7"
   },

@@ -1,0 +1,19 @@
+# P14-D7 preview deploy: keep upload lean; never ship secrets or archives.
+.env
+.env.*
+!.env.example
+.vercel
+legacy
+ref
+node_modules
+.git
+agent-transcripts
+coverage
+playwright-report
+test-results
+.next
+docs/product-discovery
+docs/marketing-transformation
+**/*.png
+**/*.mp4
+**/*.webm

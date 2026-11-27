@@ -1,23 +1,44 @@
 import type { Metadata } from "next";
+import { ArenaHero } from "@/components/marketing/arena-hero";
+import { AudiencePathways } from "@/components/marketing/audience-pathways";
+import { ClosingCTA } from "@/components/marketing/closing-cta";
+import { EditorialGuides } from "@/components/marketing/editorial-guides";
+import { ToolsShowcase } from "@/components/marketing/tools-showcase";
+import { TournamentShowcase } from "@/components/marketing/tournament-showcase";
+import { siteConfig } from "@/config/site";
+import { buildMarketingCanonical } from "@/lib/canonical";
+
+const homeCanonical = buildMarketingCanonical("/");
 
 export const metadata: Metadata = {
-  title: "Discover the people, teams, organizations and brands shaping esports",
-  description:
-    "MicroNest Esports is a discovery and opportunity platform for players, teams, organizations, and brands. Player, team, organization, and brand discovery with recruitment and partnership opportunities.",
+  title: siteConfig.tagline,
+  description: siteConfig.description,
+  ...(homeCanonical === undefined
+    ? {}
+    : { alternates: { canonical: homeCanonical } }),
+  openGraph: {
+    type: "website",
+    title: `${siteConfig.name} — ${siteConfig.tagline}`,
+    description: siteConfig.description,
+    ...(homeCanonical === undefined ? {} : { url: homeCanonical }),
+    // No OG images until an approved brand asset ships (interim mark only).
+  },
 };
 
+// Stitch-approved homepage: fully static server-component composition.
+// No data fetching (marketing layer never touches Supabase), no signup CTA,
+// no fabricated listings. Every CTA links to a real application route;
+// tournament/editorial sections render intentional empty states with
+// explicitly labelled illustrative specimens.
 export default function HomePage() {
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6">
-      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-        MicroNest Esports
-      </h1>
-      <p className="mt-4 max-w-2xl text-base text-slate-600">
-        Discover the people, teams, organizations and brands shaping esports.
-        Player, team, organization, and brand discovery with recruitment and
-        partnership opportunities. News, tournaments, and mini games are
-        supporting sections.
-      </p>
-    </div>
+    <>
+      <ArenaHero />
+      <AudiencePathways />
+      <TournamentShowcase />
+      <EditorialGuides />
+      <ToolsShowcase />
+      <ClosingCTA />
+    </>
   );
 }

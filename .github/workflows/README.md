@@ -12,8 +12,8 @@ ingestion endpoints:
 
 Decision: deactivate by archiving. Full contents preserved as reference at:
 
-- `ref/legacy-platform/.github/workflows/bgmi-tournaments-ingest.yml`
-- `ref/legacy-platform/.github/workflows/meta-parser-ingest.yml`
+- `legacy/application/.github/workflows/bgmi-tournaments-ingest.yml`
+- `legacy/application/.github/workflows/meta-parser-ingest.yml`
 
 Do not re-enable until greenfield ingestion routes, authentication, and
 scheduling requirements are defined. When re-introducing automation,

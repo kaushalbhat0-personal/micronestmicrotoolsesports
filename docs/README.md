@@ -19,6 +19,6 @@ Discovery and connections are the primary product. News, tournaments and
 mini games are supporting sections.
 
 Legacy documentation is preserved for reference under
-`ref/legacy-platform/docs/`, `ref/legacy-platform/ARCHITECTURE.md` and
-`ref/legacy-platform/README.md`. Do not treat legacy docs as the new
+`legacy/application/docs/`, `legacy/application/ARCHITECTURE.md` and
+`legacy/README.md`. Do not treat legacy docs as the new
 architecture.

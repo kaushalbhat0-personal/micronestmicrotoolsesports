@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "url": "https://mcp.supabase.com/mcp?project_ref=knniommcyyhbyiwljisk&read_only=true"
+    },
+    "stitch": {
+      "url": "https://stitch.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "${env:STITCH_API_KEY}"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest", "--isolated"]
+    },
+    "browser-use": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "browser-use[cli]==0.13.11",
+        "browser-use",
+        "--mcp"
+      ]
+    }
+  }
+}

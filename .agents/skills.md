@@ -1,6 +1,6 @@
 # .agents — Project Skills Index
 
-> **What `.agents` is:** Project-local authoritative skills for OpenCode and future agents. Model memory is not trusted; these files are the source of truth for how this repository is built.
+> **What `.agents` is:** Project-local authoritative skills for **Cursor**, OpenCode, and other agents. Model memory is not trusted; these files are the source of truth for how this repository is built. Cursor project rules under `.cursor/rules/` complement this index; they do not replace it.
 
 ## Authority & Scope
 

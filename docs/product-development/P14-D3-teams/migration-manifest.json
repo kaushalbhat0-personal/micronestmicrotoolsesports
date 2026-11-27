@@ -1,0 +1,43 @@
+{
+  "phase": "P14-D3",
+  "project_ref": "knniommcyyhbyiwljisk",
+  "remote_apply": false,
+  "active_chain": [
+    "20261110000001_foundation_baseline.sql",
+    "20261110000002_storage_foundation.sql",
+    "20261110000003_g1_identity_anchor.sql",
+    "20261110000004_g1_identity_anchor_grant_tightening.sql",
+    "20261110000005_g1_player_profile.sql",
+    "20261110000006_g1_game_catalogue.sql",
+    "20261110000007_g1_public_projection.sql",
+    "20261111000008_g1_owner_settings_lifecycle.sql",
+    "20261111000009_g1_handle_function_fix.sql",
+    "20261112000001_d1_admin_foundation.sql",
+    "20261112000002_p14_admin_superadmin_active_gate.sql",
+    "20261112000005_p9_organizer_foundation.sql",
+    "20261112000006_p9_tournament_link.sql",
+    "20261113000001_p11_f01_trust_guard.sql",
+    "20261113000002_p11_f02_published_integrity.sql",
+    "20261113000003_p11_moderation_queue.sql",
+    "20261113000004_p13_f02_snapshot.sql",
+    "20261113000005_p13_activation.sql",
+    "20261114000001_p14_teams_foundation.sql",
+    "20261114000002_p14_team_members.sql",
+    "20261114000003_p14_team_audit_events.sql",
+    "20261114000004_p14_team_public_rpcs.sql",
+    "20261114000005_p14_team_mutation_rpcs.sql"
+  ],
+  "archived_d1_teams": [
+    "docs/product-development/P14-D2-teams/archived-migrations/d1-teams/20261112000002_d1_teams_discovery.sql",
+    "docs/product-development/P14-D2-teams/archived-migrations/d1-teams/20261112000003_d1_security_remediation.sql",
+    "docs/product-development/P14-D2-teams/archived-migrations/d1-teams/20261112000004_d1_insert_boundary_indexes.sql"
+  ],
+  "p14_new_migrations": [
+    "20261112000002_p14_admin_superadmin_active_gate.sql",
+    "20261114000001_p14_teams_foundation.sql",
+    "20261114000002_p14_team_members.sql",
+    "20261114000003_p14_team_audit_events.sql",
+    "20261114000004_p14_team_public_rpcs.sql",
+    "20261114000005_p14_team_mutation_rpcs.sql"
+  ]
+}

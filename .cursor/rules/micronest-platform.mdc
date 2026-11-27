@@ -1,0 +1,29 @@
+---
+description: MicroNest Esports platform authority, legacy isolation, and safety gates
+alwaysApply: true
+---
+
+# MicroNest Esports — Platform Rules
+
+## Authority
+
+- The **new platform** (repo root outside `legacy/`) is the only active implementation.
+- `legacy/` is **reference-only**. Never import legacy runtime code. Never restore or apply legacy migrations.
+- Prefer existing feature-first architecture over broad rewrites. Keep `src/app/` orchestration-only.
+- Installed stack: inspect `package.json` / lockfile (Next App Router, React 19, TypeScript strict, Tailwind v4, Supabase SSR). Do not invent versions.
+- Package manager: **npm**. No Docker in the current project workflow.
+
+## Safety gates (explicit authorization required)
+
+- Do **not** commit, push, or deploy unless the user explicitly asks.
+- Do **not** mutate the database (DDL/DML, migration apply, reset) unless explicitly authorized.
+- Preserve the dirty worktree and any staged legacy renames.
+- Never access the sibling **LMS** Supabase project. Primary Esports ref: `knniommcyyhbyiwljisk`.
+- Never print secrets, tokens, or credential values.
+
+## Quality defaults
+
+- SOLID / DRY / KISS; Zod on external input; security-first Supabase/RLS; mobile-first UI; WCAG AA.
+- Use project skills under `.agents/skills/` (see `.agents/skills.md`) and personal skills when they materially help.
+- Use Google Stitch MCP for one-screen design exploration when relevant; Competitive Arena language stays.
+- Never claim a tool, MCP, or skill was used unless it was actually invoked.

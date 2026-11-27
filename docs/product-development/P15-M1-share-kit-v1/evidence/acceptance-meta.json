@@ -1,0 +1,99 @@
+{
+  "findings": [
+    {
+      "id": "campaign-desktop",
+      "severity": "PASS",
+      "note": "Links + disclaimer OK"
+    },
+    {
+      "id": "canvas-font-dpr",
+      "severity": "PASS",
+      "note": "{\"dpr\":1,\"displayVarPresent\":true,\"primaryFamily\":\"\\\"Oswald\\\"\",\"primaryReady\":true,\"oswaldLiteralReady\":true}"
+    },
+    {
+      "id": "prize-over-allocation",
+      "severity": "PASS",
+      "note": "Inline alert; calculator stayed on page"
+    },
+    {
+      "id": "roster-exports",
+      "severity": "PASS",
+      "note": "Empty+partial PNG + CSV"
+    },
+    {
+      "id": "tiebreak-export",
+      "severity": "PASS",
+      "note": "PNG 1080² downloaded"
+    },
+    {
+      "id": "mobile-export",
+      "severity": "PASS",
+      "note": "Campaign + prize PNG on 390px"
+    },
+    {
+      "id": "undiscoverable-404",
+      "severity": "PASS",
+      "note": "Public profile 404 before discoverability"
+    },
+    {
+      "id": "player-card",
+      "severity": "PASS",
+      "note": "Public share PNG OK"
+    },
+    {
+      "id": "team-recruiting-card",
+      "severity": "PASS",
+      "note": "Recruiting PNG OK"
+    }
+  ],
+  "sizes": {
+    "prize-pool.png": {
+      "width": 1080,
+      "height": 1080,
+      "bytes": 103386
+    },
+    "roster-empty.png": {
+      "width": 1080,
+      "height": 1080,
+      "bytes": 118793
+    },
+    "roster-partial.png": {
+      "width": 1080,
+      "height": 1080,
+      "bytes": 123706
+    },
+    "tiebreak.png": {
+      "width": 1080,
+      "height": 1080,
+      "bytes": 119298
+    },
+    "prize-pool-mobile-export.png": {
+      "width": 1080,
+      "height": 1080,
+      "bytes": 103386
+    },
+    "player-card.png": {
+      "width": 1080,
+      "height": 1080,
+      "bytes": 137562
+    },
+    "team-recruiting.png": {
+      "width": 1080,
+      "height": 1080,
+      "bytes": 131417
+    }
+  },
+  "canvasProbe": {
+    "dpr": 1,
+    "displayVarPresent": true,
+    "primaryFamily": "\"Oswald\"",
+    "primaryReady": true,
+    "oswaldLiteralReady": true
+  },
+  "browser": "chromium",
+  "viewports": [
+    "1440x900",
+    "390x844"
+  ],
+  "base": "http://localhost:3000"
+}

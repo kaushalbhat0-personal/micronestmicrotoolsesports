@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" role="img" aria-label="FRAGIX interim mark">
+  <!-- Interim geometric mark (Arena palette). Final approved FRAGIX logo TBD. -->
+  <rect width="28" height="28" rx="3" fill="#0A0E14"/>
+  <path d="M8 7h12v3H11v3.5h7.5v3H11V21H8V7z" fill="#FFFFFF"/>
+  <rect x="8" y="21" width="12" height="2.5" fill="#C8102E"/>
+</svg>

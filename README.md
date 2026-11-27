@@ -40,7 +40,7 @@ implemented yet.
 - `src/server/` — server-only code (service-role admin client, server env).
 - `src/config/`, `src/types/` — site config and generated database types.
 - `supabase/` — fresh greenfield backend (new migration lineage).
-- `ref/legacy-project/` — read-only legacy reference. Never import from it.
+- `legacy/` — read-only legacy reference. Never import from it.
 - `docs/product-discovery/` — approved product and backend architecture.
 
 ## Supabase boundaries

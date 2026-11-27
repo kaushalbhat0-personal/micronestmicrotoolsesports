@@ -1,18 +1,20 @@
-import Link from "next/link";
-import { siteConfig } from "@/config/site";
+// Server header wrapper (P14-D10).
+// Orchestration only: establish session via cookie client, pass a boolean
+// to the interactive shell. No PII (email, id) crosses into navigation.
 
-export function SiteHeader() {
-  return (
-    <header className="border-b">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-        <Link href="/" className="text-base font-semibold">
-          {siteConfig.name}
-        </Link>
-        <nav aria-label="Primary" className="flex items-center gap-4 text-sm">
-          <span className="text-slate-500">Discovery</span>
-          <span className="text-slate-500">Opportunities</span>
-        </nav>
-      </div>
-    </header>
-  );
+import { createClient } from "@/lib/supabase/server";
+import { SiteHeaderShell } from "./site-header-shell";
+
+export async function SiteHeader() {
+  let signedIn = false;
+  try {
+    const client = await createClient();
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+    signedIn = user !== null;
+  } catch {
+    signedIn = false;
+  }
+  return <SiteHeaderShell signedIn={signedIn} />;
 }

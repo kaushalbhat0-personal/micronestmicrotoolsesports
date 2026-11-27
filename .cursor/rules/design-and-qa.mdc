@@ -1,0 +1,15 @@
+---
+description: Design (Stitch) and browser QA workflow for UI work
+alwaysApply: false
+globs: src/app/**/*.{tsx,ts,css},src/components/**/*.{tsx,ts,css},src/features/**/components/**/*.{tsx,ts}
+---
+
+# Design & browser QA
+
+- Explore designs **one screen at a time** via Google Stitch MCP when available.
+- Known Stitch project: `7199013429647347145`. System assets: `6707774341234228196`, `90baed1527db44968f7a931b98380bd0`. Screens: homepage `4b778e90b33a447a8221674bde14935e`, player directory `a96714bf401a4c62ad6789136b3fbe5a`.
+- Screenshot / review before implementing non-trivial UI. Translate into existing Next.js architecture and Competitive Arena tokens — do not regenerate the whole platform.
+- CSS-first motion; Motion for React only when meaningful. No unnecessary GSAP/Anime.
+- For UI polish that looks AI-generic, load the **unslop** skill.
+- Playwright MCP and project Playwright skill for E2E/responsive checks. Browser Use MCP is separate from Cursor IDE browser — pick the tool that fits; do not treat them as identical.
+- Distinguish automated checks from manual accessibility review.
