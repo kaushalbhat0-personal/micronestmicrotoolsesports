@@ -7,6 +7,7 @@ import {
   gameKeySchema,
   gameUserIdSchema,
   ignSchema,
+  normalizeGameUserIdInput,
   validateGameRegion,
 } from "../schemas/game";
 
@@ -73,10 +74,23 @@ describe("ign / game_user_id (03 §3, 05 §1)", () => {
     expect(ignSchema.safeParse("x".repeat(31)).success).toBe(false);
   });
 
-  it("keeps game_user_id as optional text, 4-32", () => {
+  it("keeps game_user_id as optional text, 4-32 (BGMI Player ID mapping)", () => {
     expect(gameUserIdSchema.parse(undefined)).toBeUndefined();
     expect(gameUserIdSchema.parse("001234")).toBe("001234");
+    expect(gameUserIdSchema.parse("  001234  ")).toBe("001234");
     expect(gameUserIdSchema.safeParse("123").success).toBe(false);
     expect(gameUserIdSchema.safeParse("x".repeat(33)).success).toBe(false);
+    expect(gameUserIdSchema.safeParse("abcd\u0000").success).toBe(false);
+    expect(gameUserIdSchema.safeParse("ab\nc").success).toBe(false);
+  });
+});
+
+describe("normalizeGameUserIdInput (P15-M2B.2)", () => {
+  it("trims, clears empty, preserves leading zeroes", () => {
+    expect(normalizeGameUserIdInput("  001234  ")).toBe("001234");
+    expect(normalizeGameUserIdInput("   ")).toBeNull();
+    expect(normalizeGameUserIdInput("")).toBeNull();
+    expect(normalizeGameUserIdInput(null)).toBeNull();
+    expect(normalizeGameUserIdInput(undefined)).toBeUndefined();
   });
 });

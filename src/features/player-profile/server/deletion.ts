@@ -44,8 +44,10 @@ import {
   ProfileNotFoundError,
   ProfileOperationError,
 } from "../domain/player-profile";
+import { BgmiOwnershipOperationError } from "../domain/bgmi-ownership";
 import { AVATAR_BUCKET } from "../schemas/avatar";
 import { gameKeySchema } from "../schemas/game";
+import { cleanupOwnBgmiOwnershipEvidence } from "./bgmi-ownership/cleanup";
 import { ensureAppUser } from "./ensure-app-user";
 
 async function getSessionUserId(client: SupabaseClient): Promise<string> {
@@ -152,6 +154,18 @@ export async function deletePlayerProfile(
     if (removeError) {
       throw new ProfileDeletionError();
     }
+  }
+
+  // Private verification evidence: withdraw active cases + delete objects
+  // before profile removal. Fail closed — never claim profile deleted if
+  // evidence objects may remain accessible to the session.
+  try {
+    await cleanupOwnBgmiOwnershipEvidence(client);
+  } catch (error: unknown) {
+    if (error instanceof BgmiOwnershipOperationError) {
+      throw new ProfileDeletionError();
+    }
+    throw new ProfileDeletionError();
   }
 
   // Database second: the canonical delete cascades owned game profiles.

@@ -26,6 +26,9 @@ import {
   updatePlayer,
   type RosterState,
 } from "@/features/tools/roster/roster";
+import { buildRosterShareSpec, buildToolsRosterCsv } from "@/features/tools/share/roster-card";
+import { ShareDownloadButton } from "@/components/shared/share-download-button";
+import { downloadTextFile, ShareRenderError } from "@/lib/share-kit";
 
 type SlotSelectValue = `starter:${number}` | `substitute:${number}` | "bench";
 
@@ -99,6 +102,7 @@ export function RosterBuilderRunner() {
   const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [csvMessage, setCsvMessage] = useState<string | null>(null);
 
   const completeness = useMemo(() => describeCompleteness(roster), [roster]);
   const summary = useMemo(() => buildRosterSummary(roster), [roster]);
@@ -278,6 +282,17 @@ export function RosterBuilderRunner() {
     setConfirmingRemoveId(null);
     setConfirmingReset(false);
     setCopied(false);
+  }
+
+  function downloadCsv(): void {
+    try {
+      downloadTextFile(buildToolsRosterCsv(roster), `roster-${roster.config.teamName ?? "plan"}`);
+      setCsvMessage("CSV downloaded.");
+    } catch (error) {
+      setCsvMessage(
+        error instanceof ShareRenderError ? error.message : "Could not download CSV.",
+      );
+    }
   }
 
   async function copySummary(): Promise<void> {
@@ -703,37 +718,60 @@ export function RosterBuilderRunner() {
             {summary}
           </pre>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={copySummary}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-          >
-            Copy summary
-          </button>
-          <button
-            type="button"
-            onClick={resetAll}
-            disabled={!hasData && !confirmingReset}
-            aria-label={confirmingReset ? "Confirm reset roster" : "Reset roster"}
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {confirmingReset ? "Confirm reset" : "Reset"}
-          </button>
-          {confirmingReset ? (
+        <div className="mt-3 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setConfirmingReset(false)}
-              className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+              onClick={copySummary}
+              className="inline-flex min-h-[44px] items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
             >
-              Keep roster
+              Copy summary
             </button>
-          ) : null}
-          {copied ? (
-            <p role="status" className="text-xs font-medium text-emerald-700">
-              Copied to clipboard.
-            </p>
-          ) : null}
+            <button
+              type="button"
+              onClick={downloadCsv}
+              className="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+            >
+              Download CSV
+            </button>
+            <button
+              type="button"
+              onClick={resetAll}
+              disabled={!hasData && !confirmingReset}
+              aria-label={confirmingReset ? "Confirm reset roster" : "Reset roster"}
+              className="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {confirmingReset ? "Confirm reset" : "Reset"}
+            </button>
+            {confirmingReset ? (
+              <button
+                type="button"
+                onClick={() => setConfirmingReset(false)}
+                className="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+              >
+                Keep roster
+              </button>
+            ) : null}
+            {copied ? (
+              <p role="status" className="text-xs font-medium text-emerald-700">
+                Copied to clipboard.
+              </p>
+            ) : null}
+            {csvMessage !== null ? (
+              <p role="status" className="text-xs font-medium text-emerald-700">
+                {csvMessage}
+              </p>
+            ) : null}
+          </div>
+          <ShareDownloadButton
+            label="Download PNG card"
+            spec={buildRosterShareSpec(
+              roster,
+              typeof window !== "undefined"
+                ? `${window.location.host}/tools/roster-slot-builder`
+                : "/tools/roster-slot-builder",
+            )}
+          />
         </div>
       </section>
     </div>

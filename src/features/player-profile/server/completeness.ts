@@ -1,9 +1,11 @@
-// Derived profile-completeness helper (G1-7).
+// Derived profile-completeness helper (G1-7 / P15-M2B.1).
 // Authoritative: D-G1-08 approved set (2026-11-11): complete = handle +
 // display name + (avatar OR non-empty bio) + >=1 game-specific profile.
-// Derived, never stored; informational only — it must not imply identity
-// verification, game account verification, trust, eligibility, skill or
-// ranking. No discoverability side effects.
+// Derived, never stored; must not imply identity verification, game account
+// verification, trust, eligibility, skill or ranking.
+// P15-M2B.1: the same predicate is enforced in SQL
+// (public.player_profile_is_complete) for discoverability enable + public
+// directory RPCs. Consent (is_discoverable) remains a separate preference.
 
 export type ProfileCompletenessMissing =
   | "handle"

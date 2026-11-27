@@ -536,7 +536,8 @@ export function slotLabel(kind: SlotKind, index: number): string {
   return `${kind === "starter" ? "Starter" : "Substitute"} ${index + 1}`;
 }
 
-function playerLine(player: RosterPlayer): string {
+/** Display line for exports/share cards (no internal ids). */
+export function playerLine(player: RosterPlayer): string {
   const role = player.role ?? "Flexible";
   const idPart = player.playerId !== null ? ` [${player.playerId}]` : "";
   const notesPart = player.notes !== null ? ` — ${player.notes}` : "";

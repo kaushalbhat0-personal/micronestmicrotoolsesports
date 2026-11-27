@@ -30,17 +30,32 @@ export function canCompleteOwnProfile(status: ProfileOnboardingStatus): AccessDe
   };
 }
 
-export function canOptIntoDiscoverability(status: ProfileOnboardingStatus): AccessDecision {
+/**
+ * Soft UI gate for enabling discoverability (P15-M2B.1).
+ * Hard enforcement remains in set_player_discoverability + public RPCs.
+ * Completeness and consent stay separate: complete ≠ discoverable.
+ */
+export function canOptIntoDiscoverability(
+  status: ProfileOnboardingStatus,
+  profileComplete = status === "complete",
+): AccessDecision {
   if (status === "not_started") {
     return {
       allowed: false,
       reason: "Create a player profile before changing discoverability.",
     };
   }
+  if (status === "incomplete" || profileComplete === false) {
+    return {
+      allowed: false,
+      reason:
+        "Complete your profile (handle, display name, avatar or bio, and at least one game profile) before enabling discoverability.",
+    };
+  }
   return {
     allowed: true,
     reason:
-      "Discoverability is an explicit owner consent toggle — not a verification badge.",
+      "Discoverability is an explicit owner consent toggle — not a verification badge. Verification is separate and not required.",
   };
 }
 

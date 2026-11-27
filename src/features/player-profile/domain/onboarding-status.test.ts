@@ -38,8 +38,11 @@ describe("access-policy (P14-D12)", () => {
     expect(canBrowsePublicContent("not_started").allowed).toBe(true);
   });
 
-  it("blocks discoverability and team-create soft gates for not_started", () => {
+  it("blocks discoverability and team-create soft gates for not_started / incomplete", () => {
     expect(canOptIntoDiscoverability("not_started").allowed).toBe(false);
+    expect(canOptIntoDiscoverability("incomplete").allowed).toBe(false);
+    expect(canOptIntoDiscoverability("complete").allowed).toBe(true);
+    expect(canOptIntoDiscoverability("complete", false).allowed).toBe(false);
     expect(canAttemptTeamCreate("not_started").allowed).toBe(false);
     expect(canAttemptTeamCreate("incomplete").allowed).toBe(false);
     expect(canAttemptTeamCreate("complete").allowed).toBe(true);

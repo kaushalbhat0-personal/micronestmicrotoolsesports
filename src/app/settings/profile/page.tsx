@@ -5,25 +5,32 @@ import { getOwnProfile } from "@/features/player-profile/server/player-profile";
 import { getOwnGameProfiles } from "@/features/player-profile/server/game-profile";
 import { getHandleChangeState } from "@/features/player-profile/server/handle";
 import { getProfileCompleteness } from "@/features/player-profile/server/completeness";
+import { AVATAR_BUCKET } from "@/features/player-profile/schemas/avatar";
 import { createClient } from "@/lib/supabase/server";
 import { DiscoverabilitySection } from "./_components/discoverability-section";
 import { GameVisibilitySection } from "./_components/game-visibility-section";
 import { HandleSection } from "./_components/handle-section";
 import { CompletenessSection } from "./_components/completeness-section";
 import { DangerZoneSection } from "./_components/danger-zone-section";
+import { ProfileDetailsSection } from "./_components/profile-details-section";
+import { GameDetailsSection } from "./_components/game-details-section";
+import { BgmiPlayerIdSection } from "./_components/bgmi-player-id-section";
+import { BgmiOwnershipVerificationSection } from "./_components/bgmi-ownership-verification-section";
+import { AvatarSection } from "./_components/avatar-section";
+import {
+  getMyBgmiOwnershipCaseStatus,
+  listMyBgmiOwnershipEvidenceSummary,
+} from "@/features/player-profile/server/bgmi-ownership";
 
 export const metadata: Metadata = {
   title: "Profile settings",
-  description: "Manage your player profile discoverability, handle and deletion.",
+  description: "Edit your player profile, avatar, and discoverability settings.",
   robots: { index: false, follow: false },
 };
 
 export const dynamic = "force-dynamic";
 
-// Owner settings (G1-7). Thin orchestration only: establish the session
-// client, load the caller's own rows through the narrow server operations,
-// pass data to section components. No base-table reads for others, no
-// elevated client, no public-projection dependency.
+// Owner settings (G1-7 / P15-M2B.1). Thin orchestration only.
 export default async function ProfileSettingsPage() {
   const client = await createClient();
 
@@ -77,16 +84,65 @@ export default async function ProfileSettingsPage() {
     games.length,
   );
 
+  const avatarPublicUrl =
+    profile.avatar_path !== null && profile.avatar_path.length > 0
+      ? client.storage.from(AVATAR_BUCKET).getPublicUrl(profile.avatar_path).data.publicUrl
+      : null;
+
+  const bgmiGame = games.find((g) => g.game_key === "bgmi") ?? null;
+  const ownershipCase = await getMyBgmiOwnershipCaseStatus(client).catch(() => null);
+  const ownershipEvidence =
+    ownershipCase !== null && ownershipCase.status === "draft"
+      ? await listMyBgmiOwnershipEvidenceSummary(client, ownershipCase.id).catch(() => [])
+      : [];
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
       <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Profile settings</h1>
       <p className="mt-3 text-sm text-slate-600">
-        Manage discoverability, per-game visibility, your handle and profile deletion. Changes
-        apply to your profile only.
+        Edit your public profile details, game profiles, and avatar. Discoverability requires a
+        complete profile plus your explicit consent. Verification is separate and not required for
+        the directory.
       </p>
 
       <div className="mt-8 space-y-6">
-        <DiscoverabilitySection isDiscoverable={profile.is_discoverable} />
+        <CompletenessSection complete={completeness.complete} missing={completeness.missing} />
+        <ProfileDetailsSection
+          displayName={profile.display_name}
+          bio={profile.bio}
+          countryCode={profile.country_code}
+        />
+        <AvatarSection
+          avatarPublicUrl={avatarPublicUrl}
+          hasAvatar={profile.avatar_path !== null && profile.avatar_path.length > 0}
+        />
+        {games.map((game) => (
+          <div key={game.game_key} className="space-y-6">
+            <GameDetailsSection
+              game={{
+                game_key: game.game_key,
+                ign: game.ign,
+                primary_role: game.primary_role,
+                region_code: game.region_code,
+                play_modes: game.play_modes,
+                availability: game.availability,
+              }}
+            />
+            <BgmiPlayerIdSection gameKey={game.game_key} gameUserId={game.game_user_id} />
+          </div>
+        ))}
+        {bgmiGame ? (
+          <BgmiOwnershipVerificationSection
+            gameUserId={bgmiGame.game_user_id}
+            caseStatus={ownershipCase}
+            evidence={ownershipEvidence}
+          />
+        ) : null}
+        <DiscoverabilitySection
+          isDiscoverable={profile.is_discoverable}
+          profileComplete={completeness.complete}
+          missing={completeness.missing}
+        />
         <GameVisibilitySection
           games={games.map((g) => ({
             game_key: g.game_key,
@@ -98,10 +154,6 @@ export default async function ProfileSettingsPage() {
         <HandleSection
           handle={handleState.handle}
           nextEligibleAt={handleState.nextEligibleAt}
-        />
-        <CompletenessSection
-          complete={completeness.complete}
-          missing={completeness.missing}
         />
         <DangerZoneSection
           handle={profile.handle}

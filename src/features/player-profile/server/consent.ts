@@ -25,6 +25,7 @@ import {
   UnauthenticatedError,
 } from "../domain/app-user";
 import {
+  ProfileIncompleteError,
   ProfileNotFoundError,
   ProfileOperationError,
   ProfileValidationError,
@@ -137,6 +138,10 @@ export async function setDiscoverability(
         throw new SuspendedError();
       }
       if (error.code === "22000") {
+        const message = String(error.message ?? "").toLowerCase();
+        if (message.includes("profile incomplete")) {
+          throw new ProfileIncompleteError();
+        }
         throw new ProfileValidationError();
       }
       if (error.code === "02000") {

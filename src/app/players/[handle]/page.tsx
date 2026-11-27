@@ -3,16 +3,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DirectoryValidationError } from "@/features/player-profile/domain/directory";
 import { getPlayerByHandle } from "@/features/player-profile/server/directory-reader";
+import { getPlayerBgmiOwnershipPublicStatus } from "@/features/player-profile/server/bgmi-ownership";
 import { createClient } from "@/lib/supabase/server";
+import { PlayerShareCard } from "../_components/player-share-card";
 import { ProfileSections } from "../_components/profile-sections";
 import { buildCanonicalUrl, buildNotFoundMetadata, buildProfileMetadata } from "../_lib/query";
 
 type HandleParams = { handle: string };
 
-// Seconds-scale revalidation: consent withdrawal hides the row on the next
-// query (04 section 4); short caching bounds stale public pages without
-// revalidating on every request.
-export const revalidate = 60;
+// Force-dynamic so discoverability consent (enable/disable) and Share Kit
+// availability match the latest public RPC result immediately — ISR 404s after
+// opt-in blocked P15-M1 share downloads for up to the prior revalidate window.
+export const dynamic = "force-dynamic";
 
 // Public player profile (G1-6). Resolves the handle through
 // getPlayerByHandle only (APPROVED D-G1-03 RPC-only): no base-table reads, no
@@ -74,6 +76,13 @@ export default async function PlayerProfilePage({ params }: { params: Promise<Ha
   if (card === null) {
     notFound();
   }
+  // Public route already 404s non-discoverable handles; share uses projection only.
+  const profileUrl =
+    buildCanonicalUrl(`/players/${card.handle}`) ?? `/players/${card.handle}`;
+  // Narrow public badge reader — separate from frozen 12-field projection.
+  const ownership = await getPlayerBgmiOwnershipPublicStatus(client, card.handle).catch(
+    () => null,
+  );
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
       <p className="mb-6 text-sm">
@@ -84,7 +93,18 @@ export default async function PlayerProfilePage({ params }: { params: Promise<Ha
           ← Back to player directory
         </Link>
       </p>
-      <ProfileSections card={card} />
+      <div className="flex flex-col gap-8">
+        <ProfileSections
+          card={card}
+          ownershipReviewed={ownership?.ownership_reviewed === true}
+          ownershipLabel={ownership?.status_label ?? null}
+        />
+        <PlayerShareCard
+          card={card}
+          profileUrl={profileUrl}
+          ownershipReviewed={ownership?.ownership_reviewed === true}
+        />
+      </div>
     </div>
   );
 }

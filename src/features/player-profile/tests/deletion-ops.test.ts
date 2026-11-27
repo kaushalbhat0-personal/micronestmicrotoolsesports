@@ -25,6 +25,17 @@ import {
 } from "../domain/player-profile";
 import { deletePlayerProfile, removeGameProfile } from "../server/deletion";
 
+const cleanupOwnBgmiOwnershipEvidence = vi.fn(async (_client?: unknown) => ({
+  casesWithdrawn: 0,
+  objectsAttempted: 0,
+  storageDeleteFailures: 0,
+}));
+
+vi.mock("../server/bgmi-ownership/cleanup", () => ({
+  cleanupOwnBgmiOwnershipEvidence: (client: unknown) =>
+    cleanupOwnBgmiOwnershipEvidence(client),
+}));
+
 const SESSION_USER_ID = "11111111-1111-4111-8111-111111111111";
 
 interface FakeOpts {
@@ -204,6 +215,13 @@ describe("removeGameProfile (D-G1-07 game-profile removal)", () => {
 });
 
 describe("deletePlayerProfile (D-G1-07 canonical-profile deletion)", () => {
+  it("cleans private ownership evidence before deleting the profile row", async () => {
+    cleanupOwnBgmiOwnershipEvidence.mockClear();
+    const { client } = fakeClient();
+    await deletePlayerProfile(client);
+    expect(cleanupOwnBgmiOwnershipEvidence).toHaveBeenCalledTimes(1);
+  });
+
   it("requires a session and accepts no user id", async () => {
     const { client } = fakeClient({ sessionUserId: null });
     await expect(deletePlayerProfile(client)).rejects.toBeInstanceOf(
@@ -227,6 +245,15 @@ describe("deletePlayerProfile (D-G1-07 canonical-profile deletion)", () => {
 
   it("removes owned avatar objects first by exact path, then deletes the row", async () => {
     const order: string[] = [];
+    cleanupOwnBgmiOwnershipEvidence.mockClear();
+    cleanupOwnBgmiOwnershipEvidence.mockImplementation(async () => {
+      order.push("ownership-cleanup");
+      return {
+        casesWithdrawn: 0,
+        objectsAttempted: 0,
+        storageDeleteFailures: 0,
+      };
+    });
     let removed: string[] = [];
     const { client } = fakeClient({
       canonicalRows: [
@@ -238,7 +265,11 @@ describe("deletePlayerProfile (D-G1-07 canonical-profile deletion)", () => {
       },
     });
     await deletePlayerProfile(client);
-    expect(order).toEqual(["storage-remove", "db-delete:player_profiles"]);
+    expect(order).toEqual([
+      "storage-remove",
+      "ownership-cleanup",
+      "db-delete:player_profiles",
+    ]);
     expect(removed).toContain(`${SESSION_USER_ID}/avatar.png`);
     expect(removed.every((p) => p.startsWith(`${SESSION_USER_ID}/`))).toBe(true);
   });

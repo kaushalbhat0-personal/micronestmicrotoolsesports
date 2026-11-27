@@ -50,6 +50,16 @@ export class ProfileValidationError extends Error {
   }
 }
 
+/** Raised when enabling discoverability while D-G1-08 completeness is unmet. */
+export class ProfileIncompleteError extends Error {
+  constructor() {
+    super(
+      "Finish your profile (handle, display name, avatar or bio, and at least one game profile) before enabling discoverability.",
+    );
+    this.name = "ProfileIncompleteError";
+  }
+}
+
 export class ProfileOperationError extends Error {
   constructor() {
     super("Could not save your profile. Please retry.");

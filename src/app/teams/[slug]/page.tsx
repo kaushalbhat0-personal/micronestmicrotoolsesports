@@ -5,6 +5,7 @@ import { TeamDirectoryValidationError } from "@/features/teams/domain/team-direc
 import { getTeamBySlug } from "@/features/teams/server/team-directory-reader";
 import { createClient } from "@/lib/supabase/server";
 import { TeamProfileSections } from "../_components/team-profile-sections";
+import { TeamShareCard } from "../_components/team-share-card";
 import {
   buildTeamDetailMetadata,
   buildTeamNotFoundMetadata,
@@ -13,10 +14,9 @@ import {
 
 type SlugParams = { slug: string };
 
-// Seconds-scale revalidation: visibility withdrawal hides the row on the next
-// query; short caching bounds stale public pages without revalidating on
-// every request (same posture as the player profile route).
-export const revalidate = 60;
+// Force-dynamic so recruiting/public visibility and Share Kit downloads track
+// the latest public RPC result (aligned with player profile consent freshness).
+export const dynamic = "force-dynamic";
 
 // Public team profile (P1). Resolves the slug through getTeamBySlug only
 // (D1 masked RPC, UNAPPLIED): no base-table reads, no elevated database
@@ -77,6 +77,7 @@ export default async function TeamProfilePage({ params }: { params: Promise<Slug
   if (card === null) {
     notFound();
   }
+  const teamUrl = buildTeamsCanonicalUrl(`/teams/${card.slug}`) ?? `/teams/${card.slug}`;
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
       <p className="mb-6 text-sm">
@@ -88,6 +89,7 @@ export default async function TeamProfilePage({ params }: { params: Promise<Slug
         </Link>
       </p>
       <TeamProfileSections card={card} />
+      <TeamShareCard card={card} teamUrl={teamUrl} />
     </div>
   );
 }

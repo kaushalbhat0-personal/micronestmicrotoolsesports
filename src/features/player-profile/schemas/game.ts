@@ -83,13 +83,43 @@ export const ignSchema = z
   .min(2, "ign must be 2-30 chars")
   .max(30, "ign must be 2-30 chars");
 
-// game_user_id: optional title identifier kept as text (leading zeroes
-// preserved), 4-32 per 05 §1 CHECK. Owner-private; omitted from all public
-// projections in every form per APPROVED D-G1-03 + D-G1-04 Option A
-// (2026-11-11): never searched, filtered or deduplicated in G1.
+// game_user_id: BGMI Player ID (P15-M2B.2 confirmed mapping). Optional title
+// identifier kept as text (leading zeroes preserved), 4-32 per 05 §1 CHECK.
+// Owner-private; omitted from all public projections per APPROVED D-G1-03 +
+// D-G1-04 Option A. Never searched, filtered or deduplicated in G1.
+// No invented official BGMI digit-only regex — conservative printable text.
+export const GAME_USER_ID_MIN_LENGTH = 4 as const;
+export const GAME_USER_ID_MAX_LENGTH = 32 as const;
+
+const CONTROL_OR_NONPRINTABLE = /[\u0000-\u001F\u007F]/;
+
 export const gameUserIdSchema = z
   .string()
   .trim()
-  .min(4, "game user id must be 4-32 chars")
-  .max(32, "game user id must be 4-32 chars")
+  .min(GAME_USER_ID_MIN_LENGTH, "game user id must be 4-32 chars")
+  .max(GAME_USER_ID_MAX_LENGTH, "game user id must be 4-32 chars")
+  .refine((v) => !CONTROL_OR_NONPRINTABLE.test(v), "game user id has invalid characters")
   .optional();
+
+/**
+ * Normalize owner form input for set/clear.
+ * - Whitespace-only / empty → null (clear)
+ * - Otherwise → trimmed string for Zod validation
+ * Never logs the value.
+ */
+export function normalizeGameUserIdInput(raw: unknown): string | null | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (raw === null) {
+    return null;
+  }
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  return trimmed;
+}

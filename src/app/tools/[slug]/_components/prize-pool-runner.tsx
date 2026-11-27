@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import {
   MAX_PAYOUT_ROWS,
   SUPPORTED_TOOL_CURRENCIES,
@@ -17,8 +17,11 @@ import {
 import {
   distributePrizePool,
   ordinalLabel,
+  PrizePoolError,
 } from "@/features/tools/prize-pool/distribution";
 import { buildResultSummary, formatToolMoney } from "@/features/tools/format";
+import { buildPrizeShareSpec } from "@/features/tools/share/prize-card";
+import { ShareDownloadButton } from "@/components/shared/share-download-button";
 
 interface RunnerRow {
   id: number;
@@ -43,9 +46,11 @@ const DEFAULT_ROWS: ReadonlyArray<Omit<RunnerRow, "id">> = [
   { position: "3", mode: "percent", amount: "", percent: "20" },
 ];
 
-let nextId = 1;
-function withIds(rows: ReadonlyArray<Omit<RunnerRow, "id">>): RunnerRow[] {
-  return rows.map((row) => ({ ...row, id: nextId++ }));
+function withIds(
+  rows: ReadonlyArray<Omit<RunnerRow, "id">>,
+  nextId: { current: number },
+): RunnerRow[] {
+  return rows.map((row) => ({ ...row, id: nextId.current++ }));
 }
 
 function Labelled({
@@ -76,9 +81,10 @@ function Labelled({
 
 export function PrizePoolRunner() {
   const uid = useId();
+  const nextId = useRef(1);
   const [total, setTotal] = useState("100000");
   const [currency, setCurrency] = useState<ToolCurrency>("INR");
-  const [rows, setRows] = useState<RunnerRow[]>(() => withIds(DEFAULT_ROWS));
+  const [rows, setRows] = useState<RunnerRow[]>(() => withIds(DEFAULT_ROWS, nextId));
   const [issues, setIssues] = useState<string[]>([]);
   const [result, setResult] = useState<RunnerResult | null>(null);
   const [copied, setCopied] = useState(false);
@@ -131,7 +137,16 @@ export function PrizePoolRunner() {
       while (used.has(position)) {
         position += 1;
       }
-      return [...current, { id: nextId++, position: String(position), mode: "percent", amount: "", percent: "" }];
+      return [
+        ...current,
+        {
+          id: nextId.current++,
+          position: String(position),
+          mode: "percent",
+          amount: "",
+          percent: "",
+        },
+      ];
     });
     setResult(null);
   }
@@ -162,16 +177,28 @@ export function PrizePoolRunner() {
       setResult(null);
       return;
     }
-    const distribution = distributePrizePool(model);
-    setIssues([]);
-    setResult({
-      totalMinor: distribution.totalMinor,
-      currency: distribution.currency,
-      shares: [...distribution.shares],
-      distributedMinor: distribution.distributedMinor,
-      unallocatedMinor: distribution.unallocatedMinor,
-      summary: buildResultSummary(distribution, "Prize Pool Splitter"),
-    });
+    try {
+      const distribution = distributePrizePool(model);
+      setIssues([]);
+      setResult({
+        totalMinor: distribution.totalMinor,
+        currency: distribution.currency,
+        shares: [...distribution.shares],
+        distributedMinor: distribution.distributedMinor,
+        unallocatedMinor: distribution.unallocatedMinor,
+        summary: buildResultSummary(distribution, "Prize Pool Splitter"),
+      });
+    } catch (error) {
+      setResult(null);
+      if (error instanceof PrizePoolError) {
+        setIssues([
+          error.message,
+          "Reduce fixed amounts or percentages so the combined distribution does not exceed the total, then calculate again.",
+        ]);
+        return;
+      }
+      setIssues(["Could not calculate this split. Check each field and try again."]);
+    }
   }
 
   function reset(): void {
@@ -181,7 +208,7 @@ export function PrizePoolRunner() {
     }
     setTotal("100000");
     setCurrency("INR");
-    setRows(withIds(DEFAULT_ROWS));
+    setRows(withIds(DEFAULT_ROWS, nextId));
     setIssues([]);
     setResult(null);
     setCopied(false);
@@ -423,19 +450,36 @@ export function PrizePoolRunner() {
             <pre className="mt-3 overflow-x-auto rounded-md bg-slate-950 p-3 text-xs leading-relaxed whitespace-pre-wrap text-slate-100">
               {result.summary}
             </pre>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={copySummary}
-                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-              >
-                Copy summary
-              </button>
-              {copied ? (
-                <p role="status" className="text-xs font-medium text-emerald-700">
-                  Copied to clipboard.
-                </p>
-              ) : null}
+            <div className="mt-3 flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={copySummary}
+                  className="inline-flex min-h-[44px] items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                >
+                  Copy summary
+                </button>
+                {copied ? (
+                  <p role="status" className="text-xs font-medium text-emerald-700">
+                    Copied to clipboard.
+                  </p>
+                ) : null}
+              </div>
+              <ShareDownloadButton
+                label="Download PNG card"
+                spec={buildPrizeShareSpec(
+                  {
+                    totalMinor: result.totalMinor,
+                    currency: result.currency,
+                    shares: result.shares,
+                    distributedMinor: result.distributedMinor,
+                    unallocatedMinor: result.unallocatedMinor,
+                  },
+                  typeof window !== "undefined"
+                    ? `${window.location.host}/tools/prize-pool-splitter`
+                    : "/tools/prize-pool-splitter",
+                )}
+              />
             </div>
           </section>
         ) : null}

@@ -36,6 +36,8 @@ import {
   updateCriterion,
   type TiebreakScenario,
 } from "@/features/tools/tiebreak/engine";
+import { buildTiebreakShareSpec } from "@/features/tools/share/tiebreak-card";
+import { ShareDownloadButton } from "@/components/shared/share-download-button";
 
 interface Snapshot {
   readonly id: string;
@@ -982,37 +984,48 @@ export function TiebreakRunner() {
             {summary}
           </pre>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={copySummary}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-          >
-            Copy summary
-          </button>
-          <button
-            type="button"
-            onClick={resetAll}
-            disabled={!hasData && !confirmingReset}
-            aria-label={confirmingReset ? "Confirm reset scenario" : "Reset scenario"}
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {confirmingReset ? "Confirm reset" : "Reset"}
-          </button>
-          {confirmingReset ? (
+        <div className="mt-3 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setConfirmingReset(false)}
-              className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+              onClick={copySummary}
+              className="inline-flex min-h-[44px] items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
             >
-              Keep scenario
+              Copy summary
             </button>
-          ) : null}
-          {copied ? (
-            <p role="status" className="text-xs font-medium text-emerald-700">
-              Copied to clipboard.
-            </p>
-          ) : null}
+            <button
+              type="button"
+              onClick={resetAll}
+              disabled={!hasData && !confirmingReset}
+              aria-label={confirmingReset ? "Confirm reset scenario" : "Reset scenario"}
+              className="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {confirmingReset ? "Confirm reset" : "Reset"}
+            </button>
+            {confirmingReset ? (
+              <button
+                type="button"
+                onClick={() => setConfirmingReset(false)}
+                className="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+              >
+                Keep scenario
+              </button>
+            ) : null}
+            {copied ? (
+              <p role="status" className="text-xs font-medium text-emerald-700">
+                Copied to clipboard.
+              </p>
+            ) : null}
+          </div>
+          <ShareDownloadButton
+            label="Download PNG card"
+            spec={buildTiebreakShareSpec(
+              scenario,
+              typeof window !== "undefined"
+                ? `${window.location.host}/tools/tiebreak-qualifier`
+                : "/tools/tiebreak-qualifier",
+            )}
+          />
         </div>
       </section>
     </div>

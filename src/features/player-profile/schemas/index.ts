@@ -9,3 +9,4 @@ export * from "./discoverability";
 export * from "./create-profile";
 export * from "./update-profile";
 export * from "./directory";
+export * from "./bgmi-ownership";

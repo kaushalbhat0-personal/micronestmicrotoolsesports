@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { Route } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -62,6 +63,17 @@ async function ModerationIndex() {
             </Link>
             <p className="mt-1 text-sm text-slate-600">
               Submitted organizers awaiting manual evidence review. No evidence intake exists yet.
+            </p>
+          </li>
+          <li className="rounded-lg border border-slate-200 bg-white p-4">
+            <Link
+              href={"/workspace/moderation/bgmi-ownership" as Route}
+              className="text-base font-semibold underline"
+            >
+              BGMI ownership evidence
+            </Link>
+            <p className="mt-1 text-sm text-slate-600">
+              Super-admin review of private BGMI ownership screenshots. Platform admins only.
             </p>
           </li>
         </ul>

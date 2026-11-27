@@ -7,7 +7,16 @@ function valueOrNotSpecified(value: string | null): string {
 
 // Public profile body. Renders ONLY frozen projection fields; empty fields
 // get an explicit placeholder — never invented data.
-export function ProfileSections({ card }: { card: PublicPlayerCard }) {
+export function ProfileSections({
+  card,
+  ownershipReviewed = false,
+  ownershipLabel = null,
+}: {
+  card: PublicPlayerCard;
+  /** From separate public reader — never from frozen 12-field projection. */
+  ownershipReviewed?: boolean | undefined;
+  ownershipLabel?: string | null | undefined;
+}) {
   return (
     <div className="flex flex-col gap-8">
       <section aria-labelledby="profile-heading" className="flex gap-5">
@@ -20,6 +29,14 @@ export function ProfileSections({ card }: { card: PublicPlayerCard }) {
             {card.display_name}
           </h1>
           <p className="mt-1 text-base text-slate-500">@{card.handle}</p>
+          {ownershipReviewed && ownershipLabel ? (
+            <p
+              className="mt-2 inline-flex max-w-full text-sm font-medium text-emerald-900"
+              role="status"
+            >
+              {ownershipLabel}
+            </p>
+          ) : null}
           {card.country_code !== null ? (
             <p className="mt-2 text-sm text-slate-700">Country: {card.country_code}</p>
           ) : null}

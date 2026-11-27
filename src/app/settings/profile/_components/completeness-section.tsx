@@ -7,9 +7,9 @@ const MISSING_COPY: Record<ProfileCompletenessMissing, string> = {
   game_profile: "Add at least one game profile.",
 };
 
-// Derived completeness (D-G1-08). Informational only: never a verification,
-// trust, eligibility, skill or ranking signal, and never a discoverability
-// gate.
+// Derived completeness (D-G1-08 / P15-M2B.1). Same rule as the SQL helper
+// player_profile_is_complete. Not a verification or trust badge. Required
+// (with explicit consent) before public directory visibility.
 export function CompletenessSection({
   complete,
   missing,
@@ -30,15 +30,21 @@ export function CompletenessSection({
       </p>
       {complete ? (
         <p className="mt-1 text-sm text-slate-600">
-          Your profile has a handle, display name, avatar or bio, and at least one game
-          profile. Completeness is informational only.
+          Required fields are present (handle, display name, avatar or bio, and at least one game
+          profile). Completeness is not verification — enable discoverability separately if you
+          want to appear in the public directory.
         </p>
       ) : (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
-          {missing.map((item) => (
-            <li key={item}>{MISSING_COPY[item]}</li>
-          ))}
-        </ul>
+        <>
+          <p className="mt-1 text-sm text-slate-600">
+            Finish these items before you can enable discoverability:
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
+            {missing.map((item) => (
+              <li key={item}>{MISSING_COPY[item]}</li>
+            ))}
+          </ul>
+        </>
       )}
     </section>
   );

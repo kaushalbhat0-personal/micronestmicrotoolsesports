@@ -96,6 +96,8 @@ describe("P12 added no implementation surface", () => {
   });
 
   it("added no operational moderator surface (no actions, no new routes)", () => {
+    // P12 freeze: reports/tournaments/organizers stay non-operational.
+    // P15-M2B.4 intentionally adds bgmi-ownership/ — exclude that carve-out.
     const root = path.join(process.cwd(), "src/app/workspace/moderation");
     const stack: string[] = [root];
     const seen: string[] = [];
@@ -110,10 +112,12 @@ describe("P12 added no implementation surface", () => {
         }
       }
     }
-    expect(seen.some((file) => file.endsWith("actions.ts"))).toBe(false);
-    for (const file of seen.filter((f) => !f.endsWith(".test.ts"))) {
+    const p12Surface = seen.filter((file) => !file.includes(`${path.sep}bgmi-ownership${path.sep}`));
+    expect(p12Surface.some((file) => file.endsWith("actions.ts"))).toBe(false);
+    for (const file of p12Surface.filter((f) => !f.endsWith(".test.ts"))) {
       expect(readFileSync(file, "utf8")).not.toContain('"use server"');
     }
+    expect(seen.some((file) => file.includes(`${path.sep}bgmi-ownership${path.sep}`))).toBe(true);
   });
 
   it("keeps all three write switches OFF", () => {
