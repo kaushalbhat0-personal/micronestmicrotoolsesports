@@ -19,8 +19,8 @@ const pathways: Array<Pathway> = [
   {
     seed: "01",
     name: "Players",
-    tag: "Opt-in athlete directory",
-    copy: "Consent-first discovery for grassroots and aspiring athletes. Self-declared tactical roles and roster availability.",
+    tag: "Ownership-reviewed registry",
+    copy: "Consent-first discovery for grassroots and aspiring athletes. Share identity anytime; registry listing needs approved BGMI ownership.",
     href: "/players",
     action: "Browse players",
   },

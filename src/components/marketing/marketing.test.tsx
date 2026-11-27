@@ -142,14 +142,14 @@ describe("Truthful labelling — no fabricated listings or verification claims",
     expect(homeHtml).not.toContain("@nova");
   });
 
-  it("never claims verification, escrow operation, or official rules", () => {
-    // Disclaimers ("nothing is verified", "does not verify", "no verification
-    // implied") are required honesty copy — forbid only positive claims.
-    expect(homeHtml).not.toMatch(/Verified/);
-    expect(homeHtml).not.toMatch(/verification badge/i);
+  it("never claims escrow operation or official tournament affiliation", () => {
+    // Ownership review is real and must be described accurately; forbid only
+    // overclaims (escrow, official event affiliation, blanket "Verified").
+    expect(homeHtml).not.toMatch(/\bVerified\b/);
     expect(homeHtml).not.toMatch(/independently verified/i);
     expect(homeHtml).not.toMatch(/escrow (service|payments)/i);
     expect(homeHtml).not.toMatch(/official (rules|tournament)/i);
+    expect(homeHtml).not.toMatch(/nothing is verified/i);
   });
 });
 
@@ -173,6 +173,7 @@ describe("Marketing navigation", () => {
     expect(footerHtml).toContain('href="/about"');
     expect(footerHtml).toContain('href="/tools/roster-slot-builder"');
     expect(footerHtml).toContain('href="/tools/tiebreak-qualifier"');
+    expect(footerHtml).toContain('href="/campaigns/bgmi-season"');
     expect(footerHtml).toContain('aria-label="Footer"');
     expect(footerHtml).toContain("KRAFTON");
     expect(footerHtml).not.toContain("/terms");
@@ -184,7 +185,8 @@ describe("Marketing navigation", () => {
 describe("Homepage render contract", () => {
   it("renders one competitive H1 with directory CTAs", () => {
     expect(homeHtml).toContain("<h1");
-    expect(homeHtml).toContain("Where esports talent gets discovered");
+    expect(homeHtml).toContain("FRAGIX");
+    expect(homeHtml).toContain("Where Competition Connects");
     expect(homeHtml).toContain("Sign up free");
     expect(homeHtml).toContain("Discover tournaments");
   });
@@ -198,7 +200,7 @@ describe("Homepage render contract", () => {
 
 describe("About availability contract", () => {
   it("states the three availability tiers honestly", () => {
-    expect(aboutHtml).toContain("About MicroNest Esports");
+    expect(aboutHtml).toContain("About FRAGIX");
     expect(aboutHtml).toContain("Live now");
     expect(aboutHtml).toContain("Directory live");
     expect(aboutHtml).toContain("Planned");

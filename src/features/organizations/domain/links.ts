@@ -34,4 +34,4 @@ export function isValidExternalUrl(value: unknown): value is string {
 }
 
 export const EXTERNAL_LINK_HANDOFF_NOTE =
-  "External links leave MicroNest. We do not verify the content of external sites.";
+  "External links leave FRAGIX. We do not verify the content of external sites.";

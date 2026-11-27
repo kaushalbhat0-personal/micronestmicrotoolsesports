@@ -5,7 +5,7 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to MicroNest Esports to manage teams and profile settings.",
+  description: "Sign in to FRAGIX to manage teams and profile settings.",
   robots: { index: false, follow: false },
 };
 
@@ -20,7 +20,7 @@ export default function LoginPage() {
         Sign in
       </h1>
       <p className="mt-3 text-sm text-slate-600">
-        Use your MicroNest account. Sessions are stored in secure cookies for server actions.
+        Use your FRAGIX account. Sessions are stored in secure cookies for server actions.
       </p>
       <div className="mt-6 border border-slate-200 bg-white p-4 sm:p-6">
         <Suspense fallback={<p className="text-sm text-slate-600">Loading sign-in form…</p>}>
@@ -28,7 +28,7 @@ export default function LoginPage() {
         </Suspense>
       </div>
       <p className="mt-4 text-sm text-slate-600">
-        New to MicroNest?{" "}
+        New to FRAGIX?{" "}
         <Link
           href="/signup"
           className="text-accent-600 focus-visible:outline-accent-600 font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"

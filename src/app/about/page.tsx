@@ -2,40 +2,27 @@ import type { Metadata } from "next";
 import { ClosingCTA } from "@/components/marketing/closing-cta";
 import { MarketingCTA } from "@/components/marketing/cta-button";
 import { MarketingSection, SectionEyebrow } from "@/components/marketing/section";
+import { siteConfig } from "@/config/site";
 import { buildMarketingCanonical } from "@/lib/canonical";
 
 const aboutCanonical = buildMarketingCanonical("/about");
 
 export const metadata: Metadata = {
-  title: "About the platform",
-  description:
-    "What MicroNest Esports is: a connected esports discovery ecosystem for players, teams, organizations and brands. Player discovery and client-side tools are live now, starting with BGMI; team, organization, brand, organizer, tournament and news directories ship as honest shells pending backend activation.",
+  title: `About ${siteConfig.name}`,
+  description: `What ${siteConfig.name} is: a ${siteConfig.category.toLowerCase()} for competitive players — create and share identity immediately, get BGMI ownership reviewed for the public registry, and use client-side esports tools. Starting with BGMI.`,
   ...(aboutCanonical === undefined
     ? {}
     : { alternates: { canonical: aboutCanonical } }),
   openGraph: {
     type: "website",
-    title: "About — MicroNest Esports",
-    description:
-      "A connected esports discovery ecosystem. Player discovery and esports tools are live now; further directories are live shells pending data activation.",
+    title: `About — ${siteConfig.name}`,
+    description: `${siteConfig.tagline}. Create and share your competitive identity; ownership review unlocks the public player registry.`,
     ...(aboutCanonical === undefined ? {} : { url: aboutCanonical }),
   },
 };
 
-// P14-B3 availability tiers. Factual basis (route code + reader contracts):
-// - "Live now": player directory/profile/consent/avatar/handle/deletion read
-//   through the APPROVED D-G1-03 RPC-only DirectoryReader (G1-6); the three
-//   tools run entirely in the browser from the static registry (P5/P6/P7).
-// - "Directory live": the route shell (filters, pagination, skeletons,
-//   invalid/unavailable/empty states) ships and links are real, but reads
-//   resolve through PROPOSED or UNAPPLIED masked RPC pairs, so listings
-//   render empty or temporarily-unavailable states — never fabricated rows.
-//   Teams: D1 masked RPC pair, migrations local UNAPPLIED. Organizations and
-//   brands: PROPOSED RPC pair, no migration exists. Organizers: PROPOSED RPC
-//   pair, migration local-only. Tournaments and news: PROPOSED RPC pair, no
-//   migration exists.
-// - "Planned": no route workflow exists — publishing, ownership/verification
-//   writes, opportunities, applications/recruitment, mini games.
+// Availability tiers (factual route + reader contracts). Ownership evidence
+// and reviewed badge are live; registry discovery requires approval (C1A).
 type AvailabilityState = "Live now" | "Directory live" | "Planned";
 
 const served: Array<{
@@ -45,7 +32,7 @@ const served: Array<{
 }> = [
   {
     name: "Players",
-    copy: "Public profiles and a filterable directory, live today with consent-first discoverability controls.",
+    copy: "Public profiles, PNG share cards, and a filterable registry. Share anytime; registry appearance requires approved BGMI ownership plus opt-in completeness.",
     status: "Live now",
   },
   {
@@ -66,8 +53,11 @@ const served: Array<{
 ];
 
 const availability: Array<{ capability: string; state: AvailabilityState }> = [
-  { capability: "Public player directory with filters", state: "Live now" },
-  { capability: "Public player profile pages", state: "Live now" },
+  { capability: "Public player profile pages and shareable URLs", state: "Live now" },
+  { capability: "Player PNG share cards (no ownership review required)", state: "Live now" },
+  { capability: "BGMI ownership evidence submission and manual review", state: "Live now" },
+  { capability: "Ownership-reviewed badge (approved + currently valid only)", state: "Live now" },
+  { capability: "Public player registry (ownership-gated search)", state: "Live now" },
   { capability: "Discoverability consent and per-game visibility", state: "Live now" },
   { capability: "Avatar upload, handle changes, profile deletion", state: "Live now" },
   { capability: "Prize Pool Splitter (client-side calculator)", state: "Live now" },
@@ -79,7 +69,6 @@ const availability: Array<{ capability: string; state: AvailabilityState }> = [
   { capability: "Organizer directory route", state: "Directory live" },
   { capability: "Tournament directory route", state: "Directory live" },
   { capability: "News directory route", state: "Directory live" },
-  { capability: "Publishing, ownership and verification writes", state: "Planned" },
   { capability: "Opportunities, applications and recruitment workflows", state: "Planned" },
   { capability: "Mini games", state: "Planned" },
 ];
@@ -113,15 +102,18 @@ export default function AboutPage() {
         <div className="mx-auto w-full max-w-5xl px-4 py-14 sm:px-6 sm:py-20">
           <SectionEyebrow tone="arena">About</SectionEyebrow>
           <h1 className="font-display mt-5 max-w-3xl text-[clamp(2.5rem,7vw,4rem)] leading-[0.95] font-extrabold tracking-tight uppercase">
-            About MicroNest Esports
+            About {siteConfig.name}
           </h1>
+          <p className="mt-2 text-sm font-bold tracking-[0.16em] text-accent-300 uppercase">
+            {siteConfig.tagline}
+          </p>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-            MicroNest Esports is a connected esports discovery ecosystem that
-            helps players, teams, organizations and brands discover one
-            another — starting with BGMI, architected for every title.
+            {siteConfig.name} is a {siteConfig.category.toLowerCase()} that helps competitive
+            players create identity, share cards, and become discoverable after BGMI ownership
+            review — starting with BGMI, architected for every title.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <MarketingCTA href="/players">Explore players</MarketingCTA>
+            <MarketingCTA href="/players">Explore player registry</MarketingCTA>
             <MarketingCTA href="/" variant="ghost-on-dark">
               Back to home
             </MarketingCTA>
@@ -162,8 +154,8 @@ export default function AboutPage() {
         id="vision"
         tone="steel"
         eyebrow="The vision"
-        title="One place where the ecosystem meets"
-        lede="A single discovery loop: players make themselves findable, and the teams, organizations and brands around them can actually find them. Consent-first throughout — nothing is public unless a player chooses it."
+        title="Where competition connects"
+        lede="Create and share your competitive identity immediately. Get BGMI ownership reviewed to appear in the public player registry. Consent-first throughout — nothing is public in the registry unless a player opts in and ownership is currently approved."
       >
         <ul className="grid gap-4 md:grid-cols-2">
           {served.map((audience) => (
@@ -187,7 +179,7 @@ export default function AboutPage() {
         id="bgmi-direction"
         eyebrow="Game direction"
         title="BGMI-first, multi-title-ready"
-        lede="The platform launches with Battlegrounds Mobile India because that is where the competition already is. Per-game profiles, game-aware directory filters and a projection shaped around titles mean new games extend the catalogue — they never require a rebuild. No exclusivity is implied and no competitive claims are made."
+        lede="The network launches with Battlegrounds Mobile India because that is where the competition already is. Per-game profiles, game-aware directory filters and a projection shaped around titles mean new games extend the catalogue — they never require a rebuild. No exclusivity is implied and no competitive claims are made."
       >
         <p className="max-w-2xl border-l-2 border-accent-600 pl-6 text-base leading-relaxed text-ink-600">
           One active title today, a catalogue built for many: every profile,
@@ -219,7 +211,7 @@ export default function AboutPage() {
 
       <ClosingCTA
         title="See what is live for yourself."
-        copy="The player directory is open and the esports tools run in your browser. Browse real, opted-in listings — then judge the roadmap against working software."
+        copy="Create a profile, share your PNG, and browse the ownership-reviewed player registry. Client-side tools run in your browser — then judge the roadmap against working software."
       />
     </>
   );

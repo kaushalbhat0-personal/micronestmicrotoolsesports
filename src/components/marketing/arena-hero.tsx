@@ -1,9 +1,10 @@
 // Homepage hero: carbon arena band with illustrative player dossier.
-// Stitch-approved composition. The visual is an explicitly labelled
-// illustrative projection format — never a real athlete, never scraped data,
-// no verification or skill claims. Static only: CTAs link to real routes.
+// FRAGIX brand-first composition. The visual is an explicitly labelled
+// illustrative projection format — never a real athlete, never scraped data.
+// Static only: CTAs link to real routes.
 
 import Link from "next/link";
+import { siteConfig } from "@/config/site";
 import { MarketingCTA } from "./cta-button";
 
 const dossierRows: Array<{ field: string; value: string }> = [
@@ -16,10 +17,10 @@ const dossierRows: Array<{ field: string; value: string }> = [
 ];
 
 const trustMarkers: Array<string> = [
-  "Direct recruitment",
+  "Share identity immediately",
+  "Ownership review for registry",
   "Community opt-in directory",
   "Circuits & cups",
-  "Organizer self-declared listings",
   "Zero-telemetry local utilities",
 ];
 
@@ -30,15 +31,18 @@ export function ArenaHero() {
         <div className="min-w-0">
           <p className="text-accent-300 flex items-center gap-2 text-xs font-bold tracking-[0.18em] uppercase">
             <span aria-hidden="true" className="bg-accent-600 inline-block h-3 w-1" />
-            Community directory &amp; esports utility ecosystem — BGMI first
+            {siteConfig.category} — BGMI first
           </p>
-          <h1 className="font-display mt-5 text-[clamp(2.5rem,7vw,4rem)] leading-[0.95] font-extrabold tracking-tight uppercase">
-            Where esports talent gets discovered
+          <h1 className="font-display mt-5 text-[clamp(2.75rem,8vw,4.5rem)] leading-[0.92] font-extrabold tracking-tight uppercase">
+            {siteConfig.name}
           </h1>
+          <p className="font-display mt-3 text-[clamp(1.25rem,3vw,1.75rem)] font-bold tracking-tight text-slate-100 uppercase">
+            {siteConfig.tagline}
+          </p>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
-            Discover opt-in player projections, self-declared team rosters, regional organizations,
-            and community tournament listings. Only players who choose to be discoverable appear —
-            nothing is scraped, nothing is verified.
+            Create your competitive identity, share your card and profile URL immediately, then get
+            BGMI ownership reviewed to appear in the public player registry. Opt-in only — nothing
+            is scraped.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <MarketingCTA href="/signup">Sign up free</MarketingCTA>
@@ -83,14 +87,14 @@ export function ArenaHero() {
           </dl>
           <div className="border-t border-white/10 px-5 py-4">
             <p className="text-xs leading-relaxed text-slate-400">
-              Illustrative athlete profile demonstrating self-attested projection fields. No actual
-              athlete data, competitive records, or verification implied.
+              Illustrative athlete profile demonstrating self-attested projection fields. Ownership
+              review is separate from sharing — the reviewed badge appears only after approval.
             </p>
             <Link
               href="/players"
               className="text-accent-300 mt-2 inline-flex min-h-[44px] items-center text-sm font-bold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              Explore player directory
+              Explore player registry
               <span aria-hidden="true" className="ml-1">
                 →
               </span>

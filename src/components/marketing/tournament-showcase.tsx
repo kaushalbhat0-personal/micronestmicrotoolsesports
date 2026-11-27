@@ -1,5 +1,5 @@
 // Homepage tournament showcase (Stitch-approved composition).
-// Directory mandate: MicroNest is a discovery and promotion directory. We do
+// Directory mandate: FRAGIX is a discovery and promotion directory. We do
 // not operate brackets, live scoring, prize distribution, or prize escrow.
 // All organizer details are self-declared.
 //
@@ -28,7 +28,7 @@ const specimens: Array<{
       { label: "Entry", value: "Free / specified" },
       { label: "Organizer", value: "Community organizer (self-declared)" },
     ],
-    note: "MicroNest serves as a discovery directory and does not host brackets, escrow prize pools, or verify organizer credentials.",
+    note: "FRAGIX serves as a discovery directory and does not host brackets, escrow prize pools, or verify organizer credentials.",
   },
   {
     title: "Illustrative scrim series",
@@ -60,7 +60,7 @@ export function TournamentShowcase() {
       id="tournaments"
       eyebrow="Community & semi-pro circuits"
       title="Tournament directory"
-      lede="Directory mandate: MicroNest is a tournament discovery and promotion directory. We do not operate brackets, live scoring, prize distribution, or prize escrow. All organizer details are self-declared."
+      lede="Directory mandate: FRAGIX is a tournament discovery and promotion directory. We do not operate brackets, live scoring, prize distribution, or prize escrow. All organizer details are self-declared."
     >
       <p
         role="status"

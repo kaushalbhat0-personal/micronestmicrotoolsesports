@@ -41,8 +41,8 @@ export default async function OrganizersPage({
             Organizers
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-300">
-            Discover who runs MicroNest tournaments. Organizer identities are self-declared until
-            MicroNest review confirms them.
+            Discover who runs FRAGIX-listed tournaments. Organizer identities are self-declared until
+            FRAGIX review confirms them.
           </p>
         </div>
       </div>

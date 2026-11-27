@@ -47,7 +47,7 @@ export function organizerTrustLabel(value: OrganizerTrustState): string {
 export function organizerTrustNote(value: OrganizerTrustState): string {
   switch (value) {
     case "confirmed":
-      return "Confirmed by MicroNest review.";
+      return "Confirmed by FRAGIX review.";
     case "submitted":
       return "This information was submitted and has not been reviewed.";
     case "under_review":

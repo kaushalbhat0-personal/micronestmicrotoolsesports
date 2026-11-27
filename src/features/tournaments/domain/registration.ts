@@ -1,6 +1,6 @@
 // P3 tournaments domain — registration method + external URL validation.
 // Only external registration exists in this phase: organizers register
-// players on their own site/forms, and MicroNest hands off clearly. An
+// players on their own site/forms, and FRAGIX hands off clearly. An
 // in-platform registration method is reserved as a type and never
 // validated, rendered, or accepted — inventing it would imply payment and
 // operations flows that are out of scope.
@@ -53,4 +53,4 @@ export function isValidRegistrationUrl(value: unknown): value is string {
 }
 
 export const EXTERNAL_HANDOFF_NOTE =
-  "Registration happens on the organizer's site. You leave MicroNest to register — we never collect entry fees or payments.";
+  "Registration happens on the organizer's site. You leave FRAGIX to register — we never collect entry fees or payments.";

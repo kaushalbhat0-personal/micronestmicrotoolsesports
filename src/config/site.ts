@@ -1,5 +1,9 @@
 export const siteConfig = {
-  name: "MicroNest Esports",
+  name: "FRAGIX",
+  tagline: "Where Competition Connects",
+  category: "Global Esports Network",
   description:
-    "MicroNest Esports is a connected esports discovery ecosystem for players, teams, organizations and brands. Public player discovery is live today, starting with BGMI.",
+    "FRAGIX is a global esports network for competitive players — create your identity, share your card, and get BGMI ownership reviewed to appear in the public player registry. Starting with BGMI; multi-game ahead.",
+  /** Interim geometric mark only — final approved logo asset still required. */
+  markStatus: "interim-geometric" as const,
 } as const;

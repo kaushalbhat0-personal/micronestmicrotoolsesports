@@ -7,7 +7,7 @@ import { ProfileOnboardingForm } from "./onboarding-form";
 
 export const metadata: Metadata = {
   title: "Complete your profile",
-  description: "Create your MicroNest player profile and first game identity.",
+  description: "Create your FRAGIX player profile and first game identity.",
   robots: { index: false, follow: false },
 };
 

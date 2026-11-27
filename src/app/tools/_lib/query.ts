@@ -102,7 +102,7 @@ export interface RouteMetadata {
 export function buildToolsMetadata(): RouteMetadata {
   return {
     title: "Esports tools",
-    description: "Free planning calculators for esports organizers and teams, starting with BGMI.",
+    description: "FRAGIX free planning calculators for esports organizers and teams, starting with BGMI.",
   };
 }
 

@@ -9,7 +9,7 @@ import { buildTeamsCanonicalUrl } from "../_lib/query";
 
 export const metadata: Metadata = {
   title: "Create a team",
-  description: "Start a new MicroNest Esports team for your game and region.",
+  description: "Start a new FRAGIX team for your game and region.",
   robots: { index: false, follow: true },
   ...(buildTeamsCanonicalUrl("/teams/new") === undefined
     ? {}
@@ -49,7 +49,7 @@ export default async function NewTeamPage() {
       <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Create a team</h1>
       <p className="mt-3 max-w-2xl text-base text-slate-600">
         Set up your team identity, game, region and competitive context. Levels are self-reported —
-        never a MicroNest rating.
+        never a FRAGIX rating.
       </p>
 
       {!user ? (

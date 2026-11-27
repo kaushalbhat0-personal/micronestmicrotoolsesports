@@ -225,7 +225,7 @@ export function buildBrandsMetadata(): RouteMetadata {
   return {
     title: "Brand directory",
     description:
-      "Search public MicroNest Esports brand profiles by industry, game interest, region or name. Interests are declared intent, not confirmed offers.",
+      "Search public FRAGIX brand profiles by industry, game interest, region or name. Interests are declared intent, not confirmed offers.",
   };
 }
 

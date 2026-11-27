@@ -48,7 +48,7 @@ export function trustStateLabel(value: TrustState): string {
 export function trustStateNote(value: TrustState): string {
   switch (value) {
     case "confirmed":
-      return "Confirmed by MicroNest review.";
+      return "Confirmed by FRAGIX review.";
     case "submitted":
       return "This information was submitted and has not been reviewed.";
     case "under_review":

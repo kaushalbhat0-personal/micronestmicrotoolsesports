@@ -6,7 +6,7 @@
 // organizer, and trust notes.
 //
 // External vs internal registration is explicit: every handoff states that
-// registration happens on the organizer's site and that MicroNest collects
+// registration happens on the organizer's site and that FRAGIX collects
 // nothing. Operations, payment, and results flows are out of scope and do
 // not appear here.
 
@@ -137,7 +137,7 @@ export function TournamentDetail({ card }: { card: PublicTournamentDetail }) {
                 : "Registration details are not published yet. Check back or contact the organizer."}
             </p>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              Registration happens outside MicroNest — we never collect entry fees or payments.
+              Registration happens outside FRAGIX — we never collect entry fees or payments.
             </p>
           </div>
         )}
@@ -154,7 +154,7 @@ export function TournamentDetail({ card }: { card: PublicTournamentDetail }) {
         <p className="mt-2 max-w-2xl text-sm text-slate-600">{ORGANIZER_TRUST_NOTE}</p>
         <p className="mt-1 max-w-2xl text-sm text-slate-600">
           Tournament moderation and reporting arrive with a later decision — suspicious listings
-          cannot be reported in-product yet, and no listing here implies MicroNest endorsement.
+          cannot be reported in-product yet, and no listing here implies FRAGIX endorsement.
         </p>
       </section>
     </div>

@@ -175,7 +175,7 @@ export function buildOrganizersMetadata(): RouteMetadata {
   return {
     title: "Tournament organizer directory",
     description:
-      "Discover public MicroNest Esports tournament organizers by game, region, type or name.",
+      "Discover public FRAGIX tournament organizers by game, region, type or name.",
   };
 }
 

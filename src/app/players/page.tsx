@@ -44,24 +44,24 @@ export default async function PlayersPage({
         <div className="border-b-2 border-accent-600 px-4 py-8 sm:px-6">
           <p className="flex items-center gap-2 text-xs font-bold tracking-[0.18em] text-accent-300 uppercase">
             <span aria-hidden="true" className="inline-block h-3 w-1 bg-accent-600" />
-            Player discovery
+            Player registry
           </p>
           <h1 className="font-display mt-2 text-3xl font-extrabold tracking-tight uppercase sm:text-4xl">
             Discover esports players.
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300">
-            Explore opt-in player profiles across supported titles, starting
-            with BGMI. Search by game, role, region or name — only players
-            who chose to be discoverable appear.
+            Browse the FRAGIX player registry across supported titles, starting with BGMI. Search by
+            game, role, region or name — only ownership-reviewed, opted-in players appear here.
           </p>
           <p className="mt-3 max-w-2xl text-xs leading-relaxed text-slate-400">
-            Listings show self-declared information only. No contact details,
-            and no verification of identity or skill is implied.{" "}
+            Creating a profile and downloading a share PNG does not require ownership review. Registry
+            listings require approved BGMI ownership evidence, a complete profile, and discoverability
+            opt-in. No contact details are shown.{" "}
             <Link
               href="/about"
               className="font-semibold text-slate-200 underline underline-offset-4 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              How opt-in discovery works
+              How registry eligibility works
             </Link>
           </p>
         </div>

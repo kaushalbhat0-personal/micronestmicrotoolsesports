@@ -1,6 +1,6 @@
 // Public team result card. Renders ONLY public directory fields (slug, name,
 // game, region, levels, recruiting, member count). Levels are always labelled
-// self-reported (D1-D6 pending — never a MicroNest rating). No IDs beyond the
+// self-reported (D1-D6 pending — never a FRAGIX rating). No IDs beyond the
 // public slug link, no owner/org internals, no applicant data, no metrics.
 
 import Link from "next/link";

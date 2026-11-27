@@ -191,7 +191,7 @@ export function buildOrganizationsMetadata(): RouteMetadata {
   return {
     title: "Organization directory",
     description:
-      "Search public MicroNest Esports organizations by game, region, type or name. Teams stay independently discoverable.",
+      "Search public FRAGIX organizations by game, region, type or name. Teams stay independently discoverable.",
   };
 }
 

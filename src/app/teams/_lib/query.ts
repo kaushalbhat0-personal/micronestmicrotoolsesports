@@ -173,7 +173,7 @@ export interface RouteMetadata {
 export function buildTeamsMetadata(): RouteMetadata {
   return {
     title: "Team directory",
-    description: "Search public MicroNest Esports teams by game, region or name.",
+    description: "Search public FRAGIX teams by game, region or name.",
   };
 }
 

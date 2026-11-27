@@ -61,7 +61,7 @@ export function OrganizerDetail({ card }: { card: PublicOrganizerDetail }) {
         </p>
         <p className="mt-1 max-w-2xl text-sm text-slate-600">
           Publishing a tournament does not confirm an organizer, and a confirmed organizer is never
-          implied from a listing. Only MicroNest review confirms an organizer.
+          implied from a listing. Only FRAGIX review confirms an organizer.
         </p>
       </div>
 
@@ -140,7 +140,7 @@ export function OrganizerDetail({ card }: { card: PublicOrganizerDetail }) {
         {card.published_tournament_count === 0 ? (
           <p className="mt-2 text-sm text-slate-500">
             No published tournaments yet. Tournament listings appear here once this organizer
-            publishes through MicroNest review.
+            publishes through FRAGIX review.
           </p>
         ) : (
           <div className="mt-2">

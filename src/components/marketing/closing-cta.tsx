@@ -5,7 +5,7 @@ import { MarketingCTA } from "./cta-button";
 
 export function ClosingCTA({
   title = "Your next opportunity starts here.",
-  copy = "Browse an open, transparent esports directory — opt-in player projections, self-declared rosters, and community tournament listings with zero platform lock-in. Create a free account to manage teams and your player profile.",
+  copy = "Create your FRAGIX identity, share your card immediately, and get BGMI ownership reviewed for the public player registry. Browse self-declared rosters and community tournament listings with zero platform lock-in.",
 }: {
   title?: string;
   copy?: string;

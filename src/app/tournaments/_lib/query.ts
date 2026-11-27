@@ -190,7 +190,7 @@ export interface RouteMetadata {
 export function buildTournamentsMetadata(): RouteMetadata {
   return {
     title: "Tournament directory",
-    description: "Discover MicroNest Esports tournaments by game, region, status or name.",
+    description: "Discover FRAGIX tournaments by game, region, status or name.",
   };
 }
 

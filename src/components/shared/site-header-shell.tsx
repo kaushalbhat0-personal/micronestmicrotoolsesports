@@ -32,19 +32,13 @@ function BrandMark() {
     <Link
       href="/"
       className="flex min-h-[44px] items-center gap-2.5 rounded-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-      aria-label="MicroNest Esports — home"
+      aria-label={`${siteConfig.name} — home`}
     >
+      {/* Interim geometric F mark — matches src/app/icon.svg; final logo TBD. */}
       <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28" className="shrink-0">
         <rect width="28" height="28" rx="3" fill="#FFFFFF" />
-        <path
-          d="M7 20V8l7 6 7-6v12"
-          fill="none"
-          stroke="#0A0E14"
-          strokeWidth="2.5"
-          strokeLinecap="square"
-          strokeLinejoin="miter"
-        />
-        <rect x="7" y="20" width="14" height="2.5" fill="#C8102E" />
+        <path d="M8 7h12v3H11v3.5h7.5v3H11V21H8V7z" fill="#0A0E14" />
+        <rect x="8" y="21" width="12" height="2.5" fill="#C8102E" />
       </svg>
       <span className="font-display text-lg font-extrabold tracking-tight uppercase">
         {siteConfig.name}
@@ -168,7 +162,7 @@ export function SiteHeaderShell({ signedIn }: { signedIn: boolean }) {
                     aria-hidden="true"
                     className="bg-accent-600 inline-flex h-7 w-7 items-center justify-center text-xs font-extrabold text-white"
                   >
-                    M
+                    F
                   </span>
                   Account
                   <span aria-hidden="true" className="text-xs">

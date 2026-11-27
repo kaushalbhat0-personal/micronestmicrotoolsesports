@@ -198,7 +198,7 @@ export interface RouteMetadata {
 export function buildNewsMetadata(): RouteMetadata {
   return {
     title: "Esports news",
-    description: "MicroNest Esports news: industry stories, tournament coverage and guides.",
+    description: "FRAGIX news: industry stories, tournament coverage and guides.",
   };
 }
 
@@ -211,7 +211,7 @@ export function buildNewsDetailMetadata(card: PublicArticleDetail): RouteMetadat
   }
   return {
     title,
-    description: `MicroNest Esports story: ${card.headline} (@${card.slug}).`,
+    description: `FRAGIX story: ${card.headline} (@${card.slug}).`,
   };
 }
 

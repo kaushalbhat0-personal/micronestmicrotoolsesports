@@ -1,6 +1,6 @@
 // D1 teams domain — competitive levels (REIMPLEMENT from legacy finder levels).
 // Legacy: legacy/application/src/features/finder/domain/levels.ts
-// Self-reported context only, never a MicroNest rating.
+// Self-reported context only, never a FRAGIX rating.
 export const COMPETITIVE_LEVELS = [
   "casual",
   "community",
@@ -35,4 +35,4 @@ export function meetsLevelMinimum(playerCurrent: CompetitiveLevel, minimum: Comp
   return levelIndex(playerCurrent) >= levelIndex(minimum) - LEVEL_WINDOW_BELOW;
 }
 
-export const SELF_REPORTED_LEVEL_NOTE = "Self-reported competitive context, not a MicroNest rating.";
+export const SELF_REPORTED_LEVEL_NOTE = "Self-reported competitive context, not a FRAGIX rating.";

@@ -112,7 +112,7 @@ export function NewsDetail({ card }: { card: PublicArticleDetail }) {
         </h2>
         <p className="mt-2 text-sm text-slate-600">
           News moderation and corrections arrive with a later decision — factual errors cannot be
-          reported in-product yet, and no story here implies MicroNest endorsement of any team,
+          reported in-product yet, and no story here implies FRAGIX endorsement of any team,
           organizer, or claim.
         </p>
       </section>

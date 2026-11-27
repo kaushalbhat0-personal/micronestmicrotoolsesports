@@ -217,7 +217,7 @@ describe("metadata builders — projection fields only", () => {
 
   it("keeps directory and not-found copy generic (no PII, no existence signal)", () => {
     const directory = buildDirectoryMetadata();
-    expect(directory.title).toBe("Player directory");
+    expect(directory.title).toBe("Player registry");
     expect(JSON.stringify(directory)).not.toContain("game_user_id");
     const missing = buildNotFoundMetadata();
     expect(missing.title).toBe("Player not found");

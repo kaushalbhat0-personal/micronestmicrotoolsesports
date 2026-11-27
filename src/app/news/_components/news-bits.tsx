@@ -28,7 +28,7 @@ export function NewsCategoryBadge({ category }: { category: ArticleCategory }) {
 
 export function newsGameDisplayName(gameKey: string | null): string {
   if (gameKey === null) {
-    return "MicroNest";
+    return "FRAGIX";
   }
   return getGameByKey(gameKey)?.shortName ?? gameKey;
 }

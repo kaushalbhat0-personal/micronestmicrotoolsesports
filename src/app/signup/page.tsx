@@ -5,7 +5,7 @@ import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = {
   title: "Sign up",
-  description: "Create a MicroNest Esports account to manage teams and profile settings.",
+  description: "Create a FRAGIX account to manage teams and profile settings.",
   robots: { index: false, follow: false },
 };
 
@@ -21,8 +21,9 @@ export default function SignupPage() {
         Sign up
       </h1>
       <p className="mt-3 text-sm text-slate-600">
-        Create your MicroNest account and continue straight into profile setup. Sessions use secure
-        cookies — no email confirmation step.
+        Create your FRAGIX account and continue straight into profile setup. You can share your
+        identity immediately; BGMI ownership review is a separate step for the public registry.
+        Sessions use secure cookies — no email confirmation step.
       </p>
       <div className="mt-6 border border-slate-200 bg-white p-4 sm:p-6">
         <Suspense fallback={<p className="text-sm text-slate-600">Loading sign-up form…</p>}>

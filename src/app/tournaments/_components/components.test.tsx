@@ -147,7 +147,7 @@ describe("TournamentDetail", () => {
     expect(html).toContain('href="https://events.example.com/register"');
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
-    expect(html).toContain("leave MicroNest");
+    expect(html).toContain("leave FRAGIX");
     expect(html).not.toContain("Pay now");
   });
 
@@ -164,7 +164,7 @@ describe("TournamentDetail", () => {
   it("states trust boundaries without implying endorsement", () => {
     const html = renderToStaticMarkup(<TournamentDetail card={CARD} />);
     expect(html).toContain("self-declared");
-    expect(html).toContain("no listing here implies MicroNest endorsement");
+    expect(html).toContain("no listing here implies FRAGIX endorsement");
   });
 });
 

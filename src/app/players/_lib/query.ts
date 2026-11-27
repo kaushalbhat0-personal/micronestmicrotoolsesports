@@ -191,8 +191,8 @@ export interface RouteMetadata {
 // Directory metadata: static copy only, no projection data, no PII.
 export function buildDirectoryMetadata(): RouteMetadata {
   return {
-    title: "Player directory",
-    description: "Search public MicroNest Esports player profiles by game, region, role or name.",
+    title: "Player registry",
+    description: "Search the public FRAGIX player registry by game, region, role or name. Registry listings require approved BGMI ownership.",
   };
 }
 

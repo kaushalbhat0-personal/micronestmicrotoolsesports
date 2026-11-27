@@ -51,4 +51,4 @@ export function isOrganizerSocialLink(value: unknown): value is OrganizerSocialL
 }
 
 export const ORGANIZER_LINKS_NOTE =
-  "Links are self-declared by the organizer and do not prove that MicroNest endorses this organizer.";
+  "Links are self-declared by the organizer and do not prove that FRAGIX endorses this organizer.";

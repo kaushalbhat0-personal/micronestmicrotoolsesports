@@ -4,7 +4,7 @@ import { ForgotPasswordForm } from "./forgot-password-form";
 
 export const metadata: Metadata = {
   title: "Forgot password",
-  description: "Request a MicroNest Esports password reset link.",
+  description: "Request a FRAGIX password reset link.",
   robots: { index: false, follow: false },
 };
 
