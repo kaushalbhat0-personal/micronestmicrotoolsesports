@@ -14,7 +14,7 @@ const RECORD = readFileSync(path.join(DOC_DIR, "owner-approval-record.md"), "utf
 
 function extractSqlBlocks(markdown: string): string[] {
   const blocks: string[] = [];
-  const re = /```sql\n([\s\S]*?)```/g;
+  const re = /```sql\r?\n([\s\S]*?)```/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(markdown)) !== null) {
     blocks.push(stripSqlComments(match[1] as string));
@@ -57,7 +57,7 @@ describe("activation proposal shape", () => {
   });
 
   it("every queue policy is gated (moderator check or session membership)", () => {
-    const policies = SQL.match(/create policy "[^"]+"\n[^;]+?;/gi) ?? [];
+    const policies = SQL.match(/create policy "[^"]+"\r?\n[^;]+?;/gi) ?? [];
     expect(policies.length).toBe(9);
     for (const policy of policies) {
       expect(policy).toMatch(/is_super_admin\(\)|auth\.uid\(\)/);
